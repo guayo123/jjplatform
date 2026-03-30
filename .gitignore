@@ -1,0 +1,36 @@
+# === Backend ===
+backend/target/
+backend/.env
+backend/*.log
+backend/uploads/
+
+# Maven
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+
+# === Frontend ===
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+
+# === IDE ===
+.idea/
+.vscode/
+*.iml
+*.iws
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini

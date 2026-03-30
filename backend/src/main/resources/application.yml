@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: jjplatform-api
+
+  datasource:
+    url: jdbc:postgresql://localhost:5433/jjplatform
+    username: postgres
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      # 'update' permite que Hibernate cree y actualice las tablas automáticamente
+      ddl-auto: update
+    show-sql: true # Lo cambiamos a 'true' para ver las consultas SQL en la consola, muy útil para depurar
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+server:
+  port: 8081
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:your-256-bit-secret-key-change-in-production-min-32-chars!!}
+    expiration-ms: 86400000  # 24 hours
+  file:
+    upload-dir: ${FILE_UPLOAD_DIR:./uploads}
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:5174}
