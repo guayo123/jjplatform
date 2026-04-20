@@ -56,7 +56,6 @@ public class SecurityConfig {
         return http.build();
     }
         */
-
     @Bean
 public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http
@@ -65,32 +64,12 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         .sessionManagement(session ->
             session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(auth -> auth
-            // Preflight (CORS)
-            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
-            // Públicos
-            .requestMatchers("/auth/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/public/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
-
-            // Roles
-            .requestMatchers("/super", "/super/**").hasRole("SUPER_ADMIN")
-            .requestMatchers("/users", "/users/**").hasRole("ADMIN")
-
-            .requestMatchers(HttpMethod.POST, "/payments/**").hasAnyRole("ADMIN", "ENCARGADO")
-
-            .requestMatchers(HttpMethod.POST, "/students/**").hasAnyRole("ADMIN", "ENCARGADO")
-            .requestMatchers(HttpMethod.PUT, "/students/**").hasAnyRole("ADMIN", "ENCARGADO")
-            .requestMatchers(HttpMethod.DELETE, "/students/**").hasAnyRole("ADMIN", "ENCARGADO")
-
-            // Todo lo demás requiere auth
-            .anyRequest().authenticated()
-        )
-        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .anyRequest().permitAll()
+        );
 
     return http.build();
 }
-
+    
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);
