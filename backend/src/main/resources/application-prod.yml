@@ -3,7 +3,9 @@ spring:
     name: jjplatform-api
 
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/jjplatform}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:jjplatform}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 5
