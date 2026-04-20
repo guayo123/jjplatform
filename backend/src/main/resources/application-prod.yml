@@ -3,7 +3,7 @@ spring:
     name: jjplatform-api
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/jjplatform}
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/jjplatform}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 5
