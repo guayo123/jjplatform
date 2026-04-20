@@ -32,7 +32,7 @@ spring:
       max-request-size: 5MB
 
 server:
-  port: ${PORT:8081}
+  port: ${PORT}
   servlet:
     context-path: /api
   shutdown: graceful
