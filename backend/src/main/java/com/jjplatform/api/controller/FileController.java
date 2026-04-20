@@ -1,5 +1,6 @@
 package com.jjplatform.api.controller;
 
+import com.jjplatform.api.model.Academy;
 import com.jjplatform.api.model.Photo;
 import com.jjplatform.api.repository.AcademyRepository;
 import com.jjplatform.api.repository.PhotoRepository;
@@ -55,5 +56,41 @@ public class FileController {
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         "inline; filename=\"" + resource.getFilename() + "\"")
                 .body(resource);
+    }
+
+    @DeleteMapping("/photos/{id}")
+    public ResponseEntity<Void> deletePhoto(@PathVariable Long id) throws IOException {
+        Long academyId = securityHelper.getCurrentAcademyId();
+        Photo photo = photoRepository.findById(id)
+                .orElse(null);
+        if (photo == null || !photo.getAcademy().getId().equals(academyId)) {
+            return ResponseEntity.notFound().build();
+        }
+        // Extract filename from URL (/api/files/{filename})
+        String url = photo.getUrl();
+        String filename = url.substring(url.lastIndexOf('/') + 1);
+        fileStorageService.delete(filename);
+        photoRepository.delete(photo);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/logo")
+    public ResponseEntity<Map<String, String>> uploadLogo(
+            @RequestParam("file") MultipartFile file) throws IOException {
+        Long academyId = securityHelper.getCurrentAcademyId();
+        Academy academy = academyRepository.findById(academyId).orElseThrow();
+
+        // Delete old logo file if present
+        if (academy.getLogoUrl() != null) {
+            String oldFilename = academy.getLogoUrl().substring(academy.getLogoUrl().lastIndexOf('/') + 1);
+            try { fileStorageService.delete(oldFilename); } catch (IOException ignored) { }
+        }
+
+        String filename = fileStorageService.store(file);
+        String fileUrl = "/api/files/" + filename;
+        academy.setLogoUrl(fileUrl);
+        academyRepository.save(academy);
+
+        return ResponseEntity.ok(Map.of("url", fileUrl));
     }
 }

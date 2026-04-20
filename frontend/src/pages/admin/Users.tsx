@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { usersApi } from '../../api/users';
+import { useConfirm } from '../../components/ConfirmContext';
 import type { AppUser, CreateUserRequest } from '../../types';
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
@@ -19,13 +20,13 @@ export default function Users() {
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
   const [form, setForm] = useState<CreateUserRequest>({
     email: '',
     password: '',
     role: 'PROFESOR',
   });
   const [submitting, setSubmitting] = useState(false);
+  const confirm = useConfirm();
 
   const load = async () => {
     setLoading(true);
@@ -57,15 +58,22 @@ export default function Users() {
     }
   };
 
-  const handleDelete = async (user: AppUser) => {
-    if (!confirm(`¿Eliminar al usuario ${user.email}?`)) return;
+  const handleToggleActive = async (user: AppUser) => {
+    const action = user.active ? 'desactivar' : 'activar';
+    const ok = await confirm({
+      message: `¿Deseas ${action} al usuario ${user.email}?`,
+      confirmLabel: action.charAt(0).toUpperCase() + action.slice(1),
+      danger: user.active,
+    });
+    if (!ok) return;
     try {
-      await usersApi.delete(user.id);
-      setSuccess('Usuario eliminado');
+      await usersApi.toggleActive(user.id);
+      setSuccess(`Usuario ${user.active ? 'desactivado' : 'activado'} correctamente`);
       setTimeout(() => setSuccess(null), 3000);
       load();
-    } catch {
-      setError('Error al eliminar usuario');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al actualizar usuario';
+      setError(msg);
     }
   };
 
@@ -189,6 +197,7 @@ export default function Users() {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Creado</th>
                 <th className="px-6 py-3" />
               </tr>
@@ -197,11 +206,20 @@ export default function Users() {
               {users.map((u) => {
                 const badge = ROLE_LABELS[u.role] ?? { label: u.role, color: 'bg-gray-100 text-gray-700' };
                 return (
-                  <tr key={u.id} className="hover:bg-gray-50">
+                  <tr key={u.id} className={`hover:bg-gray-50 ${!u.active ? 'opacity-60' : ''}`}>
                     <td className="px-6 py-4 text-sm font-medium text-gray-800">{u.email}</td>
                     <td className="px-6 py-4">
                       <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${badge.color}`}>
                         {badge.label}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                        u.active
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {u.active ? 'Activo' : 'Inactivo'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
@@ -209,10 +227,14 @@ export default function Users() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
-                        onClick={() => handleDelete(u)}
-                        className="text-xs text-red-500 hover:text-red-700 font-medium"
+                        onClick={() => handleToggleActive(u)}
+                        className={`text-xs font-medium ${
+                          u.active
+                            ? 'text-amber-600 hover:text-amber-800'
+                            : 'text-green-600 hover:text-green-800'
+                        }`}
                       >
-                        Eliminar
+                        {u.active ? 'Desactivar' : 'Activar'}
                       </button>
                     </td>
                   </tr>

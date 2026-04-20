@@ -35,4 +35,14 @@ public class BracketMatch {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "winner_id")
     private TournamentParticipant winner;
+
+    @Enumerated(EnumType.STRING)
+    private MatchResultType resultType;
+
+    @Column(name = "category_group")
+    private String categoryGroup;
+
+    public enum MatchResultType {
+        SUMISION, PUNTOS, VENTAJAS, PENALIZACIONES, DECISION_ARBITRO, DESCALIFICACION
+    }
 }

@@ -26,6 +26,10 @@ public class Student {
 
     private Integer age;
 
+    private Double weight;
+
+    private String belt;
+
     private String photoUrl;
 
     private String address;

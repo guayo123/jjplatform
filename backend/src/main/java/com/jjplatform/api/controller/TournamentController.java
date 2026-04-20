@@ -57,10 +57,19 @@ public class TournamentController {
     public ResponseEntity<TournamentDto> recordResult(
             @PathVariable Long id,
             @PathVariable Long matchId,
-            @RequestBody Map<String, Long> body) {
+            @RequestBody Map<String, Object> body) {
         Long academyId = securityHelper.getCurrentAcademyId();
-        Long winnerId = body.get("winnerId");
+        Long winnerId = ((Number) body.get("winnerId")).longValue();
+        String resultType = (String) body.get("resultType");
         return ResponseEntity.ok(
-                tournamentService.recordMatchResult(id, matchId, winnerId, academyId));
+                tournamentService.recordMatchResult(id, matchId, winnerId, resultType, academyId));
+    }
+
+    @DeleteMapping("/{id}/participants/{participantId}")
+    public ResponseEntity<TournamentDto> removeParticipant(
+            @PathVariable Long id,
+            @PathVariable Long participantId) {
+        Long academyId = securityHelper.getCurrentAcademyId();
+        return ResponseEntity.ok(tournamentService.removeParticipant(id, participantId, academyId));
     }
 }

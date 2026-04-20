@@ -9,20 +9,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 /**
  * Generates single-elimination tournament brackets.
  *
- * Algorithm:
- * 1. Shuffle participants for random seeding
- * 2. Calculate total rounds = ceil(log2(participants))
- * 3. Pad to next power of 2 with "byes" (null slots)
- * 4. Create matches for first round, assigning participants
- * 5. Create empty matches for subsequent rounds
- * 6. Auto-advance participants with byes
+ * For CATEGORIAS tournaments, participants are automatically grouped by
+ * (ageCategory + belt + weightCategory) and each group gets its own bracket.
+ * For ABSOLUTO tournaments, all participants share a single bracket.
  */
 @Service
 @RequiredArgsConstructor
@@ -32,36 +26,67 @@ public class BracketService {
 
     @Transactional
     public void generateBracket(Tournament tournament) {
-        // Clear existing matches
         matchRepository.deleteByTournamentId(tournament.getId());
         tournament.getMatches().clear();
 
-        List<TournamentParticipant> participants = new ArrayList<>(tournament.getParticipants());
+        if (tournament.getTipo() == Tournament.TournamentTipo.ABSOLUTO) {
+            generateGroupBracket(tournament, new ArrayList<>(tournament.getParticipants()), null);
+        } else {
+            // Group participants by ageCategory + belt + weightCategory
+            Map<String, List<TournamentParticipant>> groups = new LinkedHashMap<>();
+            for (TournamentParticipant p : tournament.getParticipants()) {
+                String age    = p.getAgeCategory()   != null ? p.getAgeCategory()   : "Sin edad";
+                String belt   = p.getStudent().getBelt()   != null ? p.getStudent().getBelt()   : "Sin cinturón";
+                String weight = p.getWeightCategory() != null ? p.getWeightCategory() : "Sin peso";
+                String key = age + " / " + belt + " / " + weight;
+                groups.computeIfAbsent(key, k -> new ArrayList<>()).add(p);
+            }
+            for (Map.Entry<String, List<TournamentParticipant>> entry : groups.entrySet()) {
+                generateGroupBracket(tournament, entry.getValue(), entry.getKey());
+            }
+        }
+    }
+
+    private void generateGroupBracket(Tournament tournament,
+                                       List<TournamentParticipant> groupParticipants,
+                                       String categoryGroup) {
+        List<TournamentParticipant> participants = new ArrayList<>(groupParticipants);
         Collections.shuffle(participants);
 
-        int n = participants.size();
-        int totalSlots = nextPowerOf2(n);
+        // Single participant → auto-winner (bye match)
+        if (participants.size() == 1) {
+            BracketMatch match = BracketMatch.builder()
+                    .tournament(tournament)
+                    .categoryGroup(categoryGroup)
+                    .round(1)
+                    .matchNumber(1)
+                    .participant1(participants.get(0))
+                    .winner(participants.get(0))
+                    .build();
+            matchRepository.save(match);
+            return;
+        }
+
+        int totalSlots = nextPowerOf2(participants.size());
         int totalRounds = (int) (Math.log(totalSlots) / Math.log(2));
 
-        // Pad with null (byes)
         while (participants.size() < totalSlots) {
             participants.add(null);
         }
 
-        // Generate first round matches
         List<BracketMatch> currentRound = new ArrayList<>();
         int matchNumber = 1;
 
         for (int i = 0; i < totalSlots; i += 2) {
             BracketMatch match = BracketMatch.builder()
                     .tournament(tournament)
+                    .categoryGroup(categoryGroup)
                     .round(1)
                     .matchNumber(matchNumber++)
                     .participant1(participants.get(i))
                     .participant2(participants.get(i + 1))
                     .build();
 
-            // Auto-advance if bye
             if (match.getParticipant1() == null && match.getParticipant2() != null) {
                 match.setWinner(match.getParticipant2());
             } else if (match.getParticipant2() == null && match.getParticipant1() != null) {
@@ -72,7 +97,6 @@ public class BracketService {
             currentRound.add(match);
         }
 
-        // Generate subsequent rounds
         for (int round = 2; round <= totalRounds; round++) {
             List<BracketMatch> nextRound = new ArrayList<>();
             matchNumber = 1;
@@ -80,11 +104,11 @@ public class BracketService {
             for (int i = 0; i < currentRound.size(); i += 2) {
                 BracketMatch match = BracketMatch.builder()
                         .tournament(tournament)
+                        .categoryGroup(categoryGroup)
                         .round(round)
                         .matchNumber(matchNumber++)
                         .build();
 
-                // Auto-fill from bye winners of previous round
                 BracketMatch prev1 = currentRound.get(i);
                 BracketMatch prev2 = currentRound.get(i + 1);
 
@@ -106,7 +130,7 @@ public class BracketService {
     }
 
     @Transactional
-    public void recordResult(Tournament tournament, Long matchId, Long winnerId) {
+    public void recordResult(Tournament tournament, Long matchId, Long winnerId, String resultType) {
         BracketMatch match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match not found"));
 
@@ -114,7 +138,6 @@ public class BracketService {
             throw new ResourceNotFoundException("Match not found in this tournament");
         }
 
-        // Validate winner is one of the participants
         boolean validWinner = (match.getParticipant1() != null && match.getParticipant1().getId().equals(winnerId))
                 || (match.getParticipant2() != null && match.getParticipant2().getId().equals(winnerId));
 
@@ -127,9 +150,11 @@ public class BracketService {
                 : match.getParticipant2();
 
         match.setWinner(winner);
+        if (resultType != null) {
+            match.setResultType(BracketMatch.MatchResultType.valueOf(resultType));
+        }
         matchRepository.save(match);
 
-        // Advance winner to next round
         advanceWinner(tournament, match, winner);
     }
 
@@ -137,11 +162,14 @@ public class BracketService {
         List<BracketMatch> allMatches = matchRepository
                 .findByTournamentIdOrderByRoundAscMatchNumberAsc(tournament.getId());
 
-        int nextRound = match.getRound() + 1;
+        int nextRound       = match.getRound() + 1;
         int nextMatchNumber = (match.getMatchNumber() + 1) / 2;
+        String categoryGroup = match.getCategoryGroup();
 
         allMatches.stream()
-                .filter(m -> m.getRound() == nextRound && m.getMatchNumber() == nextMatchNumber)
+                .filter(m -> m.getRound() == nextRound
+                        && m.getMatchNumber() == nextMatchNumber
+                        && Objects.equals(m.getCategoryGroup(), categoryGroup))
                 .findFirst()
                 .ifPresent(nextMatch -> {
                     if (match.getMatchNumber() % 2 == 1) {
@@ -155,9 +183,7 @@ public class BracketService {
 
     private int nextPowerOf2(int n) {
         int power = 1;
-        while (power < n) {
-            power *= 2;
-        }
+        while (power < n) power *= 2;
         return power;
     }
 }

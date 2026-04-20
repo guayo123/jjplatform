@@ -36,6 +36,19 @@ public class Tournament {
 
     @Enumerated(EnumType.STRING)
     @Builder.Default
+    private TournamentTipo tipo = TournamentTipo.CATEGORIAS;
+
+    /** Cinturones permitidos (separados por coma). Null = sin restricción */
+    private String cinturonesFiltro;
+
+    /** Categorías de peso permitidas (separadas por coma). Null = sin restricción */
+    private String categoriasPesoFiltro;
+
+    /** Categorías de edad permitidas (separadas por coma). Null = sin restricción */
+    private String categoriaEdadFiltro;
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
     private TournamentStatus status = TournamentStatus.OPEN;
 
     @Builder.Default
@@ -52,5 +65,9 @@ public class Tournament {
 
     public enum TournamentStatus {
         OPEN, IN_PROGRESS, COMPLETED
+    }
+
+    public enum TournamentTipo {
+        CATEGORIAS, ABSOLUTO
     }
 }

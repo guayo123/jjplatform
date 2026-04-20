@@ -85,6 +85,17 @@ public class FileStorageService {
         }
     }
 
+    public void delete(String filename) throws IOException {
+        if (!filename.matches("[a-zA-Z0-9._-]+")) {
+            throw new IllegalArgumentException("Invalid filename");
+        }
+        Path filePath = uploadDir.resolve(filename).normalize();
+        if (!filePath.startsWith(uploadDir)) {
+            throw new IllegalArgumentException("Invalid file path");
+        }
+        Files.deleteIfExists(filePath);
+    }
+
     private String getExtension(String filename) {
         if (filename == null) return ".jpg";
         int lastDot = filename.lastIndexOf('.');

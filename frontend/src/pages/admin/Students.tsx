@@ -4,6 +4,27 @@ import { useStudentStore } from '../../stores/studentStore';
 import { useAuthStore } from '../../stores/authStore';
 import type { Student } from '../../types';
 
+const BELT_COLORS: Record<string, string> = {
+  Blanco:  'bg-gray-100 text-gray-700 border border-gray-300',
+  Gris:    'bg-gray-300 text-gray-800',
+  Amarillo:'bg-yellow-100 text-yellow-800',
+  Naranja: 'bg-orange-100 text-orange-800',
+  Verde:   'bg-green-100 text-green-800',
+  Azul:    'bg-blue-100 text-blue-800',
+  Morado:  'bg-purple-100 text-purple-800',
+  Café:    'bg-amber-100 text-amber-900',
+  Negro:   'bg-gray-900 text-white',
+};
+
+function BeltBadge({ belt }: { belt: string }) {
+  const cls = BELT_COLORS[belt] ?? 'bg-gray-100 text-gray-600';
+  return (
+    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${cls}`}>
+      {belt}
+    </span>
+  );
+}
+
 export default function Students() {
   const { students, loading, fetchStudents, updateStudent } = useStudentStore();
   const { role } = useAuthStore();
@@ -17,6 +38,8 @@ export default function Students() {
     await updateStudent(student.id, {
       name: student.name,
       age: student.age,
+      weight: student.weight,
+      belt: student.belt,
       photoUrl: student.photoUrl,
       address: student.address,
       medicalNotes: student.medicalNotes,
@@ -54,6 +77,8 @@ export default function Students() {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Edad</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Peso</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cinturón</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
               </tr>
@@ -70,6 +95,16 @@ export default function Students() {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">{student.age ?? '—'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {student.weight != null ? `${student.weight} kg` : '—'}
+                  </td>
+                  <td className="px-6 py-4">
+                    {student.belt ? (
+                      <BeltBadge belt={student.belt} />
+                    ) : (
+                      <span className="text-gray-400 text-sm">—</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4">
                     {canEdit ? (
                       <button

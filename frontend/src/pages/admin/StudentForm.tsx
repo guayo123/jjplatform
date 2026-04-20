@@ -3,8 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { studentsApi } from '../../api/students';
 import { filesApi } from '../../api/files';
 import { useStudentStore } from '../../stores/studentStore';
+import { useToast } from '../../components/ToastContext';
 import LoadingOverlay from '../../components/LoadingOverlay';
-import Toast from '../../components/Toast';
 import type { StudentForm as StudentFormType } from '../../types';
 
 export default function StudentForm() {
@@ -16,6 +16,8 @@ export default function StudentForm() {
   const [form, setForm] = useState<StudentFormType>({
     name: '',
     age: null,
+    weight: null,
+    belt: null,
     photoUrl: null,
     address: null,
     medicalNotes: null,
@@ -23,8 +25,8 @@ export default function StudentForm() {
   });
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [errors, setErrors] = useState<{ name?: string; age?: string }>({});
+  const { toast } = useToast();
 
   const validate = () => {
     const newErrors: { name?: string; age?: string } = {};
@@ -46,6 +48,8 @@ export default function StudentForm() {
         setForm({
           name: s.name,
           age: s.age,
+          weight: s.weight,
+          belt: s.belt,
           photoUrl: s.photoUrl,
           address: s.address,
           medicalNotes: s.medicalNotes,
@@ -63,7 +67,7 @@ export default function StudentForm() {
       const { url } = await filesApi.upload(file);
       setForm((f) => ({ ...f, photoUrl: url }));
     } catch {
-      alert('Error al subir la foto');
+      toast.error('Error al subir la foto');
     } finally {
       setUploading(false);
     }
@@ -79,10 +83,10 @@ export default function StudentForm() {
         new Promise((resolve) => setTimeout(resolve, 2000)),
       ]);
       if (result.status === 'rejected') throw result.reason;
-      setToast({ message: isEdit ? 'Alumno actualizado correctamente' : 'Alumno creado correctamente', type: 'success' });
+      toast.success(isEdit ? 'Alumno actualizado correctamente' : 'Alumno creado correctamente');
       setTimeout(() => navigate('/admin/students'), 1500);
     } catch {
-      setToast({ message: 'Ocurrió un error al guardar. Intente nuevamente.', type: 'error' });
+      toast.error('Ocurrió un error al guardar. Intente nuevamente.');
     } finally {
       setSaving(false);
     }
@@ -91,7 +95,6 @@ export default function StudentForm() {
   return (
     <div className="max-w-2xl">
       {saving && <LoadingOverlay message={isEdit ? 'Actualizando alumno...' : 'Creando alumno...'} />}
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <h1 className="text-2xl font-bold mb-6">{isEdit ? 'Editar Alumno' : 'Nuevo Alumno'}</h1>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm p-6 space-y-5">
@@ -136,6 +139,46 @@ export default function StudentForm() {
             }`}
           />
           {errors.age && <p className="mt-1 text-xs text-red-500">{errors.age}</p>}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label>
+            <input
+              type="number"
+              value={form.weight ?? ''}
+              onChange={(e) => setForm({ ...form, weight: e.target.value ? Number(e.target.value) : null })}
+              min={1}
+              max={300}
+              step={0.1}
+              placeholder="ej: 72.5"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Cinturón</label>
+            <select
+              value={form.belt ?? ''}
+              onChange={(e) => setForm({ ...form, belt: e.target.value || null })}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none bg-white"
+            >
+              <option value="">Sin cinturón</option>
+              <optgroup label="Juveniles (≤ 15 años)">
+                <option value="Blanco">Blanco</option>
+                <option value="Gris">Gris</option>
+                <option value="Amarillo">Amarillo</option>
+                <option value="Naranja">Naranja</option>
+                <option value="Verde">Verde</option>
+              </optgroup>
+              <optgroup label="Adultos (16+ años)">
+                <option value="Blanco">Blanco</option>
+                <option value="Azul">Azul</option>
+                <option value="Morado">Morado</option>
+                <option value="Café">Café</option>
+                <option value="Negro">Negro</option>
+              </optgroup>
+            </select>
+          </div>
         </div>
 
         <div>

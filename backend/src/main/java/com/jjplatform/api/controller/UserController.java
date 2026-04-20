@@ -32,10 +32,11 @@ public class UserController {
         return ResponseEntity.status(201).body(created);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    @PutMapping("/{id}/toggle-active")
+    public ResponseEntity<UserDto> toggleActive(@PathVariable Long id) {
         Long academyId = securityHelper.getCurrentAcademyId();
-        userService.deleteStaffUser(id, academyId);
-        return ResponseEntity.noContent().build();
+        UserDto updated = userService.toggleActiveStaff(id, academyId);
+        return ResponseEntity.ok(updated);
     }
 }
+

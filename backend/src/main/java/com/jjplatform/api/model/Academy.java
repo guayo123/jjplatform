@@ -35,6 +35,10 @@ public class Academy {
 
     private String logoUrl;
 
+    private String whatsapp;
+
+    private String instagram;
+
     @Builder.Default
     @Column(nullable = false)
     private Boolean active = true;
@@ -54,6 +58,10 @@ public class Academy {
     @Builder.Default
     @OneToMany(mappedBy = "academy", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Photo> photos = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "academy", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Plan> plans = new ArrayList<>();
 
     @CreationTimestamp
     @Column(updatable = false)

@@ -14,6 +14,9 @@ import Tournaments from './pages/admin/Tournaments';
 import TournamentDetail from './pages/admin/TournamentDetail';
 import Photos from './pages/admin/Photos';
 import Users from './pages/admin/Users';
+import Settings from './pages/admin/Settings';
+import Plans from './pages/admin/Plans';
+import Schedules from './pages/admin/Schedules';
 import SuperAcademies from './pages/super/Academies';
 
 export default function App() {
@@ -37,6 +40,9 @@ export default function App() {
           <Route path="/admin/tournaments/:id" element={<TournamentDetail />} />
           <Route path="/admin/photos" element={<Photos />} />
           <Route path="/admin/users" element={<Users />} />
+          <Route path="/admin/settings" element={<Settings />} />
+          <Route path="/admin/plans" element={<Plans />} />
+          <Route path="/admin/schedules" element={<Schedules />} />
           <Route path="/super/academies" element={<SuperAcademies />} />
         </Route>
       </Route>

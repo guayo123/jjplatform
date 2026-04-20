@@ -20,9 +20,15 @@ public class TournamentDto {
     private LocalDate date;
 
     private Integer maxParticipants;
+    private String tipo;
+    private String cinturonesFiltro;
+    private String categoriasPesoFiltro;
+    private String categoriaEdadFiltro;
     private String status;
     private List<ParticipantDto> participants;
     private List<BracketMatchDto> matches;
+    private Long championStudentId;
+    private String championName;
 
     @Data
     public static class ParticipantDto {
@@ -30,6 +36,9 @@ public class TournamentDto {
         private Long studentId;
         private String studentName;
         private Integer seed;
+        private String belt;
+        private String ageCategory;
+        private String weightCategory;
     }
 
     @Data
@@ -37,8 +46,10 @@ public class TournamentDto {
         private Long id;
         private Integer round;
         private Integer matchNumber;
+        private String categoryGroup;
         private ParticipantDto participant1;
         private ParticipantDto participant2;
         private Long winnerId;
+        private String resultType;
     }
 }

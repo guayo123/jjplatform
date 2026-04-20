@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { filesApi } from '../../api/files';
 import { useAuthStore } from '../../stores/authStore';
 import { academiesApi } from '../../api/academies';
+import { useToast } from '../../components/ToastContext';
+import { useConfirm } from '../../components/ConfirmContext';
 import type { Photo } from '../../types';
 
 export default function Photos() {
@@ -9,6 +11,9 @@ export default function Photos() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [uploading, setUploading] = useState(false);
   const [caption, setCaption] = useState('');
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const { toast } = useToast();
+  const confirm = useConfirm();
 
   useEffect(() => {
     if (academyId) {
@@ -25,9 +30,27 @@ export default function Photos() {
       setPhotos((prev) => [{ id: Date.now(), url: result.url, caption }, ...prev]);
       setCaption('');
     } catch {
-      alert('Error al subir la imagen');
+      toast.error('Error al subir la imagen');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleDelete = async (photo: Photo) => {
+    const ok = await confirm({
+      message: '¿Quitar esta foto de la galería?',
+      confirmLabel: 'Quitar',
+      danger: true,
+    });
+    if (!ok) return;
+    setDeletingId(photo.id);
+    try {
+      await filesApi.deletePhoto(photo.id);
+      setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
+    } catch {
+      toast.error('Error al quitar la foto');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -78,6 +101,14 @@ export default function Photos() {
                   <p className="text-white text-sm">{photo.caption}</p>
                 </div>
               )}
+              <button
+                onClick={() => handleDelete(photo)}
+                disabled={deletingId === photo.id}
+                className="absolute top-2 right-2 bg-black/60 hover:bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 disabled:opacity-50"
+                title="Quitar foto"
+              >
+                {deletingId === photo.id ? '…' : '×'}
+              </button>
             </div>
           ))}
         </div>

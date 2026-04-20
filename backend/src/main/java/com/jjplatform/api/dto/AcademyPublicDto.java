@@ -13,12 +13,26 @@ public class AcademyPublicDto {
     private String address;
     private String phone;
     private String logoUrl;
+    private String whatsapp;
+    private String instagram;
     private List<ScheduleDto> schedules;
     private List<PhotoDto> photos;
     private List<TournamentSummaryDto> tournaments;
+    private List<PlanDto> plans;
+
+    @Data
+    public static class PlanDto {
+        private Long id;
+        private String name;
+        private String description;
+        private Integer price;
+        private String features;
+        private Integer displayOrder;
+    }
 
     @Data
     public static class ScheduleDto {
+        private Long id;
         private String dayOfWeek;
         private LocalTime startTime;
         private LocalTime endTime;

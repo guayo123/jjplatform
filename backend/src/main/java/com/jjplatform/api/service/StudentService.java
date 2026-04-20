@@ -39,6 +39,8 @@ public class StudentService {
                 .academy(academy)
                 .name(dto.getName())
                 .age(dto.getAge())
+                .weight(dto.getWeight())
+                .belt(dto.getBelt())
                 .photoUrl(dto.getPhotoUrl())
                 .address(dto.getAddress())
                 .medicalNotes(dto.getMedicalNotes())
@@ -55,6 +57,8 @@ public class StudentService {
 
         student.setName(dto.getName());
         student.setAge(dto.getAge());
+        student.setWeight(dto.getWeight());
+        student.setBelt(dto.getBelt());
         student.setPhotoUrl(dto.getPhotoUrl());
         student.setAddress(dto.getAddress());
         student.setMedicalNotes(dto.getMedicalNotes());
@@ -87,6 +91,8 @@ public class StudentService {
         dto.setId(student.getId());
         dto.setName(student.getName());
         dto.setAge(student.getAge());
+        dto.setWeight(student.getWeight());
+        dto.setBelt(student.getBelt());
         dto.setPhotoUrl(student.getPhotoUrl());
         dto.setAddress(student.getAddress());
         dto.setMedicalNotes(student.getMedicalNotes());

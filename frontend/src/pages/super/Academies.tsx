@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { superApi } from '../../api/super';
+import { useConfirm } from '../../components/ConfirmContext';
 import type { AcademySummary } from '../../types';
 
 const initialForm = {
@@ -17,6 +18,7 @@ export default function Academies() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const confirm = useConfirm();
 
   const load = async () => {
     setLoading(true);
@@ -63,7 +65,11 @@ export default function Academies() {
 
   const handleToggleActive = async (academy: AcademySummary) => {
     const action = academy.active ? 'desactivar' : 'activar';
-    const ok = window.confirm(`¿${action.charAt(0).toUpperCase() + action.slice(1)} ${academy.name}?`);
+    const ok = await confirm({
+      message: `¿${action.charAt(0).toUpperCase() + action.slice(1)} la academia ${academy.name}?`,
+      confirmLabel: action.charAt(0).toUpperCase() + action.slice(1),
+      danger: academy.active,
+    });
     if (!ok) return;
 
     setError(null);

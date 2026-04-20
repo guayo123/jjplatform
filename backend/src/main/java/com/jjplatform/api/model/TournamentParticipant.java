@@ -24,4 +24,10 @@ public class TournamentParticipant {
     private Student student;
 
     private Integer seed;
+
+    /** Categoría de edad calculada al momento de la inscripción */
+    private String ageCategory;
+
+    /** Categoría de peso calculada al momento de la inscripción */
+    private String weightCategory;
 }

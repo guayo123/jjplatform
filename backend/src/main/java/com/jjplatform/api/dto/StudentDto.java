@@ -14,6 +14,10 @@ public class StudentDto {
     @Min(value = 1, message = "Age must be positive")
     private Integer age;
 
+    private Double weight;
+
+    private String belt;
+
     private String photoUrl;
     private String address;
     private String medicalNotes;

@@ -40,9 +40,12 @@ public class PublicController {
         dto.setAddress(a.getAddress());
         dto.setPhone(a.getPhone());
         dto.setLogoUrl(a.getLogoUrl());
+        dto.setWhatsapp(a.getWhatsapp());
+        dto.setInstagram(a.getInstagram());
 
         dto.setSchedules(a.getSchedules().stream().map(s -> {
             AcademyPublicDto.ScheduleDto sd = new AcademyPublicDto.ScheduleDto();
+            sd.setId(s.getId());
             sd.setDayOfWeek(s.getDayOfWeek());
             sd.setStartTime(s.getStartTime());
             sd.setEndTime(s.getEndTime());
@@ -67,6 +70,20 @@ public class PublicController {
             td.setParticipantCount(t.getParticipants().size());
             return td;
         }).toList());
+
+        dto.setPlans(a.getPlans().stream()
+                .filter(p -> Boolean.TRUE.equals(p.getActive()))
+                .sorted(java.util.Comparator.comparingInt(p -> p.getDisplayOrder() != null ? p.getDisplayOrder() : 0))
+                .map(p -> {
+                    AcademyPublicDto.PlanDto pd = new AcademyPublicDto.PlanDto();
+                    pd.setId(p.getId());
+                    pd.setName(p.getName());
+                    pd.setDescription(p.getDescription());
+                    pd.setPrice(p.getPrice());
+                    pd.setFeatures(p.getFeatures());
+                    pd.setDisplayOrder(p.getDisplayOrder());
+                    return pd;
+                }).toList());
 
         return dto;
     }

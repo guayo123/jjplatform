@@ -8,7 +8,7 @@ export const tournamentsApi = {
   get: (id: number) =>
     client.get<Tournament>(`/tournaments/${id}`).then((r) => r.data),
 
-  create: (data: { name: string; description?: string; date: string; maxParticipants?: number }) =>
+  create: (data: { name: string; description?: string; date: string; maxParticipants?: number; tipo?: string; cinturonesFiltro?: string; categoriasPesoFiltro?: string; categoriaEdadFiltro?: string }) =>
     client.post<Tournament>('/tournaments', data).then((r) => r.data),
 
   addParticipant: (tournamentId: number, studentId: number) =>
@@ -17,6 +17,9 @@ export const tournamentsApi = {
   generateBracket: (tournamentId: number) =>
     client.post<Tournament>(`/tournaments/${tournamentId}/generate-bracket`).then((r) => r.data),
 
-  recordResult: (tournamentId: number, matchId: number, winnerId: number) =>
-    client.put<Tournament>(`/tournaments/${tournamentId}/matches/${matchId}`, { winnerId }).then((r) => r.data),
+  recordResult: (tournamentId: number, matchId: number, winnerId: number, resultType: string) =>
+    client.put<Tournament>(`/tournaments/${tournamentId}/matches/${matchId}`, { winnerId, resultType }).then((r) => r.data),
+
+  removeParticipant: (tournamentId: number, participantId: number) =>
+    client.delete<Tournament>(`/tournaments/${tournamentId}/participants/${participantId}`).then((r) => r.data),
 };

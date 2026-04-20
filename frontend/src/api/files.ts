@@ -12,4 +12,7 @@ export const filesApi = {
       })
       .then((r) => r.data);
   },
+
+  deletePhoto: (id: number) =>
+    client.delete(`/files/photos/${id}`).then((r) => r.data),
 };

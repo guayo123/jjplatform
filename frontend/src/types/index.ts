@@ -28,6 +28,7 @@ export interface AppUser {
   id: number;
   email: string;
   role: UserRole;
+  active: boolean;
   createdAt: string;
 }
 
@@ -55,6 +56,8 @@ export interface Student {
   id: number;
   name: string;
   age: number | null;
+  weight: number | null;
+  belt: string | null;
   photoUrl: string | null;
   address: string | null;
   medicalNotes: string | null;
@@ -90,9 +93,15 @@ export interface Tournament {
   description: string | null;
   date: string;
   maxParticipants: number | null;
+  tipo: 'CATEGORIAS' | 'ABSOLUTO';
+  cinturonesFiltro: string | null;
+  categoriasPesoFiltro: string | null;
+  categoriaEdadFiltro: string | null;
   status: 'OPEN' | 'IN_PROGRESS' | 'COMPLETED';
   participants: Participant[];
   matches: BracketMatch[];
+  championStudentId: number | null;
+  championName: string | null;
 }
 
 export interface Participant {
@@ -100,15 +109,20 @@ export interface Participant {
   studentId: number;
   studentName: string;
   seed: number;
+  belt: string | null;
+  ageCategory: string | null;
+  weightCategory: string | null;
 }
 
 export interface BracketMatch {
   id: number;
   round: number;
   matchNumber: number;
+  categoryGroup: string | null;
   participant1: Participant | null;
   participant2: Participant | null;
   winnerId: number | null;
+  resultType: string | null;
 }
 
 // ─── Academy (Public) ───
@@ -119,12 +133,23 @@ export interface AcademyPublic {
   address: string | null;
   phone: string | null;
   logoUrl: string | null;
+  whatsapp: string | null;
+  instagram: string | null;
   schedules: Schedule[];
   photos: Photo[];
   tournaments: TournamentSummary[];
+  plans: Plan[];
 }
 
 export interface Schedule {
+  id: number;
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+  className: string;
+}
+
+export interface ScheduleForm {
   dayOfWeek: string;
   startTime: string;
   endTime: string;
@@ -143,4 +168,33 @@ export interface TournamentSummary {
   date: string;
   status: string;
   participantCount: number;
+}
+
+export interface Plan {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  features: string;
+  active: boolean;
+  displayOrder: number;
+}
+
+export interface PlanForm {
+  name: string;
+  description: string;
+  price: number;
+  features: string;
+  displayOrder: number;
+}
+
+// ─── Academy Settings ───
+export interface AcademySettings {
+  id: number;
+  name: string;
+  description: string;
+  address: string;
+  whatsapp: string;
+  instagram: string;
+  logoUrl: string | null;
 }

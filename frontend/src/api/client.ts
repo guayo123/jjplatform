@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api';
+
 const client = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -22,7 +24,13 @@ client.interceptors.response.use(
       localStorage.removeItem('token');
       window.location.href = '/login';
     }
-    return Promise.reject(error);
+    // Extract user-friendly message from API response body
+    const apiMessage =
+      error.response?.data?.message ??
+      error.response?.data?.errors ??
+      error.message;
+    const message = typeof apiMessage === 'object' ? JSON.stringify(apiMessage) : String(apiMessage);
+    return Promise.reject(new Error(message));
   }
 );
 
