@@ -7,6 +7,7 @@ import com.jjplatform.api.repository.PhotoRepository;
 import com.jjplatform.api.service.FileStorageService;
 import com.jjplatform.api.service.SecurityHelper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -27,6 +28,9 @@ public class FileController {
     private final AcademyRepository academyRepository;
     private final SecurityHelper securityHelper;
 
+    @Value("${app.base-url}")
+    private String baseUrl;
+
     @PostMapping("/upload")
     public ResponseEntity<Map<String, String>> upload(
             @RequestParam("file") MultipartFile file,
@@ -35,9 +39,8 @@ public class FileController {
         Long academyId = securityHelper.getCurrentAcademyId();
 
         String filename = fileStorageService.store(file);
-        String fileUrl = "/api/files/" + filename;
+        String fileUrl = baseUrl + "/api/files/" + filename;
 
-        // Save photo reference
         Photo photo = Photo.builder()
                 .academy(academyRepository.findById(academyId).orElseThrow())
                 .url(fileUrl)
@@ -87,7 +90,7 @@ public class FileController {
         }
 
         String filename = fileStorageService.store(file);
-        String fileUrl = "/api/files/" + filename;
+        String fileUrl = baseUrl + "/api/files/" + filename;
         academy.setLogoUrl(fileUrl);
         academyRepository.save(academy);
 

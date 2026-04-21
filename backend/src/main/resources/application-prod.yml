@@ -53,5 +53,6 @@ app:
     expiration-ms: 86400000
   file:
     upload-dir: ${FILE_UPLOAD_DIR:/tmp/uploads}
+  base-url: ${APP_BASE_URL:https://fantastic-success-production-b215.up.railway.app}
   cors:
     allowed-origins: ${CORS_ORIGINS:https://jjplatform.vercel.app}
