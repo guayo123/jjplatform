@@ -16,6 +16,6 @@ RUN mkdir -p /app/uploads
 
 COPY --from=build /app/target/jjplatform-api-*.jar app.jar
 
-EXPOSE 8081
+EXPOSE 8080
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
