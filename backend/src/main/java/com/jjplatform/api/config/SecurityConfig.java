@@ -20,13 +20,13 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CorsConfigurationSource corsConfigurationSource;
 
-   /* 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -39,13 +39,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/public/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/files/**").permitAll()
-                // Super-admin endpoints
                 .requestMatchers("/api/super", "/api/super/**").hasRole("SUPER_ADMIN")
-                // Users management: ADMIN only
                 .requestMatchers("/api/users", "/api/users/**").hasRole("ADMIN")
-                // Payments mutations: ADMIN or ENCARGADO
                 .requestMatchers(HttpMethod.POST, "/api/payments/**").hasAnyRole("ADMIN", "ENCARGADO")
-                // Students mutations: ADMIN or ENCARGADO
                 .requestMatchers(HttpMethod.POST, "/api/students/**").hasAnyRole("ADMIN", "ENCARGADO")
                 .requestMatchers(HttpMethod.PUT, "/api/students/**").hasAnyRole("ADMIN", "ENCARGADO")
                 .requestMatchers(HttpMethod.DELETE, "/api/students/**").hasAnyRole("ADMIN", "ENCARGADO")
@@ -55,20 +51,6 @@ public class SecurityConfig {
 
         return http.build();
     }
-        */
-    @Bean
-public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-    http
-        .cors(cors -> cors.configurationSource(corsConfigurationSource))
-        .csrf(AbstractHttpConfigurer::disable)
-        .sessionManagement(session ->
-            session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(auth -> auth
-            .anyRequest().permitAll()
-        );
-
-    return http.build();
-}
     
     @Bean
     public PasswordEncoder passwordEncoder() {
