@@ -7,6 +7,11 @@ import Captions from 'yet-another-react-lightbox/plugins/captions';
 import 'yet-another-react-lightbox/styles.css';
 import 'yet-another-react-lightbox/plugins/thumbnails.css';
 import 'yet-another-react-lightbox/plugins/captions.css';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Autoplay, Navigation, Pagination } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
 import { academiesApi } from '../../api/academies';
 import type { AcademyPublic } from '../../types';
 
@@ -124,18 +129,33 @@ export default function AcademyProfile() {
 
               {/* Quick stats */}
               <div className="flex gap-4 mt-4">
-                <div className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-center">
-                  <p className="text-lg font-bold text-white">{academy.schedules.length}</p>
-                  <p className="text-xs text-gray-500">Clases</p>
-                </div>
-                <div className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-center">
-                  <p className="text-lg font-bold text-white">{academy.tournaments.length}</p>
-                  <p className="text-xs text-gray-500">Torneos</p>
-                </div>
-                <div className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-center">
-                  <p className="text-lg font-bold text-white">{academy.photos.length}</p>
-                  <p className="text-xs text-gray-500">Fotos</p>
-                </div>
+                {academy.schedules.length > 0 && (
+                  <button
+                    onClick={() => document.getElementById('section-clases')?.scrollIntoView({ behavior: 'smooth' })}
+                    className="bg-gray-900 border border-gray-800 hover:border-primary-500/50 hover:bg-gray-800 rounded-lg px-3 py-2 text-center transition-colors cursor-pointer"
+                  >
+                    <p className="text-lg font-bold text-white">{academy.schedules.length}</p>
+                    <p className="text-xs text-gray-500">Clases</p>
+                  </button>
+                )}
+                {academy.tournaments.length > 0 && (
+                  <button
+                    onClick={() => document.getElementById('section-torneos')?.scrollIntoView({ behavior: 'smooth' })}
+                    className="bg-gray-900 border border-gray-800 hover:border-primary-500/50 hover:bg-gray-800 rounded-lg px-3 py-2 text-center transition-colors cursor-pointer"
+                  >
+                    <p className="text-lg font-bold text-white">{academy.tournaments.length}</p>
+                    <p className="text-xs text-gray-500">Torneos</p>
+                  </button>
+                )}
+                {academy.photos.length > 0 && (
+                  <button
+                    onClick={() => document.getElementById('section-fotos')?.scrollIntoView({ behavior: 'smooth' })}
+                    className="bg-gray-900 border border-gray-800 hover:border-primary-500/50 hover:bg-gray-800 rounded-lg px-3 py-2 text-center transition-colors cursor-pointer"
+                  >
+                    <p className="text-lg font-bold text-white">{academy.photos.length}</p>
+                    <p className="text-xs text-gray-500">Fotos</p>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -199,7 +219,7 @@ export default function AcademyProfile() {
 
         {/* Schedules */}
         {sortedDays.length > 0 && (
-          <section>
+          <section id="section-clases">
             <h2 className="text-xl font-bold mb-5 flex items-center gap-2">
               <span className="w-1 h-6 bg-primary-500 rounded-full" />
               Horarios de Clases
@@ -255,7 +275,7 @@ export default function AcademyProfile() {
 
         {/* Active Tournaments */}
         {openTournaments.length > 0 && (
-          <section>
+          <section id="section-torneos">
             <h2 className="text-xl font-bold mb-5 flex items-center gap-2">
               <span className="w-1 h-6 bg-primary-500 rounded-full" />
               Torneos Activos
@@ -286,8 +306,8 @@ export default function AcademyProfile() {
 
         {/* Photos Gallery */}
         {academy.photos.length > 0 && (
-          <section>
-            {/* Section header — aggressive style */}
+          <section id="section-fotos">
+            {/* Section header */}
             <div className="flex items-center gap-4 mb-6">
               <div className="flex items-center gap-2">
                 <span className="block w-1 h-8 bg-primary-500" style={{ clipPath: 'polygon(0 0, 100% 10%, 100% 90%, 0 100%)' }} />
@@ -299,22 +319,49 @@ export default function AcademyProfile() {
               </span>
             </div>
 
-            {/* Asymmetric fighter grid */}
-            <div
-              className="grid gap-1.5"
-              style={{
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gridAutoRows: '180px',
-              }}
-            >
-              {academy.photos.map((photo, index) => {
-                const isFeatured = index === 0;
-                return (
+            {/* Hero carousel — first 5 photos */}
+            <div className="relative rounded-xl overflow-hidden mb-3 group/carousel">
+              <Swiper
+                modules={[Autoplay, Navigation, Pagination]}
+                autoplay={{ delay: 4000, disableOnInteraction: false, pauseOnMouseEnter: true }}
+                navigation
+                pagination={{ clickable: true }}
+                loop={academy.photos.length > 1}
+                className="h-72 sm:h-96"
+              >
+                {academy.photos.slice(0, 5).map((photo, index) => (
+                  <SwiperSlide key={photo.id}>
+                    <button
+                      onClick={() => setLightboxIndex(index)}
+                      className="w-full h-full block outline-none"
+                    >
+                      <img
+                        src={photo.url}
+                        alt={photo.caption || ''}
+                        className="w-full h-full object-cover brightness-75 hover:brightness-60 transition-[filter] duration-300"
+                      />
+                      {photo.caption && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-5 py-4">
+                          <p className="text-sm font-bold text-white truncate">{photo.caption}</p>
+                        </div>
+                      )}
+                    </button>
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+            </div>
+
+            {/* Remaining photos grid */}
+            {academy.photos.length > 5 && (
+              <div
+                className="grid gap-1.5"
+                style={{ gridTemplateColumns: 'repeat(3, 1fr)', gridAutoRows: '140px' }}
+              >
+                {academy.photos.slice(5).map((photo, i) => (
                   <button
                     key={photo.id}
-                    onClick={() => setLightboxIndex(index)}
+                    onClick={() => setLightboxIndex(i + 5)}
                     className="relative overflow-hidden group outline-none focus:ring-2 focus:ring-primary-500"
-                    style={isFeatured ? { gridColumn: 'span 2', gridRow: 'span 2' } : {}}
                   >
                     <img
                       src={photo.url}
@@ -322,27 +369,17 @@ export default function AcademyProfile() {
                       className="w-full h-full object-cover brightness-75 group-hover:brightness-50 group-hover:scale-110 transition-all duration-500"
                       loading="lazy"
                     />
-
-                    {/* Diagonal red gradient overlay */}
                     <div className="absolute inset-0 bg-gradient-to-tr from-primary-900/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-                    {/* Bottom slide-in accent bar */}
                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
-
-                    {/* Top-left corner cut accent */}
-                    <div className="absolute top-0 left-0 w-4 h-4 bg-primary-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                      style={{ clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
-
-                    {/* Caption on hover */}
                     {photo.caption && (
                       <div className="absolute bottom-2 left-3 right-3 translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
                         <p className="text-xs font-bold uppercase tracking-wider text-white truncate">{photo.caption}</p>
                       </div>
                     )}
                   </button>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
 
             <Lightbox
               open={lightboxIndex >= 0}
@@ -363,7 +400,7 @@ export default function AcademyProfile() {
 
         {/* Past Tournaments */}
         {pastTournaments.length > 0 && (
-          <section>
+          <section id={openTournaments.length === 0 ? 'section-torneos' : undefined}>
             <h2 className="text-xl font-bold mb-5 flex items-center gap-2">
               <span className="w-1 h-6 bg-primary-500 rounded-full" />
               Torneos Anteriores
