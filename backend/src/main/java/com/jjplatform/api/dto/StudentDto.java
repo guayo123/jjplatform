@@ -11,12 +11,22 @@ public class StudentDto {
     @NotBlank(message = "Name is required")
     private String name;
 
+    private String rut;
+
+    @jakarta.validation.constraints.Email(message = "Invalid email format")
+    private String email;
+
+    private String phone;
+
+    private String joinDate;
+
     @Min(value = 1, message = "Age must be positive")
     private Integer age;
 
     private Double weight;
 
     private String belt;
+    private Integer stripes;
 
     private String photoUrl;
     private String address;

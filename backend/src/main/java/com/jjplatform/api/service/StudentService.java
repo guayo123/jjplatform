@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -38,6 +39,10 @@ public class StudentService {
         Student student = Student.builder()
                 .academy(academy)
                 .name(dto.getName())
+                .rut(dto.getRut())
+                .email(dto.getEmail())
+                .phone(dto.getPhone())
+                .joinDate(dto.getJoinDate() != null ? LocalDate.parse(dto.getJoinDate()) : null)
                 .age(dto.getAge())
                 .weight(dto.getWeight())
                 .belt(dto.getBelt())
@@ -56,9 +61,13 @@ public class StudentService {
         Student student = findStudentByIdAndAcademy(id, academyId);
 
         student.setName(dto.getName());
+        student.setRut(dto.getRut());
+        student.setEmail(dto.getEmail());
+        student.setPhone(dto.getPhone());
+        student.setJoinDate(dto.getJoinDate() != null ? LocalDate.parse(dto.getJoinDate()) : null);
         student.setAge(dto.getAge());
         student.setWeight(dto.getWeight());
-        student.setBelt(dto.getBelt());
+        // belt and stripes are managed exclusively via BeltPromotionService
         student.setPhotoUrl(dto.getPhotoUrl());
         student.setAddress(dto.getAddress());
         student.setMedicalNotes(dto.getMedicalNotes());
@@ -90,9 +99,14 @@ public class StudentService {
         StudentDto dto = new StudentDto();
         dto.setId(student.getId());
         dto.setName(student.getName());
+        dto.setRut(student.getRut());
+        dto.setEmail(student.getEmail());
+        dto.setPhone(student.getPhone());
+        dto.setJoinDate(student.getJoinDate() != null ? student.getJoinDate().toString() : null);
         dto.setAge(student.getAge());
         dto.setWeight(student.getWeight());
         dto.setBelt(student.getBelt());
+        dto.setStripes(student.getStripes());
         dto.setPhotoUrl(student.getPhotoUrl());
         dto.setAddress(student.getAddress());
         dto.setMedicalNotes(student.getMedicalNotes());

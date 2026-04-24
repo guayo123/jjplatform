@@ -118,6 +118,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           email: res.email,
           academyId: res.academyId,
           academyName: res.academyName,
+          role: res.role ?? null,
           isAuthenticated: true,
         });
       } catch {

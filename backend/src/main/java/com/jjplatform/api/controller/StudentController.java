@@ -6,7 +6,6 @@ import com.jjplatform.api.service.StudentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -32,7 +31,6 @@ public class StudentController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO')")
     public ResponseEntity<StudentDto> create(@Valid @RequestBody StudentDto dto) {
         Long academyId = securityHelper.getCurrentAcademyId();
         StudentDto created = studentService.createStudent(dto, academyId);
@@ -40,7 +38,6 @@ public class StudentController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO')")
     public ResponseEntity<StudentDto> update(@PathVariable Long id,
                                               @Valid @RequestBody StudentDto dto) {
         Long academyId = securityHelper.getCurrentAcademyId();
@@ -48,7 +45,6 @@ public class StudentController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         Long academyId = securityHelper.getCurrentAcademyId();
         studentService.deleteStudent(id, academyId);

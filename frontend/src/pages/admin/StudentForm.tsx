@@ -7,6 +7,31 @@ import { useToast } from '../../components/ToastContext';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import type { StudentForm as StudentFormType } from '../../types';
 
+function formatRut(value: string): string {
+  const clean = value.replace(/[^0-9kK]/g, '').toUpperCase();
+  if (clean.length < 2) return clean;
+  const body = clean.slice(0, -1);
+  const dv = clean.slice(-1);
+  const formatted = body.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${formatted}-${dv}`;
+}
+
+function validateRut(rut: string): boolean {
+  const clean = rut.replace(/[^0-9kK]/g, '').toUpperCase();
+  if (clean.length < 2) return false;
+  const body = clean.slice(0, -1);
+  const dv = clean.slice(-1);
+  let sum = 0;
+  let multiplier = 2;
+  for (let i = body.length - 1; i >= 0; i--) {
+    sum += parseInt(body[i]) * multiplier;
+    multiplier = multiplier === 7 ? 2 : multiplier + 1;
+  }
+  const remainder = 11 - (sum % 11);
+  const expected = remainder === 11 ? '0' : remainder === 10 ? 'K' : String(remainder);
+  return dv === expected;
+}
+
 export default function StudentForm() {
   const { id } = useParams<{ id: string }>();
   const isEdit = Boolean(id);
@@ -15,6 +40,10 @@ export default function StudentForm() {
 
   const [form, setForm] = useState<StudentFormType>({
     name: '',
+    rut: null,
+    email: null,
+    phone: null,
+    joinDate: null,
     age: null,
     weight: null,
     belt: null,
@@ -25,15 +54,21 @@ export default function StudentForm() {
   });
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<{ name?: string; age?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; rut?: string; email?: string; age?: string }>({});
   const { toast } = useToast();
 
   const validate = () => {
-    const newErrors: { name?: string; age?: string } = {};
+    const newErrors: { name?: string; rut?: string; email?: string; age?: string } = {};
     if (!form.name.trim()) {
       newErrors.name = 'El nombre es obligatorio';
-    } else if (!/^[a-zA-Z\u00C0-\u024F\s]+$/.test(form.name)) {
+    } else if (!/^[a-zA-ZÀ-ɏ\s]+$/.test(form.name)) {
       newErrors.name = 'El nombre solo puede contener letras';
+    }
+    if (form.rut && !validateRut(form.rut)) {
+      newErrors.rut = 'RUT inválido';
+    }
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      newErrors.email = 'Correo electrónico inválido';
     }
     if (form.age !== null && (form.age < 1 || form.age > 150)) {
       newErrors.age = 'La edad debe estar entre 1 y 150';
@@ -47,6 +82,10 @@ export default function StudentForm() {
       studentsApi.get(Number(id)).then((s) =>
         setForm({
           name: s.name,
+          rut: s.rut,
+          email: s.email,
+          phone: s.phone,
+          joinDate: s.joinDate,
           age: s.age,
           weight: s.weight,
           belt: s.belt,
@@ -105,7 +144,7 @@ export default function StudentForm() {
             value={form.name}
             onChange={(e) => {
               const val = e.target.value;
-              if (/^[a-zA-Z\u00C0-\u024F\s]*$/.test(val)) {
+              if (/^[a-zA-ZÀ-ɏ\s]*$/.test(val)) {
                 setForm({ ...form, name: val });
                 setErrors((err) => ({ ...err, name: undefined }));
               }
@@ -116,6 +155,84 @@ export default function StudentForm() {
             }`}
           />
           {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">RUT</label>
+          <input
+            type="text"
+            value={form.rut ?? ''}
+            onChange={(e) => {
+              const formatted = formatRut(e.target.value);
+              setForm((f) => ({ ...f, rut: formatted || null }));
+              setErrors((err) => ({ ...err, rut: undefined }));
+            }}
+            onBlur={() => {
+              if (form.rut && !validateRut(form.rut)) {
+                setErrors((err) => ({ ...err, rut: 'RUT inválido' }));
+              }
+            }}
+            placeholder="12.345.678-9"
+            maxLength={12}
+            className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none ${
+              errors.rut ? 'border-red-400' : 'border-gray-300'
+            }`}
+          />
+          {errors.rut && <p className="mt-1 text-xs text-red-500">{errors.rut}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
+          <input
+            type="email"
+            value={form.email ?? ''}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, email: e.target.value || null }));
+              setErrors((err) => ({ ...err, email: undefined }));
+            }}
+            onBlur={() => {
+              if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+                setErrors((err) => ({ ...err, email: 'Correo electrónico inválido' }));
+              }
+            }}
+            placeholder="nombre@ejemplo.com"
+            className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none ${
+              errors.email ? 'border-red-400' : 'border-gray-300'
+            }`}
+          />
+          {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono / WhatsApp</label>
+          <div className="flex">
+            <span className="inline-flex items-center px-3 text-sm text-gray-600 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg font-medium select-none">
+              +56
+            </span>
+            <input
+              type="tel"
+              value={form.phone?.replace(/^\+?56/, '') ?? ''}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
+                setForm((f) => ({ ...f, phone: digits ? `+56${digits}` : null }));
+              }}
+              placeholder="9 1234 5678"
+              maxLength={9}
+              className="flex-1 min-w-0 border border-gray-300 rounded-r-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+            />
+          </div>
+          <p className="mt-1 text-xs text-gray-400">Se usará para enviar recordatorios de pago por WhatsApp</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de ingreso</label>
+          <input
+            type="date"
+            value={form.joinDate ?? ''}
+            max={new Date().toISOString().split('T')[0]}
+            onChange={(e) => setForm((f) => ({ ...f, joinDate: e.target.value || null }))}
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+          />
         </div>
 
         <div>
@@ -141,7 +258,7 @@ export default function StudentForm() {
           {errors.age && <p className="mt-1 text-xs text-red-500">{errors.age}</p>}
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className={isEdit ? '' : 'grid grid-cols-2 gap-4'}>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label>
             <input
@@ -155,30 +272,32 @@ export default function StudentForm() {
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Cinturón</label>
-            <select
-              value={form.belt ?? ''}
-              onChange={(e) => setForm({ ...form, belt: e.target.value || null })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none bg-white"
-            >
-              <option value="">Sin cinturón</option>
-              <optgroup label="Juveniles (≤ 15 años)">
-                <option value="Blanco">Blanco</option>
-                <option value="Gris">Gris</option>
-                <option value="Amarillo">Amarillo</option>
-                <option value="Naranja">Naranja</option>
-                <option value="Verde">Verde</option>
-              </optgroup>
-              <optgroup label="Adultos (16+ años)">
-                <option value="Blanco">Blanco</option>
-                <option value="Azul">Azul</option>
-                <option value="Morado">Morado</option>
-                <option value="Café">Café</option>
-                <option value="Negro">Negro</option>
-              </optgroup>
-            </select>
-          </div>
+          {!isEdit && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cinturón inicial</label>
+              <select
+                value={form.belt ?? ''}
+                onChange={(e) => setForm({ ...form, belt: e.target.value || null })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none bg-white"
+              >
+                <option value="">Sin cinturón</option>
+                <optgroup label="Juveniles (≤ 15 años)">
+                  <option value="Blanco">Blanco</option>
+                  <option value="Gris">Gris</option>
+                  <option value="Amarillo">Amarillo</option>
+                  <option value="Naranja">Naranja</option>
+                  <option value="Verde">Verde</option>
+                </optgroup>
+                <optgroup label="Adultos (16+ años)">
+                  <option value="Blanco">Blanco</option>
+                  <option value="Azul">Azul</option>
+                  <option value="Morado">Morado</option>
+                  <option value="Café">Café</option>
+                  <option value="Negro">Negro</option>
+                </optgroup>
+              </select>
+            </div>
+          )}
         </div>
 
         <div>

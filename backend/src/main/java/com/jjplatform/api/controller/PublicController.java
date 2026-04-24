@@ -4,6 +4,7 @@ import com.jjplatform.api.dto.AcademyPublicDto;
 import com.jjplatform.api.model.Academy;
 import com.jjplatform.api.exception.ResourceNotFoundException;
 import com.jjplatform.api.repository.AcademyRepository;
+import com.jjplatform.api.repository.BeltPromotionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +17,7 @@ import java.util.List;
 public class PublicController {
 
     private final AcademyRepository academyRepository;
+    private final BeltPromotionRepository beltPromotionRepository;
 
     @GetMapping("/academies")
     public ResponseEntity<List<AcademyPublicDto>> listAcademies() {
@@ -83,6 +85,18 @@ public class PublicController {
                     pd.setFeatures(p.getFeatures());
                     pd.setDisplayOrder(p.getDisplayOrder());
                     return pd;
+                }).toList());
+
+        dto.setRecentPromotions(beltPromotionRepository
+                .findTop5ByAcademyIdOrderByPromotionDateDesc(a.getId())
+                .stream().map(p -> {
+                    AcademyPublicDto.RecentPromotionDto rd = new AcademyPublicDto.RecentPromotionDto();
+                    rd.setStudentName(p.getStudent().getName());
+                    rd.setStudentPhotoUrl(p.getStudent().getPhotoUrl());
+                    rd.setFromBelt(p.getFromBelt());
+                    rd.setToBelt(p.getToBelt());
+                    rd.setPromotionDate(p.getPromotionDate().toString());
+                    return rd;
                 }).toList());
 
         return dto;

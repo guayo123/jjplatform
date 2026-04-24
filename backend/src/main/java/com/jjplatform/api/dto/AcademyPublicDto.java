@@ -19,6 +19,16 @@ public class AcademyPublicDto {
     private List<PhotoDto> photos;
     private List<TournamentSummaryDto> tournaments;
     private List<PlanDto> plans;
+    private List<RecentPromotionDto> recentPromotions;
+
+    @Data
+    public static class RecentPromotionDto {
+        private String studentName;
+        private String studentPhotoUrl;
+        private String fromBelt;
+        private String toBelt;
+        private String promotionDate;
+    }
 
     @Data
     public static class PlanDto {

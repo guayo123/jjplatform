@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -24,11 +25,23 @@ public class Student {
     @Column(nullable = false)
     private String name;
 
+    private String rut;
+
+    private String email;
+
+    private String phone;
+
+    private LocalDate joinDate;
+
     private Integer age;
 
     private Double weight;
 
     private String belt;
+
+    @Builder.Default
+    @Column(columnDefinition = "integer default 0")
+    private Integer stripes = 0;
 
     private String photoUrl;
 

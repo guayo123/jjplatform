@@ -3,15 +3,19 @@ import { Link } from 'react-router-dom';
 
 export default function Dashboard() {
   const academyName = useAuthStore((s) => s.academyName);
+  const role = useAuthStore((s) => s.role);
+  const isAdmin = role === 'ADMIN';
 
   const cards = [
     { title: 'Alumnos', desc: 'Gestiona tu lista de estudiantes', link: '/admin/students', icon: '👥' },
     { title: 'Pagos', desc: 'Control de pagos mensuales', link: '/admin/payments', icon: '💰' },
+    { title: 'Reporte', desc: 'Resumen de ingresos y pagos', link: '/admin/payments/report', icon: '📊' },
     { title: 'Torneos', desc: 'Crea torneos y genera brackets', link: '/admin/tournaments', icon: '🏆' },
     { title: 'Horarios', desc: 'Grilla semanal de clases', link: '/admin/schedules', icon: '📅' },
     { title: 'Fotos', desc: 'Galería de tu academia', link: '/admin/photos', icon: '📸' },
     { title: 'Planes y Tarifas', desc: 'Define los planes de membresía', link: '/admin/plans', icon: '📋' },
     { title: 'Configuración', desc: 'Datos, redes sociales y perfil público', link: '/admin/settings', icon: '⚙️' },
+    ...(isAdmin ? [{ title: 'Usuarios', desc: 'Gestión de academias y accesos', link: '/admin/users', icon: '🔐' }] : []),
   ];
 
   return (

@@ -8,6 +8,7 @@ import Login from './pages/admin/Login';
 import Dashboard from './pages/admin/Dashboard';
 import Students from './pages/admin/Students';
 import StudentForm from './pages/admin/StudentForm';
+import StudentDetail from './pages/admin/StudentDetail';
 import Payments from './pages/admin/Payments';
 import PaymentsReport from './pages/admin/PaymentsReport';
 import Tournaments from './pages/admin/Tournaments';
@@ -34,6 +35,7 @@ export default function App() {
           <Route path="/admin/students" element={<Students />} />
           <Route path="/admin/students/new" element={<StudentForm />} />
           <Route path="/admin/students/:id/edit" element={<StudentForm />} />
+          <Route path="/admin/students/:id" element={<StudentDetail />} />
           <Route path="/admin/payments" element={<Payments />} />
           <Route path="/admin/payments/report" element={<PaymentsReport />} />
           <Route path="/admin/tournaments" element={<Tournaments />} />

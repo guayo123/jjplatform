@@ -1,0 +1,463 @@
+import { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { studentsApi } from '../../api/students';
+import { beltPromotionsApi } from '../../api/beltPromotions';
+import { useToast } from '../../components/ToastContext';
+import BeltImage from '../../components/BeltImage';
+import type { Student, BeltPromotion, PromotionType } from '../../types';
+
+const BELT_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  Blanco:  { bg: 'bg-gray-100',    text: 'text-gray-700',   border: 'border-gray-300' },
+  Gris:    { bg: 'bg-gray-300',    text: 'text-gray-800',   border: 'border-gray-400' },
+  Amarillo:{ bg: 'bg-yellow-100',  text: 'text-yellow-800', border: 'border-yellow-300' },
+  Naranja: { bg: 'bg-orange-100',  text: 'text-orange-800', border: 'border-orange-300' },
+  Verde:   { bg: 'bg-green-100',   text: 'text-green-800',  border: 'border-green-300' },
+  Azul:    { bg: 'bg-blue-100',    text: 'text-blue-800',   border: 'border-blue-300' },
+  Morado:  { bg: 'bg-purple-100',  text: 'text-purple-800', border: 'border-purple-300' },
+  Café:    { bg: 'bg-amber-100',   text: 'text-amber-900',  border: 'border-amber-400' },
+  Negro:   { bg: 'bg-gray-900',    text: 'text-white',      border: 'border-gray-700' },
+};
+
+const JUVENILE_BELTS = ['Blanco', 'Gris', 'Amarillo', 'Naranja', 'Verde'];
+const ADULT_BELTS    = ['Blanco', 'Azul', 'Morado', 'Café', 'Negro'];
+
+const TYPE_CONFIG: Record<PromotionType, { icon: string; label: string; color: string }> = {
+  PROMOCION:   { icon: '🏆', label: 'Promoción',   color: 'text-green-600' },
+  DEGRADACION: { icon: '🔻', label: 'Degradación', color: 'text-red-500' },
+  GRADO:       { icon: '⭐', label: 'Grado',        color: 'text-amber-500' },
+};
+
+function getAvailableBelts(currentBelt: string | null, age: number | null): { juveniles: string[]; adultos: string[] } {
+  const jIdx = currentBelt ? JUVENILE_BELTS.indexOf(currentBelt) : -1;
+  const aIdx = currentBelt ? ADULT_BELTS.indexOf(currentBelt) : -1;
+
+  if (age !== null && age <= 15) {
+    const from = jIdx >= 0 ? jIdx + 1 : 0;
+    return { juveniles: JUVENILE_BELTS.slice(from), adultos: [] };
+  }
+  if (age !== null && age >= 16) {
+    if (aIdx > 0) return { juveniles: [], adultos: ADULT_BELTS.slice(aIdx + 1) };
+    if (aIdx === 0) return { juveniles: [], adultos: ADULT_BELTS.slice(1) };
+    return { juveniles: [], adultos: ADULT_BELTS };
+  }
+  if (!currentBelt) return { juveniles: JUVENILE_BELTS, adultos: ADULT_BELTS };
+  if (jIdx > 0) return { juveniles: JUVENILE_BELTS.slice(jIdx + 1), adultos: ADULT_BELTS.slice(1) };
+  if (aIdx > 0) return { juveniles: [], adultos: ADULT_BELTS.slice(aIdx + 1) };
+  return { juveniles: JUVENILE_BELTS.slice(1), adultos: ADULT_BELTS.slice(1) };
+}
+
+function maxStripes(belt: string | null) {
+  return belt === 'Negro' ? 9 : 4;
+}
+
+function BeltBadge({ belt }: { belt: string }) {
+  const c = BELT_COLORS[belt] ?? { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-200' };
+  return (
+    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border ${c.bg} ${c.text} ${c.border}`}>
+      {belt}
+    </span>
+  );
+}
+
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+type ActiveForm = null | 'grado' | 'cinturon';
+
+export default function StudentDetail() {
+  const { id } = useParams<{ id: string }>();
+  const { toast } = useToast();
+
+  const [student, setStudent] = useState<Student | null>(null);
+  const [promotions, setPromotions] = useState<BeltPromotion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [activeForm, setActiveForm] = useState<ActiveForm>(null);
+
+  const [gradeForm, setGradeForm] = useState({
+    promotionDate: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
+
+  const [beltForm, setBeltForm] = useState({
+    toBelt: '',
+    promotionDate: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
+
+  useEffect(() => {
+    if (!id) return;
+    const numId = Number(id);
+    Promise.all([
+      studentsApi.get(numId),
+      beltPromotionsApi.getByStudent(numId),
+    ]).then(([s, p]) => {
+      setStudent(s);
+      setPromotions(p);
+    }).finally(() => setLoading(false));
+  }, [id]);
+
+  const handleAddGrade = async () => {
+    if (!student || !gradeForm.promotionDate || !student.belt) return;
+    setSaving(true);
+    const currentStripes = student.stripes ?? 0;
+    try {
+      const created = await beltPromotionsApi.create({
+        studentId: student.id,
+        fromBelt: student.belt,
+        fromStripes: currentStripes,
+        toBelt: student.belt,
+        toStripes: currentStripes + 1,
+        promotionDate: gradeForm.promotionDate,
+        notes: gradeForm.notes || null,
+      });
+      setPromotions((prev) => [created, ...prev]);
+      setStudent((s) => s ? { ...s, stripes: currentStripes + 1 } : s);
+      setGradeForm((f) => ({ ...f, notes: '' }));
+      setActiveForm(null);
+      toast.success('Grado registrado');
+    } catch {
+      toast.error('Error al registrar el grado');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleChangeBelt = async () => {
+    if (!student || !beltForm.toBelt || !beltForm.promotionDate) return;
+    setSaving(true);
+    try {
+      const created = await beltPromotionsApi.create({
+        studentId: student.id,
+        fromBelt: student.belt,
+        fromStripes: student.stripes ?? 0,
+        toBelt: beltForm.toBelt,
+        toStripes: 0,
+        promotionDate: beltForm.promotionDate,
+        notes: beltForm.notes || null,
+      });
+      setPromotions((prev) => [created, ...prev]);
+      setStudent((s) => s ? { ...s, belt: beltForm.toBelt, stripes: 0 } : s);
+      setBeltForm((f) => ({ ...f, toBelt: '', notes: '' }));
+      setActiveForm(null);
+      toast.success(created.type === 'DEGRADACION' ? 'Degradación registrada' : 'Graduación registrada');
+    } catch {
+      toast.error('Error al registrar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (promotionId: number) => {
+    try {
+      await beltPromotionsApi.delete(promotionId);
+      setPromotions((prev) => {
+        const remaining = prev.filter((p) => p.id !== promotionId);
+        const last = remaining[0];
+        setStudent((s) => s ? {
+          ...s,
+          belt: last ? last.toBelt : null,
+          stripes: last ? last.toStripes : 0,
+        } : s);
+        return remaining;
+      });
+      toast.success('Graduación eliminada');
+    } catch {
+      toast.error('Error al eliminar');
+    }
+  };
+
+  const toggleForm = (form: ActiveForm) =>
+    setActiveForm((prev) => prev === form ? null : form);
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-16">
+      <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  if (!student) return (
+    <div className="text-center py-12 text-gray-400">Alumno no encontrado</div>
+  );
+
+  const canAddGrade = !!student.belt && (student.stripes ?? 0) < maxStripes(student.belt);
+  const { juveniles, adultos } = getAvailableBelts(student.belt, student.age);
+  const hasBeltOptions = juveniles.length > 0 || adultos.length > 0;
+
+  return (
+    <div className="max-w-3xl space-y-6">
+      {/* Back */}
+      <Link to="/admin/students" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+        Volver a alumnos
+      </Link>
+
+      {/* Student card */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="flex items-start gap-5">
+          {student.photoUrl ? (
+            <img src={student.photoUrl} alt={student.name} className="w-20 h-20 rounded-xl object-cover flex-shrink-0" />
+          ) : (
+            <div className="w-20 h-20 rounded-xl bg-primary-100 text-primary-700 flex items-center justify-center text-3xl font-bold flex-shrink-0">
+              {student.name.charAt(0)}
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-bold text-gray-900">{student.name}</h1>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${student.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                {student.active ? 'Activo' : 'Inactivo'}
+              </span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-gray-500">
+              {student.rut && <span>RUT: {student.rut}</span>}
+              {student.email && <span>{student.email}</span>}
+              {student.phone && <span>{student.phone}</span>}
+              {student.age && <span>{student.age} años</span>}
+              {student.weight && <span>{student.weight} kg</span>}
+            </div>
+            <div className="mt-3 space-y-2">
+              {student.belt && (
+                <BeltImage belt={student.belt} stripes={student.stripes ?? 0} className="max-w-[220px]" />
+              )}
+              {student.joinDate && (
+                <span className="text-xs text-gray-400">
+                  📅 Ingresó el {formatDate(student.joinDate)}
+                </span>
+              )}
+            </div>
+          </div>
+          <Link
+            to={`/admin/students/${student.id}/edit`}
+            className="flex-shrink-0 text-sm text-primary-600 hover:text-primary-800 border border-primary-200 hover:border-primary-400 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Editar
+          </Link>
+        </div>
+      </div>
+
+      {/* Belt history */}
+      <div className="bg-white rounded-xl shadow-sm">
+        <div className="p-5 border-b border-gray-100">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h2 className="font-bold text-gray-900">Historial de Graduaciones</h2>
+              <p className="text-xs text-gray-400 mt-0.5">{promotions.length} registro{promotions.length !== 1 ? 's' : ''}</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => toggleForm('grado')}
+                disabled={!canAddGrade}
+                title={!canAddGrade ? (student.belt ? 'Grados máximos alcanzados' : 'El alumno no tiene cinturón') : ''}
+                className={`text-sm font-medium px-3 py-2 rounded-lg border transition-colors ${
+                  activeForm === 'grado'
+                    ? 'bg-amber-50 border-amber-300 text-amber-700'
+                    : 'bg-white border-gray-200 text-gray-600 hover:border-amber-300 hover:text-amber-700 disabled:opacity-40 disabled:cursor-not-allowed'
+                }`}
+              >
+                ⭐ {activeForm === 'grado' ? 'Cancelar' : 'Agregar grado'}
+              </button>
+              <button
+                onClick={() => toggleForm('cinturon')}
+                disabled={!hasBeltOptions}
+                className={`text-sm font-medium px-3 py-2 rounded-lg border transition-colors ${
+                  activeForm === 'cinturon'
+                    ? 'bg-primary-50 border-primary-300 text-primary-700'
+                    : 'bg-white border-gray-200 text-gray-600 hover:border-primary-300 hover:text-primary-700 disabled:opacity-40 disabled:cursor-not-allowed'
+                }`}
+              >
+                🏆 {activeForm === 'cinturon' ? 'Cancelar' : 'Cambiar cinturón'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Grade form */}
+        {activeForm === 'grado' && (
+          <div className="p-5 border-b border-gray-100 bg-amber-50">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">⭐ Nuevo grado — {student.belt}</h3>
+            <div className="flex items-center gap-4 mb-4">
+              <div className="flex-1">
+                <p className="text-xs text-gray-400 mb-1">Actual</p>
+                <BeltImage belt={student.belt!} stripes={student.stripes ?? 0} />
+              </div>
+              <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+              <div className="flex-1">
+                <p className="text-xs text-gray-400 mb-1">Nuevo grado</p>
+                <BeltImage belt={student.belt!} stripes={(student.stripes ?? 0) + 1} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Fecha *</label>
+                <input
+                  type="date"
+                  value={gradeForm.promotionDate}
+                  max={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setGradeForm((f) => ({ ...f, promotionDate: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Notas (opcional)</label>
+                <input
+                  type="text"
+                  value={gradeForm.notes}
+                  onChange={(e) => setGradeForm((f) => ({ ...f, notes: e.target.value }))}
+                  placeholder="ej: Examen técnico aprobado"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+              </div>
+            </div>
+            <button
+              onClick={handleAddGrade}
+              disabled={!gradeForm.promotionDate || saving}
+              className="mt-4 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {saving ? 'Guardando...' : 'Confirmar grado'}
+            </button>
+          </div>
+        )}
+
+        {/* Belt change form */}
+        {activeForm === 'cinturon' && (
+          <div className="p-5 border-b border-gray-100 bg-primary-50">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">🏆 Cambio de cinturón</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Cinturón actual</label>
+                <div className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-500">
+                  {student.belt ?? 'Sin cinturón'}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Nuevo cinturón *</label>
+                <select
+                  value={beltForm.toBelt}
+                  onChange={(e) => setBeltForm((f) => ({ ...f, toBelt: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none bg-white"
+                >
+                  <option value="">Seleccionar...</option>
+                  {juveniles.length > 0 && (
+                    <optgroup label="Juveniles (≤ 15 años)">
+                      {juveniles.map((b) => <option key={b} value={b}>{b}</option>)}
+                    </optgroup>
+                  )}
+                  {adultos.length > 0 && (
+                    <optgroup label="Adultos (16+ años)">
+                      {adultos.map((b) => <option key={b} value={b}>{b}</option>)}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Fecha *</label>
+                <input
+                  type="date"
+                  value={beltForm.promotionDate}
+                  max={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setBeltForm((f) => ({ ...f, promotionDate: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Notas (opcional)</label>
+                <input
+                  type="text"
+                  value={beltForm.notes}
+                  onChange={(e) => setBeltForm((f) => ({ ...f, notes: e.target.value }))}
+                  placeholder="ej: Aprobó examen técnico"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+                />
+              </div>
+            </div>
+            <button
+              onClick={handleChangeBelt}
+              disabled={!beltForm.toBelt || !beltForm.promotionDate || saving}
+              className="mt-4 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {saving ? 'Guardando...' : 'Confirmar cambio'}
+            </button>
+          </div>
+        )}
+
+        {/* Timeline */}
+        <div className="p-5">
+          {promotions.length === 0 ? (
+            <p className="text-center text-gray-400 text-sm py-8">Sin registros aún</p>
+          ) : (
+            <ol className="relative border-l-2 border-gray-200 space-y-6 ml-3">
+              {promotions.map((p) => {
+                const cfg = TYPE_CONFIG[p.type];
+                return (
+                  <li key={p.id} className="ml-5">
+                    <span className="absolute -left-2 w-4 h-4 rounded-full border-2 border-white bg-primary-500 flex items-center justify-center">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                    </span>
+                    <div className={`rounded-xl p-4 border ${p.type === 'DEGRADACION' ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          {/* Type label */}
+                          <span className={`text-xs font-bold uppercase tracking-wide ${cfg.color}`}>
+                            {cfg.icon} {cfg.label}
+                          </span>
+
+                          {/* Belt or stripe change */}
+                          {p.type === 'GRADO' ? (
+                            <div className="flex items-center gap-3 mt-2">
+                              <BeltImage belt={p.toBelt} stripes={p.fromStripes ?? 0} className="max-w-[120px]" />
+                              <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                              </svg>
+                              <BeltImage belt={p.toBelt} stripes={p.toStripes} className="max-w-[120px]" />
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              {p.fromBelt ? <BeltBadge belt={p.fromBelt} /> : <span className="text-xs text-gray-400 italic">Sin cinturón</span>}
+                              <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                              </svg>
+                              <BeltBadge belt={p.toBelt} />
+                            </div>
+                          )}
+
+                          <p className="text-xs text-gray-500 mt-2">{formatDate(p.promotionDate)}</p>
+
+                          {p.type === 'DEGRADACION' && p.performedBy && (
+                            <p className="text-xs text-red-400 mt-1">Registrado por: {p.performedBy}</p>
+                          )}
+                          {p.notes && <p className="text-sm text-gray-600 mt-1 italic">"{p.notes}"</p>}
+                        </div>
+
+                        {/* Delete button — solo PROMOCION */}
+                        {p.deletable ? (
+                          <button
+                            onClick={() => handleDelete(p.id)}
+                            className="flex-shrink-0 text-gray-300 hover:text-red-400 transition-colors"
+                            title="Eliminar"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        ) : (
+                          <span className="flex-shrink-0 text-xs text-gray-300 italic" title="Registro permanente">🔒</span>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

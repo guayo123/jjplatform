@@ -235,6 +235,7 @@ export default function AcademyProfile() {
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Contenido</p>
             <ul className="space-y-0.5">
               {[
+                { id: 'section-graduaciones', label: 'Últimas Graduaciones', show: academy.recentPromotions && academy.recentPromotions.length > 0 },
                 { id: 'section-clases',  label: 'Horarios de Clases', show: academy.schedules.length > 0 },
                 { id: 'section-torneos', label: 'Torneos',             show: academy.tournaments.length > 0 },
                 { id: 'section-fotos',   label: 'Galería',             show: academy.photos.length > 0 },
@@ -264,6 +265,46 @@ export default function AcademyProfile() {
               Sobre nosotros
             </h2>
             <p className="text-gray-400 leading-relaxed max-w-3xl">{academy.description}</p>
+          </section>
+        )}
+
+        {/* Recent Promotions */}
+        {academy.recentPromotions && academy.recentPromotions.length > 0 && (
+          <section id="section-graduaciones">
+            <h2 className="text-xl font-bold mb-5 flex items-center gap-2">
+              <span className="w-1 h-6 bg-primary-500 rounded-full" />
+              Últimas Graduaciones
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {academy.recentPromotions.map((p, i) => (
+                <div key={i} className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex items-center gap-4 hover:border-primary-500/30 transition-colors">
+                  {p.studentPhotoUrl ? (
+                    <img src={p.studentPhotoUrl} alt={p.studentName} className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center text-xl font-bold text-gray-500 flex-shrink-0">
+                      {p.studentName.charAt(0)}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-white text-sm truncate">{p.studentName}</p>
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      {p.fromBelt && (
+                        <>
+                          <span className="text-xs text-gray-500">{p.fromBelt}</span>
+                          <svg className="w-3 h-3 text-gray-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                          </svg>
+                        </>
+                      )}
+                      <span className="text-xs font-semibold text-primary-400">{p.toBelt}</span>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      {new Date(p.promotionDate).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </section>
         )}
 

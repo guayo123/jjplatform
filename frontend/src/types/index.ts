@@ -55,13 +55,46 @@ export interface AcademySummary {
 export interface Student {
   id: number;
   name: string;
+  rut: string | null;
+  email: string | null;
+  phone: string | null;
+  joinDate: string | null;
   age: number | null;
   weight: number | null;
   belt: string | null;
+  stripes: number | null;
   photoUrl: string | null;
   address: string | null;
   medicalNotes: string | null;
   active: boolean;
+}
+
+export type PromotionType = 'PROMOCION' | 'DEGRADACION' | 'GRADO';
+
+export interface BeltPromotion {
+  id: number;
+  studentId: number;
+  studentName: string;
+  studentPhotoUrl: string | null;
+  type: PromotionType;
+  fromBelt: string | null;
+  fromStripes: number | null;
+  toBelt: string;
+  toStripes: number;
+  promotionDate: string;
+  notes: string | null;
+  performedBy: string | null;
+  deletable: boolean;
+}
+
+export interface BeltPromotionForm {
+  studentId: number;
+  fromBelt: string | null;
+  fromStripes: number;
+  toBelt: string;
+  toStripes: number;
+  promotionDate: string;
+  notes: string | null;
 }
 
 export type StudentForm = Omit<Student, 'id'>;
@@ -139,6 +172,15 @@ export interface AcademyPublic {
   photos: Photo[];
   tournaments: TournamentSummary[];
   plans: Plan[];
+  recentPromotions: RecentPromotion[];
+}
+
+export interface RecentPromotion {
+  studentName: string;
+  studentPhotoUrl: string | null;
+  fromBelt: string | null;
+  toBelt: string;
+  promotionDate: string;
 }
 
 export interface Schedule {
