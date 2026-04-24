@@ -97,7 +97,7 @@ export interface BeltPromotionForm {
   notes: string | null;
 }
 
-export type StudentForm = Omit<Student, 'id'>;
+export type StudentForm = Omit<Student, 'id' | 'stripes'>;
 
 // ─── Payment ───
 export interface Payment {
