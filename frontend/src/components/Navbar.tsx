@@ -45,7 +45,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop links */}
-          <div className="hidden lg:flex items-center gap-1 flex-1 ml-8">
+          <div className="hidden lg:flex items-center gap-1 flex-1 ml-6 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {links.map((l) => (
               <DesktopLink key={l.to} to={l.to} active={location.pathname === l.to}>
                 {l.label}
