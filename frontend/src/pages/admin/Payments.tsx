@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { paymentsApi } from '../../api/payments';
+import { academiesApi } from '../../api/academies';
 import { useStudentStore } from '../../stores/studentStore';
 import { useAuthStore } from '../../stores/authStore';
 import { formatCLP } from '../../utils/format';
-import type { Payment, PaymentForm } from '../../types';
+import type { Payment, PaymentForm, Plan } from '../../types';
 
 const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
@@ -33,6 +34,9 @@ export default function Payments() {
   const [abonoTarget, setAbonoTarget] = useState<Payment | null>(null);
   const [abonoInput, setAbonoInput] = useState('');
   const [savingAbono, setSavingAbono] = useState(false);
+  const [view, setView] = useState<'month' | 'plan'>('month');
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
 
   // CLP display state for inputs
   const [amountInput, setAmountInput] = useState('0');
@@ -54,6 +58,9 @@ export default function Payments() {
 
   useEffect(() => { fetchStudents(); }, [fetchStudents]);
   useEffect(() => { loadPayments(); }, [month, year]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    academiesApi.getPlans().then((p) => setPlans(p.filter((x) => x.active)));
+  }, []);
 
   const loadPayments = async () => {
     setLoading(true);
@@ -136,11 +143,23 @@ export default function Payments() {
   const paidStudentIds = new Set(payments.map(p => p.studentId));
   const unpaidStudents = students.filter(s => !paidStudentIds.has(s.id));
 
+  // Vista por plan
+  const selectedPlan = plans.find((p) => p.id === selectedPlanId) ?? null;
+  const planStudents = selectedPlanId
+    ? students.filter((s) => s.enrolledPlans?.some((ep) => ep.id === selectedPlanId))
+    : [];
+  const plansByDiscipline = plans.reduce<Record<string, Plan[]>>((acc, p) => {
+    const key = p.disciplineName ?? 'Sin disciplina';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(p);
+    return acc;
+  }, {});
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Pagos</h1>
-        {canEdit && (
+        {canEdit && view === 'month' && (
           <button
             onClick={() => setShowForm(!showForm)}
             className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
@@ -150,8 +169,23 @@ export default function Payments() {
         )}
       </div>
 
-      {/* Month/Year selector */}
-      <div className="flex gap-3 mb-6">
+      {/* View toggle + Month/Year selector */}
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+          <button
+            onClick={() => setView('month')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'month' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Por mes
+          </button>
+          <button
+            onClick={() => setView('plan')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'plan' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Por plan
+          </button>
+        </div>
+
         <select
           value={month}
           onChange={(e) => setMonth(Number(e.target.value))}
@@ -168,6 +202,103 @@ export default function Payments() {
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24"
         />
       </div>
+
+      {/* ── Vista por plan ─────────────────────────────────────────────────── */}
+      {view === 'plan' && (
+        <div className="space-y-5">
+          <div className="bg-white rounded-xl shadow-sm p-5">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Seleccionar plan</label>
+            <select
+              value={selectedPlanId ?? ''}
+              onChange={(e) => setSelectedPlanId(e.target.value ? Number(e.target.value) : null)}
+              className="w-full max-w-sm border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+            >
+              <option value="">Seleccionar plan…</option>
+              {Object.entries(plansByDiscipline).map(([discipline, dPlans]) => (
+                <optgroup key={discipline} label={discipline}>
+                  {dPlans.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+
+          {selectedPlan && (
+            <div className="bg-white rounded-xl shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="font-semibold text-gray-800">{selectedPlan.name}</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    {MONTH_NAMES[month - 1]} {year} — {planStudents.length} alumno{planStudents.length !== 1 ? 's' : ''} matriculado{planStudents.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                <div className="flex gap-3 text-xs font-medium">
+                  <span className="flex items-center gap-1.5 text-green-600">
+                    <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                    Pagado: {planStudents.filter(s => { const p = payments.find(x => x.studentId === s.id); return p && (p.remaining ?? 0) === 0; }).length}
+                  </span>
+                  <span className="flex items-center gap-1.5 text-orange-500">
+                    <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />
+                    Abono: {planStudents.filter(s => { const p = payments.find(x => x.studentId === s.id); return p && (p.remaining ?? 0) > 0; }).length}
+                  </span>
+                  <span className="flex items-center gap-1.5 text-red-500">
+                    <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+                    Pendiente: {planStudents.filter(s => !payments.find(x => x.studentId === s.id)).length}
+                  </span>
+                </div>
+              </div>
+
+              {planStudents.length === 0 ? (
+                <p className="text-sm text-gray-400 py-4 text-center">Ningún alumno matriculado en este plan.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {planStudents.map((student) => {
+                    const payment = payments.find((p) => p.studentId === student.id);
+                    const remaining = payment?.remaining ?? null;
+                    const isPartial = remaining != null && remaining > 0;
+                    const isPaid = !!payment && !isPartial;
+
+                    let statusColor = 'border-red-200 bg-red-50';
+                    let dotColor = 'bg-red-500';
+                    if (isPaid) { statusColor = 'border-green-200 bg-green-50'; dotColor = 'bg-green-500'; }
+                    else if (isPartial) { statusColor = 'border-orange-200 bg-orange-50'; dotColor = 'bg-orange-400'; }
+
+                    return (
+                      <div key={student.id} className={`flex items-center gap-3 p-3 rounded-lg border ${statusColor}`}>
+                        <div className={`w-3 h-3 rounded-full flex-shrink-0 ${dotColor}`} />
+                        <span className="text-sm font-medium truncate">{student.name}</span>
+                        <div className="ml-auto text-right flex-shrink-0">
+                          {payment ? (
+                            <>
+                              <div className={`text-xs font-semibold ${isPaid ? 'text-green-600' : 'text-orange-600'}`}>
+                                {formatCLP(Number(payment.amount))}
+                                {payment.expectedAmount != null && ` / ${formatCLP(payment.expectedAmount)}`}
+                              </div>
+                              {isPartial && canEdit && (
+                                <button
+                                  onClick={() => setAbonoTarget(payment)}
+                                  className="text-xs text-primary-600 hover:underline mt-0.5"
+                                >
+                                  + Abonar
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-xs font-medium text-red-600">Pendiente</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {view === 'month' && (<>
 
       {/* Payment form */}
       {canEdit && showForm && (
@@ -522,6 +653,7 @@ export default function Payments() {
           </table>
         </div>
       )}
+      </>)}
     </div>
   );
 }

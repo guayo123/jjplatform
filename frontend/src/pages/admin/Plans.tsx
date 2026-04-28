@@ -24,6 +24,7 @@ export default function Plans() {
   const [form, setForm] = useState<PlanForm>(emptyForm());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
   const load = () => {
     setLoading(true);
@@ -96,6 +97,10 @@ export default function Plans() {
 
   const activeDisciplines = disciplines.filter((d) => d.active);
 
+  const visiblePlans = plans.filter((p) =>
+    filter === 'all' ? true : filter === 'active' ? p.active : !p.active
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -111,6 +116,21 @@ export default function Plans() {
         >
           + Nuevo plan
         </button>
+      </div>
+
+      {/* Filtro */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
+        {(['all', 'active', 'inactive'] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              filter === f ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {f === 'all' ? `Todos (${plans.length})` : f === 'active' ? `Activos (${plans.filter(p => p.active).length})` : `Inactivos (${plans.filter(p => !p.active).length})`}
+          </button>
+        ))}
       </div>
 
       {/* Form modal */}
@@ -272,7 +292,7 @@ export default function Plans() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {plans.map((plan) => (
+          {visiblePlans.map((plan) => (
             <div
               key={plan.id}
               className={`bg-white rounded-xl shadow-sm border p-5 flex flex-col gap-3 transition-opacity ${

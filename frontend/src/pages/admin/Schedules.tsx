@@ -25,6 +25,7 @@ interface FormState {
   days: string[];
   dayOfWeek: string;
   planId: number | null;
+  className: string;
   startTime: string;
   endTime: string;
 }
@@ -33,6 +34,7 @@ const emptyForm = (): FormState => ({
   days: [],
   dayOfWeek: '',
   planId: null,
+  className: '',
   startTime: '18:00',
   endTime: '19:30',
 });
@@ -85,6 +87,7 @@ export default function Schedules() {
       days: [s.dayOfWeek],
       dayOfWeek: s.dayOfWeek,
       planId: s.planId,
+      className: s.className,
       startTime: s.startTime.slice(0, 5),
       endTime: s.endTime.slice(0, 5),
     });
@@ -99,6 +102,11 @@ export default function Schedules() {
   };
 
   const selectedPlan = plans.find((p) => p.id === form.planId) ?? null;
+
+  const handlePlanChange = (planId: number | null) => {
+    const plan = plans.find((p) => p.id === planId) ?? null;
+    setForm((f) => ({ ...f, planId, className: plan?.name ?? f.className }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,7 +123,7 @@ export default function Schedules() {
       if (modal?.mode === 'edit') {
         const updated = await academiesApi.updateSchedule(modal.schedule.id, {
           dayOfWeek: form.days[0] ?? modal.schedule.dayOfWeek,
-          className: selectedPlan?.name ?? '',
+          className: form.className || selectedPlan?.name || '',
           startTime: form.startTime,
           endTime: form.endTime,
           planId: form.planId,
@@ -127,7 +135,7 @@ export default function Schedules() {
           form.days.map((day) =>
             academiesApi.createSchedule({
               dayOfWeek: day,
-              className: selectedPlan?.name ?? '',
+              className: form.className || selectedPlan?.name || '',
               startTime: form.startTime,
               endTime: form.endTime,
               planId: form.planId,
@@ -298,7 +306,7 @@ export default function Schedules() {
                 <select
                   required
                   value={form.planId ?? ''}
-                  onChange={(e) => setForm({ ...form, planId: e.target.value ? Number(e.target.value) : null })}
+                  onChange={(e) => handlePlanChange(e.target.value ? Number(e.target.value) : null)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
                 >
                   <option value="">Seleccionar plan...</option>
@@ -315,6 +323,21 @@ export default function Schedules() {
                     No hay planes activos. Crea planes en la sección "Planes y Tarifas".
                   </p>
                 )}
+              </div>
+
+              {/* Nombre de la clase */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre de la clase
+                  <span className="text-xs font-normal text-gray-400 ml-1">(se muestra en el horario)</span>
+                </label>
+                <input
+                  type="text"
+                  value={form.className}
+                  onChange={(e) => setForm((f) => ({ ...f, className: e.target.value }))}
+                  placeholder={selectedPlan?.name ?? 'Ej: NOGI, BJJ Kimono…'}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
               </div>
 
               {/* Días */}

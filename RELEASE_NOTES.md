@@ -1,5 +1,32 @@
 # Notas de Versión — JJPlatform
-## Actualización: Abril 2026
+## Actualización: Abril 2026 (2)
+
+---
+
+## Nuevas funcionalidades — Segunda entrega
+
+### Pagos — Vista "Por plan"
+- Nueva vista en la sección Pagos accesible desde el toggle **"Por mes" / "Por plan"**
+- Permite seleccionar cualquier plan (agrupados por disciplina) y ver en el mes elegido:
+  - **Verde** — Alumnos que pagaron completo
+  - **Naranja** — Alumnos con abono parcial (incluye botón para completar el pago)
+  - **Rojo** — Alumnos con pago pendiente
+- Contadores de resumen (Pagados / Abonos / Pendientes) en el encabezado de la vista
+- El selector de mes y año aplica en ambas vistas
+
+### Planes — Filtro por estado
+- Nuevo filtro en la parte superior de Planes y Tarifas: **Todos / Activos / Inactivos**
+- Cada botón muestra el conteo de planes en ese estado
+- Los planes inactivos siguen visibles para consulta y pueden reactivarse en cualquier momento
+
+### Horarios — Nombre personalizable de clase
+- Al crear o editar un horario, el campo **"Nombre de la clase"** se precarga automáticamente con el nombre del plan asignado
+- Se puede editar libremente para reflejar la modalidad específica (ej: "NOGI", "BJJ Kimono", "Grappling")
+- Permite que un mismo plan cubra distintas modalidades de clase sin necesidad de crear planes duplicados
+
+### Panel de bienvenida — Accesos directos completos
+- Se agregaron las tarjetas de **Profesores** y **Disciplinas** al dashboard de inicio
+- Ahora el panel muestra acceso directo a todas las secciones del sistema
 
 ---
 

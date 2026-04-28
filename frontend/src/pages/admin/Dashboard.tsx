@@ -7,15 +7,17 @@ export default function Dashboard() {
   const isAdmin = role === 'ADMIN';
 
   const cards = [
-    { title: 'Alumnos', desc: 'Gestiona tu lista de estudiantes', link: '/admin/students', icon: '👥' },
-    { title: 'Pagos', desc: 'Control de pagos mensuales', link: '/admin/payments', icon: '💰' },
-    { title: 'Reporte', desc: 'Resumen de ingresos y pagos', link: '/admin/payments/report', icon: '📊' },
-    { title: 'Torneos', desc: 'Crea torneos y genera brackets', link: '/admin/tournaments', icon: '🏆' },
-    { title: 'Horarios', desc: 'Grilla semanal de clases', link: '/admin/schedules', icon: '📅' },
-    { title: 'Fotos', desc: 'Galería de tu academia', link: '/admin/photos', icon: '📸' },
-    { title: 'Planes y Tarifas', desc: 'Define los planes de membresía', link: '/admin/plans', icon: '📋' },
-    { title: 'Configuración', desc: 'Datos, redes sociales y perfil público', link: '/admin/settings', icon: '⚙️' },
-    ...(isAdmin ? [{ title: 'Usuarios', desc: 'Gestión de academias y accesos', link: '/admin/users', icon: '🔐' }] : []),
+    { title: 'Alumnos',        desc: 'Gestiona tu lista de estudiantes',      link: '/admin/students',         icon: '👥' },
+    { title: 'Pagos',          desc: 'Control de pagos mensuales',             link: '/admin/payments',         icon: '💰' },
+    { title: 'Reporte',        desc: 'Resumen de ingresos y pagos',            link: '/admin/payments/report',  icon: '📊' },
+    { title: 'Torneos',        desc: 'Crea torneos y genera brackets',         link: '/admin/tournaments',      icon: '🏆' },
+    { title: 'Profesores',     desc: 'Instructores de tu academia',            link: '/admin/professors',       icon: '🥋' },
+    { title: 'Disciplinas',    desc: 'Artes marciales que ofreces',            link: '/admin/disciplines',      icon: '🎯' },
+    { title: 'Planes',         desc: 'Define los planes de membresía',         link: '/admin/plans',            icon: '📋' },
+    { title: 'Horarios',       desc: 'Grilla semanal de clases',               link: '/admin/schedules',        icon: '📅' },
+    { title: 'Fotos',          desc: 'Galería de tu academia',                 link: '/admin/photos',           icon: '📸' },
+    { title: 'Configuración',  desc: 'Datos, redes sociales y perfil público', link: '/admin/settings',         icon: '⚙️' },
+    ...(isAdmin ? [{ title: 'Usuarios', desc: 'Gestión de accesos y roles', link: '/admin/users', icon: '🔐' }] : []),
   ];
 
   return (
