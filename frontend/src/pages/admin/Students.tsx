@@ -114,9 +114,11 @@ export default function Students() {
   const handleToggleActive = async (student: Student) => {
     await updateStudent(student.id, {
       name: student.name,
+      nickname: student.nickname,
       rut: student.rut,
       email: student.email,
       phone: student.phone,
+      emergencyPhone: student.emergencyPhone,
       joinDate: student.joinDate,
       age: student.age,
       weight: student.weight,
@@ -124,7 +126,11 @@ export default function Students() {
       photoUrl: student.photoUrl,
       address: student.address,
       medicalNotes: student.medicalNotes,
+      bloodType: student.bloodType,
+      healthInsuranceType: student.healthInsuranceType,
+      healthInsuranceCompany: student.healthInsuranceCompany,
       active: !student.active,
+      planIds: student.planIds,
     });
   };
 

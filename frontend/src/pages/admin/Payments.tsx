@@ -470,7 +470,6 @@ export default function Payments() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {payments.map((p) => {
-                const net = computeNetExpected(p);
                 const remaining = p.remaining ?? 0;
                 const discountLabel = p.discount && Number(p.discount) > 0
                   ? p.discountType === 'PERCENT'
