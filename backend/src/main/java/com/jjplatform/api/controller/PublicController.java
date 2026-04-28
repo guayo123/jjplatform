@@ -54,8 +54,9 @@ public class PublicController {
             sd.setStartTime(s.getStartTime());
             sd.setEndTime(s.getEndTime());
             sd.setClassName(s.getClassName());
-            com.jjplatform.api.model.Professor prof =
-                    (s.getPlan() != null) ? s.getPlan().getProfessor() : null;
+            com.jjplatform.api.model.Professor prof = s.getProfessor() != null
+                    ? s.getProfessor()
+                    : (s.getPlan() != null ? s.getPlan().getProfessor() : null);
             sd.setProfessorName(prof != null ? prof.getName() : null);
             sd.setProfessorPhotoUrl(prof != null ? prof.getPhotoUrl() : null);
             return sd;
