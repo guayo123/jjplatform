@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { academiesApi } from '../../api/academies';
+import { professorsApi } from '../../api/professors';
 import { useToast } from '../../components/ToastContext';
 import { useConfirm } from '../../components/ConfirmContext';
 import SchedulePosterModal from './SchedulePosterModal';
-import type { Plan, Schedule, AcademySettings } from '../../types';
+import type { Plan, Professor, Schedule, AcademySettings } from '../../types';
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const DAY_SHORT: Record<string, string> = {
@@ -25,6 +26,7 @@ interface FormState {
   days: string[];
   dayOfWeek: string;
   planId: number | null;
+  professorId: number | null;
   className: string;
   startTime: string;
   endTime: string;
@@ -34,6 +36,7 @@ const emptyForm = (): FormState => ({
   days: [],
   dayOfWeek: '',
   planId: null,
+  professorId: null,
   className: '',
   startTime: '18:00',
   endTime: '19:30',
@@ -46,6 +49,7 @@ type ModalState =
 export default function Schedules() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [professors, setProfessors] = useState<Professor[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [form, setForm] = useState(emptyForm());
@@ -59,9 +63,11 @@ export default function Schedules() {
     Promise.all([
       academiesApi.getSchedules(),
       academiesApi.getPlans(),
-    ]).then(([s, p]) => {
+      professorsApi.list(),
+    ]).then(([s, p, pr]) => {
       setSchedules(s);
       setPlans(p.filter((pl) => pl.active));
+      setProfessors(pr.filter((x) => x.active));
     }).finally(() => setLoading(false));
 
   useEffect(() => {
@@ -87,6 +93,7 @@ export default function Schedules() {
       days: [s.dayOfWeek],
       dayOfWeek: s.dayOfWeek,
       planId: s.planId,
+      professorId: s.professorId,
       className: s.className,
       startTime: s.startTime.slice(0, 5),
       endTime: s.endTime.slice(0, 5),
@@ -127,6 +134,7 @@ export default function Schedules() {
           startTime: form.startTime,
           endTime: form.endTime,
           planId: form.planId,
+          professorId: form.professorId,
         });
         setSchedules((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
         toast.success('Clase actualizada');
@@ -139,6 +147,7 @@ export default function Schedules() {
               startTime: form.startTime,
               endTime: form.endTime,
               planId: form.planId,
+              professorId: form.professorId,
             })
           )
         );
@@ -339,6 +348,26 @@ export default function Schedules() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
+
+              {/* Profesor */}
+              {professors.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Profesor
+                    <span className="text-xs font-normal text-gray-400 ml-1">(sobreescribe el del plan)</span>
+                  </label>
+                  <select
+                    value={form.professorId ?? ''}
+                    onChange={(e) => setForm((f) => ({ ...f, professorId: e.target.value ? Number(e.target.value) : null }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                  >
+                    <option value="">Usar profesor del plan</option>
+                    {professors.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}{p.belt ? ` · ${p.belt}` : ''}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Días */}
               <div>

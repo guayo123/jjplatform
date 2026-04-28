@@ -205,6 +205,7 @@ export interface Schedule {
   endTime: string;
   className: string;
   planId: number | null;
+  professorId: number | null;
   professorName: string | null;
   professorPhotoUrl: string | null;
 }
@@ -215,6 +216,7 @@ export interface ScheduleForm {
   endTime: string;
   className: string;
   planId?: number | null;
+  professorId?: number | null;
 }
 
 export interface Photo {

@@ -134,6 +134,10 @@ public class AcademyController {
         if (req.planId() != null) {
             plan = planRepository.findById(req.planId()).orElse(null);
         }
+        Professor professor = null;
+        if (req.professorId() != null) {
+            professor = professorRepository.findById(req.professorId()).orElse(null);
+        }
         String className = (req.className() != null && !req.className().isBlank())
                 ? req.className()
                 : (plan != null ? plan.getName() : "");
@@ -145,6 +149,7 @@ public class AcademyController {
                 .endTime(LocalTime.parse(req.endTime()))
                 .className(className)
                 .plan(plan)
+                .professor(professor)
                 .build();
         s = classScheduleRepository.save(s);
         return ResponseEntity.ok(scheduleToMap(s));
@@ -165,10 +170,19 @@ public class AcademyController {
         if (req.planId() != null) {
             Plan plan = planRepository.findById(req.planId()).orElse(null);
             s.setPlan(plan);
-            if (plan != null) s.setClassName(plan.getName());
+            if (plan != null && (req.className() == null || req.className().isBlank())) {
+                s.setClassName(plan.getName());
+            }
         } else if (req.className() != null && !req.className().isBlank()) {
-            s.setClassName(req.className());
             s.setPlan(null);
+        }
+        if (req.className() != null && !req.className().isBlank()) {
+            s.setClassName(req.className());
+        }
+        if (req.professorId() != null) {
+            s.setProfessor(professorRepository.findById(req.professorId()).orElse(null));
+        } else {
+            s.setProfessor(null);
         }
 
         s = classScheduleRepository.save(s);
@@ -293,7 +307,10 @@ public class AcademyController {
         m.put("endTime", s.getEndTime().toString());
         m.put("className", s.getClassName());
         m.put("planId", s.getPlan() != null ? s.getPlan().getId() : null);
-        Professor prof = (s.getPlan() != null) ? s.getPlan().getProfessor() : null;
+        // Professor on the schedule overrides the plan's professor
+        Professor prof = s.getProfessor() != null ? s.getProfessor()
+                : (s.getPlan() != null ? s.getPlan().getProfessor() : null);
+        m.put("professorId", s.getProfessor() != null ? s.getProfessor().getId() : null);
         m.put("professorName", prof != null ? prof.getName() : null);
         m.put("professorPhotoUrl", prof != null ? prof.getPhotoUrl() : null);
         return m;
@@ -333,5 +350,5 @@ public class AcademyController {
                        Integer displayOrder, Long disciplineId, Long professorId) {}
 
     record ScheduleRequest(String dayOfWeek, String startTime, String endTime,
-                           String className, Long planId) {}
+                           String className, Long planId, Long professorId) {}
 }

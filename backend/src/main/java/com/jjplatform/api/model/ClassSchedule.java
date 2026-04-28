@@ -24,6 +24,10 @@ public class ClassSchedule {
     @JoinColumn(name = "plan_id")
     private Plan plan;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "professor_id")
+    private Professor professor;
+
     @Column(nullable = false)
     private String dayOfWeek;
 
