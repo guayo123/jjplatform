@@ -3,10 +3,14 @@ package com.jjplatform.api.controller;
 import com.jjplatform.api.dto.UpdateAcademyRequest;
 import com.jjplatform.api.model.Academy;
 import com.jjplatform.api.model.ClassSchedule;
+import com.jjplatform.api.model.Discipline;
 import com.jjplatform.api.model.Plan;
+import com.jjplatform.api.model.Professor;
 import com.jjplatform.api.repository.AcademyRepository;
 import com.jjplatform.api.repository.ClassScheduleRepository;
+import com.jjplatform.api.repository.DisciplineRepository;
 import com.jjplatform.api.repository.PlanRepository;
+import com.jjplatform.api.repository.ProfessorRepository;
 import com.jjplatform.api.service.SecurityHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +29,8 @@ public class AcademyController {
     private final AcademyRepository academyRepository;
     private final PlanRepository planRepository;
     private final ClassScheduleRepository classScheduleRepository;
+    private final DisciplineRepository disciplineRepository;
+    private final ProfessorRepository professorRepository;
     private final SecurityHelper securityHelper;
 
     @GetMapping
@@ -49,7 +55,6 @@ public class AcademyController {
         if (request.getPhone() != null) academy.setPhone(request.getPhone());
         if (request.getWhatsapp() != null) {
             academy.setWhatsapp(request.getWhatsapp());
-            // keep phone in sync with whatsapp
             academy.setPhone(request.getWhatsapp());
         }
         if (request.getInstagram() != null) academy.setInstagram(request.getInstagram());
@@ -58,7 +63,57 @@ public class AcademyController {
         return ResponseEntity.ok(toMap(academy));
     }
 
-    // ─── Schedules ────────────────────────────────────────────────────
+    // ─── Disciplines ──────────────────────────────────────────────────────────
+
+    @GetMapping("/disciplines")
+    public ResponseEntity<List<Map<String, Object>>> getDisciplines() {
+        Long academyId = securityHelper.getCurrentAcademyId();
+        return ResponseEntity.ok(
+                disciplineRepository.findByAcademyIdOrderByNameAsc(academyId)
+                        .stream().map(this::disciplineToMap).toList()
+        );
+    }
+
+    @PostMapping("/disciplines")
+    public ResponseEntity<Map<String, Object>> createDiscipline(@RequestBody DisciplineRequest req) {
+        Long academyId = securityHelper.getCurrentAcademyId();
+        Academy academy = academyRepository.findById(academyId)
+                .orElseThrow(() -> new IllegalStateException("Academia no encontrada"));
+
+        Discipline d = Discipline.builder()
+                .academy(academy)
+                .name(req.name())
+                .build();
+        d = disciplineRepository.save(d);
+        return ResponseEntity.ok(disciplineToMap(d));
+    }
+
+    @PutMapping("/disciplines/{did}")
+    public ResponseEntity<Map<String, Object>> updateDiscipline(@PathVariable Long did,
+                                                                 @RequestBody DisciplineRequest req) {
+        Long academyId = securityHelper.getCurrentAcademyId();
+        Discipline d = disciplineRepository.findById(did)
+                .orElseThrow(() -> new IllegalStateException("Disciplina no encontrada"));
+        if (!d.getAcademy().getId().equals(academyId)) return ResponseEntity.status(403).build();
+
+        if (req.name() != null && !req.name().isBlank()) d.setName(req.name());
+        d = disciplineRepository.save(d);
+        return ResponseEntity.ok(disciplineToMap(d));
+    }
+
+    @PutMapping("/disciplines/{did}/toggle-active")
+    public ResponseEntity<Map<String, Object>> toggleDiscipline(@PathVariable Long did) {
+        Long academyId = securityHelper.getCurrentAcademyId();
+        Discipline d = disciplineRepository.findById(did)
+                .orElseThrow(() -> new IllegalStateException("Disciplina no encontrada"));
+        if (!d.getAcademy().getId().equals(academyId)) return ResponseEntity.status(403).build();
+
+        d.setActive(!d.getActive());
+        d = disciplineRepository.save(d);
+        return ResponseEntity.ok(disciplineToMap(d));
+    }
+
+    // ─── Schedules ────────────────────────────────────────────────────────────
 
     @GetMapping("/schedules")
     public ResponseEntity<List<Map<String, Object>>> getSchedules() {
@@ -75,12 +130,21 @@ public class AcademyController {
         Academy academy = academyRepository.findById(academyId)
                 .orElseThrow(() -> new IllegalStateException("Academia no encontrada"));
 
+        Plan plan = null;
+        if (req.planId() != null) {
+            plan = planRepository.findById(req.planId()).orElse(null);
+        }
+        String className = (req.className() != null && !req.className().isBlank())
+                ? req.className()
+                : (plan != null ? plan.getName() : "");
+
         ClassSchedule s = ClassSchedule.builder()
                 .academy(academy)
                 .dayOfWeek(req.dayOfWeek())
                 .startTime(LocalTime.parse(req.startTime()))
                 .endTime(LocalTime.parse(req.endTime()))
-                .className(req.className())
+                .className(className)
+                .plan(plan)
                 .build();
         s = classScheduleRepository.save(s);
         return ResponseEntity.ok(scheduleToMap(s));
@@ -97,7 +161,16 @@ public class AcademyController {
         if (req.dayOfWeek() != null) s.setDayOfWeek(req.dayOfWeek());
         if (req.startTime() != null) s.setStartTime(LocalTime.parse(req.startTime()));
         if (req.endTime() != null) s.setEndTime(LocalTime.parse(req.endTime()));
-        if (req.className() != null && !req.className().isBlank()) s.setClassName(req.className());
+
+        if (req.planId() != null) {
+            Plan plan = planRepository.findById(req.planId()).orElse(null);
+            s.setPlan(plan);
+            if (plan != null) s.setClassName(plan.getName());
+        } else if (req.className() != null && !req.className().isBlank()) {
+            s.setClassName(req.className());
+            s.setPlan(null);
+        }
+
         s = classScheduleRepository.save(s);
         return ResponseEntity.ok(scheduleToMap(s));
     }
@@ -129,6 +202,15 @@ public class AcademyController {
         Academy academy = academyRepository.findById(academyId)
                 .orElseThrow(() -> new IllegalStateException("Academia no encontrada"));
 
+        Discipline discipline = null;
+        if (req.disciplineId() != null) {
+            discipline = disciplineRepository.findById(req.disciplineId()).orElse(null);
+        }
+        Professor professor = null;
+        if (req.professorId() != null) {
+            professor = professorRepository.findById(req.professorId()).orElse(null);
+        }
+
         Plan plan = Plan.builder()
                 .academy(academy)
                 .name(req.name())
@@ -136,6 +218,8 @@ public class AcademyController {
                 .price(req.price())
                 .features(req.features())
                 .displayOrder(req.displayOrder())
+                .discipline(discipline)
+                .professor(professor)
                 .build();
 
         plan = planRepository.save(plan);
@@ -159,6 +243,19 @@ public class AcademyController {
         if (req.features() != null) plan.setFeatures(req.features());
         if (req.displayOrder() != null) plan.setDisplayOrder(req.displayOrder());
 
+        if (req.disciplineId() != null) {
+            Discipline discipline = disciplineRepository.findById(req.disciplineId()).orElse(null);
+            plan.setDiscipline(discipline);
+        } else {
+            plan.setDiscipline(null);
+        }
+        if (req.professorId() != null) {
+            Professor professor = professorRepository.findById(req.professorId()).orElse(null);
+            plan.setProfessor(professor);
+        } else {
+            plan.setProfessor(null);
+        }
+
         plan = planRepository.save(plan);
         return ResponseEntity.ok(planToMap(plan));
     }
@@ -180,6 +277,14 @@ public class AcademyController {
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
+    private Map<String, Object> disciplineToMap(Discipline d) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("id", d.getId());
+        m.put("name", d.getName());
+        m.put("active", d.getActive());
+        return m;
+    }
+
     private Map<String, Object> scheduleToMap(ClassSchedule s) {
         Map<String, Object> m = new HashMap<>();
         m.put("id", s.getId());
@@ -187,6 +292,10 @@ public class AcademyController {
         m.put("startTime", s.getStartTime().toString());
         m.put("endTime", s.getEndTime().toString());
         m.put("className", s.getClassName());
+        m.put("planId", s.getPlan() != null ? s.getPlan().getId() : null);
+        Professor prof = (s.getPlan() != null) ? s.getPlan().getProfessor() : null;
+        m.put("professorName", prof != null ? prof.getName() : null);
+        m.put("professorPhotoUrl", prof != null ? prof.getPhotoUrl() : null);
         return m;
     }
 
@@ -203,19 +312,26 @@ public class AcademyController {
     }
 
     private Map<String, Object> planToMap(Plan p) {
-        return Map.of(
-                "id", p.getId(),
-                "name", p.getName(),
-                "description", p.getDescription() != null ? p.getDescription() : "",
-                "price", p.getPrice() != null ? p.getPrice() : 0,
-                "features", p.getFeatures() != null ? p.getFeatures() : "",
-                "active", p.getActive(),
-                "displayOrder", p.getDisplayOrder() != null ? p.getDisplayOrder() : 0
-        );
+        Map<String, Object> m = new HashMap<>();
+        m.put("id", p.getId());
+        m.put("name", p.getName());
+        m.put("description", p.getDescription() != null ? p.getDescription() : "");
+        m.put("price", p.getPrice() != null ? p.getPrice() : 0);
+        m.put("features", p.getFeatures() != null ? p.getFeatures() : "");
+        m.put("active", p.getActive());
+        m.put("displayOrder", p.getDisplayOrder() != null ? p.getDisplayOrder() : 0);
+        m.put("disciplineId", p.getDiscipline() != null ? p.getDiscipline().getId() : null);
+        m.put("disciplineName", p.getDiscipline() != null ? p.getDiscipline().getName() : null);
+        m.put("professorId", p.getProfessor() != null ? p.getProfessor().getId() : null);
+        m.put("professorName", p.getProfessor() != null ? p.getProfessor().getName() : null);
+        return m;
     }
 
-    record PlanRequest(String name, String description, Integer price, String features, Integer displayOrder) {}
+    record DisciplineRequest(String name) {}
 
-    record ScheduleRequest(String dayOfWeek, String startTime, String endTime, String className) {}
+    record PlanRequest(String name, String description, Integer price, String features,
+                       Integer displayOrder, Long disciplineId, Long professorId) {}
+
+    record ScheduleRequest(String dayOfWeek, String startTime, String endTime,
+                           String className, Long planId) {}
 }
-

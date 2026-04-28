@@ -15,9 +15,16 @@ public class PaymentDto {
 
     private String studentName;
 
+    private BigDecimal expectedAmount;
+
     @NotNull(message = "Amount is required")
     @Min(value = 0, message = "Amount must be positive")
     private BigDecimal amount;
+
+    private BigDecimal discount;
+    private String discountType;
+
+    private BigDecimal remaining;
 
     @NotNull(message = "Month is required")
     @Min(value = 1)

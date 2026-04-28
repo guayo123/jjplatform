@@ -55,9 +55,11 @@ export interface AcademySummary {
 export interface Student {
   id: number;
   name: string;
+  nickname: string | null;
   rut: string | null;
   email: string | null;
   phone: string | null;
+  emergencyPhone: string | null;
   joinDate: string | null;
   age: number | null;
   weight: number | null;
@@ -66,7 +68,12 @@ export interface Student {
   photoUrl: string | null;
   address: string | null;
   medicalNotes: string | null;
+  bloodType: string | null;
+  healthInsuranceType: string | null;
+  healthInsuranceCompany: string | null;
   active: boolean;
+  planIds?: number[];
+  enrolledPlans?: Array<{ id: number; name: string; disciplineName: string | null; price: number | null }>;
 }
 
 export type PromotionType = 'PROMOCION' | 'DEGRADACION' | 'GRADO';
@@ -104,7 +111,11 @@ export interface Payment {
   id: number;
   studentId: number;
   studentName: string;
+  expectedAmount: number | null;
   amount: number;
+  discount: number | null;
+  discountType: 'AMOUNT' | 'PERCENT' | null;
+  remaining: number | null;
   month: number;
   year: number;
   notes: string | null;
@@ -113,7 +124,10 @@ export interface Payment {
 
 export interface PaymentForm {
   studentId: number;
+  expectedAmount?: number;
   amount: number;
+  discount?: number;
+  discountType?: 'AMOUNT' | 'PERCENT';
   month: number;
   year: number;
   notes?: string;
@@ -173,6 +187,7 @@ export interface AcademyPublic {
   tournaments: TournamentSummary[];
   plans: Plan[];
   recentPromotions: RecentPromotion[];
+  professors: ProfessorPublic[];
 }
 
 export interface RecentPromotion {
@@ -189,6 +204,9 @@ export interface Schedule {
   startTime: string;
   endTime: string;
   className: string;
+  planId: number | null;
+  professorName: string | null;
+  professorPhotoUrl: string | null;
 }
 
 export interface ScheduleForm {
@@ -196,6 +214,7 @@ export interface ScheduleForm {
   startTime: string;
   endTime: string;
   className: string;
+  planId?: number | null;
 }
 
 export interface Photo {
@@ -212,6 +231,43 @@ export interface TournamentSummary {
   participantCount: number;
 }
 
+export interface Discipline {
+  id: number;
+  name: string;
+  active: boolean;
+}
+
+export interface Professor {
+  id: number;
+  name: string;
+  photoUrl: string | null;
+  bio: string | null;
+  achievements: string | null;
+  belt: string | null;
+  displayOrder: number | null;
+  active: boolean;
+}
+
+export interface ProfessorForm {
+  name: string;
+  photoUrl: string | null;
+  bio: string | null;
+  achievements: string | null;
+  belt: string | null;
+  displayOrder: number;
+}
+
+export interface ProfessorPublic {
+  id: number;
+  name: string;
+  photoUrl: string | null;
+  bio: string | null;
+  achievements: string | null;
+  belt: string | null;
+  planNames: string[];
+  disciplineNames: string[];
+}
+
 export interface Plan {
   id: number;
   name: string;
@@ -220,6 +276,10 @@ export interface Plan {
   features: string;
   active: boolean;
   displayOrder: number;
+  disciplineId: number | null;
+  disciplineName: string | null;
+  professorId: number | null;
+  professorName: string | null;
 }
 
 export interface PlanForm {
@@ -228,6 +288,8 @@ export interface PlanForm {
   price: number;
   features: string;
   displayOrder: number;
+  disciplineId: number | null;
+  professorId: number | null;
 }
 
 // ─── Academy Settings ───

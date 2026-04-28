@@ -18,6 +18,14 @@ public class Plan {
     @JoinColumn(name = "academy_id", nullable = false)
     private Academy academy;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "discipline_id")
+    private Discipline discipline;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "professor_id")
+    private Professor professor;
+
     @Column(nullable = false)
     private String name;
 

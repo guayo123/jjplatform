@@ -34,19 +34,22 @@ public class FileController {
     @PostMapping("/upload")
     public ResponseEntity<Map<String, String>> upload(
             @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "caption", required = false) String caption) throws IOException {
+            @RequestParam(value = "caption", required = false) String caption,
+            @RequestParam(value = "gallery", defaultValue = "true") boolean gallery) throws IOException {
 
         Long academyId = securityHelper.getCurrentAcademyId();
 
         String filename = fileStorageService.store(file);
         String fileUrl = baseUrl + "/api/files/" + filename;
 
-        Photo photo = Photo.builder()
-                .academy(academyRepository.findById(academyId).orElseThrow())
-                .url(fileUrl)
-                .caption(caption)
-                .build();
-        photoRepository.save(photo);
+        if (gallery) {
+            Photo photo = Photo.builder()
+                    .academy(academyRepository.findById(academyId).orElseThrow())
+                    .url(fileUrl)
+                    .caption(caption)
+                    .build();
+            photoRepository.save(photo);
+        }
 
         return ResponseEntity.ok(Map.of("url", fileUrl, "filename", filename));
     }

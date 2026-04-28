@@ -6,6 +6,8 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "students")
@@ -50,10 +52,29 @@ public class Student {
     @Column(columnDefinition = "TEXT")
     private String medicalNotes;
 
+    private String nickname;
+
+    private String emergencyPhone;
+
+    private String bloodType;
+
+    private String healthInsuranceType;
+
+    private String healthInsuranceCompany;
+
     @Builder.Default
     private Boolean active = true;
 
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "student_plans",
+        joinColumns = @JoinColumn(name = "student_id"),
+        inverseJoinColumns = @JoinColumn(name = "plan_id")
+    )
+    @Builder.Default
+    private List<Plan> plans = new ArrayList<>();
 }

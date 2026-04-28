@@ -3,7 +3,7 @@ import { academiesApi } from '../../api/academies';
 import { useToast } from '../../components/ToastContext';
 import { useConfirm } from '../../components/ConfirmContext';
 import SchedulePosterModal from './SchedulePosterModal';
-import type { Schedule, ScheduleForm, AcademySettings } from '../../types';
+import type { Plan, Schedule, AcademySettings } from '../../types';
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const DAY_SHORT: Record<string, string> = {
@@ -21,10 +21,18 @@ function hexAlpha(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-const emptyForm = (): ScheduleForm & { days: string[] } => ({
+interface FormState {
+  days: string[];
+  dayOfWeek: string;
+  planId: number | null;
+  startTime: string;
+  endTime: string;
+}
+
+const emptyForm = (): FormState => ({
   days: [],
   dayOfWeek: '',
-  className: '',
+  planId: null,
   startTime: '18:00',
   endTime: '19:30',
 });
@@ -35,6 +43,7 @@ type ModalState =
 
 export default function Schedules() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [form, setForm] = useState(emptyForm());
@@ -45,7 +54,13 @@ export default function Schedules() {
   const confirm = useConfirm();
 
   const load = () =>
-    academiesApi.getSchedules().then(setSchedules).finally(() => setLoading(false));
+    Promise.all([
+      academiesApi.getSchedules(),
+      academiesApi.getPlans(),
+    ]).then(([s, p]) => {
+      setSchedules(s);
+      setPlans(p.filter((pl) => pl.active));
+    }).finally(() => setLoading(false));
 
   useEffect(() => {
     load();
@@ -69,7 +84,7 @@ export default function Schedules() {
     setForm({
       days: [s.dayOfWeek],
       dayOfWeek: s.dayOfWeek,
-      className: s.className,
+      planId: s.planId,
       startTime: s.startTime.slice(0, 5),
       endTime: s.endTime.slice(0, 5),
     });
@@ -83,10 +98,16 @@ export default function Schedules() {
     }));
   };
 
+  const selectedPlan = plans.find((p) => p.id === form.planId) ?? null;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (modal?.mode === 'add' && form.days.length === 0) {
       toast.error('Selecciona al menos un día');
+      return;
+    }
+    if (!form.planId) {
+      toast.error('Selecciona un plan');
       return;
     }
     setSaving(true);
@@ -94,29 +115,28 @@ export default function Schedules() {
       if (modal?.mode === 'edit') {
         const updated = await academiesApi.updateSchedule(modal.schedule.id, {
           dayOfWeek: form.days[0] ?? modal.schedule.dayOfWeek,
-          className: form.className,
+          className: selectedPlan?.name ?? '',
           startTime: form.startTime,
           endTime: form.endTime,
+          planId: form.planId,
         });
         setSchedules((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
         toast.success('Clase actualizada');
       } else {
-        // Create one entry per selected day
         const created = await Promise.all(
           form.days.map((day) =>
             academiesApi.createSchedule({
               dayOfWeek: day,
-              className: form.className,
+              className: selectedPlan?.name ?? '',
               startTime: form.startTime,
               endTime: form.endTime,
+              planId: form.planId,
             })
           )
         );
         setSchedules((prev) => [...prev, ...created]);
         toast.success(
-          created.length === 1
-            ? 'Clase agregada'
-            : `${created.length} clases agregadas`
+          created.length === 1 ? 'Clase agregada' : `${created.length} clases agregadas`
         );
       }
       setModal(null);
@@ -142,6 +162,14 @@ export default function Schedules() {
       toast.error('Error al eliminar');
     }
   };
+
+  // Group plans by discipline for the selector
+  const plansByDiscipline = plans.reduce<Record<string, Plan[]>>((acc, p) => {
+    const key = p.disciplineName ?? 'Sin disciplina';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(p);
+    return acc;
+  }, {});
 
   const isEdit = modal?.mode === 'edit';
 
@@ -179,12 +207,10 @@ export default function Schedules() {
           <div className="w-6 h-6 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
-        /* Weekly grid — horizontal scroll on mobile */
         <div className="overflow-x-auto">
           <div className="grid grid-cols-7 gap-2 min-w-[700px]">
             {DAYS.map((day) => (
               <div key={day} className="flex flex-col gap-2">
-                {/* Day header */}
                 <div className={`rounded-lg px-2 py-2 flex items-center justify-between gap-1 ${
                   byDay[day].length > 0 ? 'bg-gray-800' : 'bg-gray-100'
                 }`}>
@@ -201,7 +227,6 @@ export default function Schedules() {
                   )}
                 </div>
 
-                {/* Class cards */}
                 {byDay[day].map((s) => {
                   const color = classColor(s.className);
                   return (
@@ -211,7 +236,6 @@ export default function Schedules() {
                       style={{ background: hexAlpha(color, 0.08), border: `1px solid ${hexAlpha(color, 0.25)}` }}
                       onClick={() => openEdit(s)}
                     >
-                      {/* Left accent bar */}
                       <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg" style={{ background: color }} />
                       <div className="pl-3.5 pr-7 py-2.5">
                         <p className="text-xs font-semibold text-gray-800 leading-tight truncate">
@@ -220,8 +244,12 @@ export default function Schedules() {
                         <p className="text-[11px] tabular-nums mt-0.5 font-medium" style={{ color }}>
                           {s.startTime.slice(0, 5)} – {s.endTime.slice(0, 5)}
                         </p>
+                        {s.professorName && (
+                          <p className="text-[10px] text-gray-500 mt-0.5 truncate">
+                            <span className="text-gray-600">Prof. </span>{s.professorName}
+                          </p>
+                        )}
                       </div>
-                      {/* Delete btn */}
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDelete(s); }}
                         className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-white hover:bg-red-100 text-gray-400 hover:text-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-xs font-bold shadow-sm"
@@ -232,7 +260,6 @@ export default function Schedules() {
                   );
                 })}
 
-                {/* Add shortcut */}
                 <button
                   onClick={() => {
                     setForm({ ...emptyForm(), days: [day] });
@@ -263,18 +290,31 @@ export default function Schedules() {
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Nombre */}
+              {/* Plan selector */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre de la clase
+                  Plan / Clase *
                 </label>
-                <input
+                <select
                   required
-                  value={form.className}
-                  onChange={(e) => setForm({ ...form, className: e.target.value })}
-                  placeholder="ej: BJJ Fundamentales, Grappling Avanzado…"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                />
+                  value={form.planId ?? ''}
+                  onChange={(e) => setForm({ ...form, planId: e.target.value ? Number(e.target.value) : null })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                >
+                  <option value="">Seleccionar plan...</option>
+                  {Object.entries(plansByDiscipline).map(([discipline, dPlans]) => (
+                    <optgroup key={discipline} label={discipline}>
+                      {dPlans.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                {plans.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    No hay planes activos. Crea planes en la sección "Planes y Tarifas".
+                  </p>
+                )}
               </div>
 
               {/* Días */}
@@ -309,9 +349,7 @@ export default function Schedules() {
               {/* Horario */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Inicio
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Inicio</label>
                   <input
                     required
                     type="time"
@@ -321,9 +359,7 @@ export default function Schedules() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fin
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fin</label>
                   <input
                     required
                     type="time"
@@ -354,6 +390,7 @@ export default function Schedules() {
           </div>
         </div>
       )}
+
       {showPoster && academy && (
         <SchedulePosterModal
           schedules={schedules}

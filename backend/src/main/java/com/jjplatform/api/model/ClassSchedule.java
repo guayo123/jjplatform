@@ -20,6 +20,10 @@ public class ClassSchedule {
     @JoinColumn(name = "academy_id", nullable = false)
     private Academy academy;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "plan_id")
+    private Plan plan;
+
     @Column(nullable = false)
     private String dayOfWeek;
 

@@ -63,6 +63,10 @@ public class Academy {
     @OneToMany(mappedBy = "academy", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Plan> plans = new ArrayList<>();
 
+    @Builder.Default
+    @OneToMany(mappedBy = "academy", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Professor> professors = new ArrayList<>();
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;

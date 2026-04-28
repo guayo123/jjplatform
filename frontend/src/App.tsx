@@ -18,6 +18,9 @@ import Users from './pages/admin/Users';
 import Settings from './pages/admin/Settings';
 import Plans from './pages/admin/Plans';
 import Schedules from './pages/admin/Schedules';
+import Disciplines from './pages/admin/Disciplines';
+import Professors from './pages/admin/Professors';
+import ProfessorForm from './pages/admin/ProfessorForm';
 import SuperAcademies from './pages/super/Academies';
 
 export default function App() {
@@ -43,6 +46,10 @@ export default function App() {
           <Route path="/admin/photos" element={<Photos />} />
           <Route path="/admin/users" element={<Users />} />
           <Route path="/admin/settings" element={<Settings />} />
+          <Route path="/admin/professors" element={<Professors />} />
+          <Route path="/admin/professors/new" element={<ProfessorForm />} />
+          <Route path="/admin/professors/:id/edit" element={<ProfessorForm />} />
+          <Route path="/admin/disciplines" element={<Disciplines />} />
           <Route path="/admin/plans" element={<Plans />} />
           <Route path="/admin/schedules" element={<Schedules />} />
           <Route path="/super/academies" element={<SuperAcademies />} />

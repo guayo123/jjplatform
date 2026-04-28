@@ -20,6 +20,20 @@ public class AcademyPublicDto {
     private List<TournamentSummaryDto> tournaments;
     private List<PlanDto> plans;
     private List<RecentPromotionDto> recentPromotions;
+    private List<ProfessorDto> professors;
+
+    @Data
+    public static class ProfessorDto {
+        private Long id;
+        private String name;
+        private String photoUrl;
+        private String bio;
+        private String achievements;
+        private String belt;
+        private Integer displayOrder;
+        private List<String> planNames;
+        private List<String> disciplineNames;
+    }
 
     @Data
     public static class RecentPromotionDto {
@@ -38,6 +52,8 @@ public class AcademyPublicDto {
         private Integer price;
         private String features;
         private Integer displayOrder;
+        private Long disciplineId;
+        private String disciplineName;
     }
 
     @Data
@@ -47,6 +63,8 @@ public class AcademyPublicDto {
         private LocalTime startTime;
         private LocalTime endTime;
         private String className;
+        private String professorName;
+        private String professorPhotoUrl;
     }
 
     @Data

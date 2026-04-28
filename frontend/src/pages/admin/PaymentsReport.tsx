@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { paymentsApi } from '../../api/payments';
 import { useStudentStore } from '../../stores/studentStore';
 import { useAuthStore } from '../../stores/authStore';
+import { formatCLP } from '../../utils/format';
 import type { Payment } from '../../types';
 
 const MONTH_NAMES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -46,12 +47,13 @@ export default function PaymentsReport() {
     return activeStudents.filter(s => !currentMonthPayments.has(s.id));
   }, [activeStudents, payments, year, currentYear, currentMonth]);
 
-  // Map: studentId -> month -> amount
+  // Map: studentId -> month -> { amount, isExento }
   const paymentMap = useMemo(() => {
-    const map = new Map<number, Map<number, number>>();
+    const map = new Map<number, Map<number, { amount: number; isExento: boolean }>>();
     for (const p of payments) {
       if (!map.has(p.studentId)) map.set(p.studentId, new Map());
-      map.get(p.studentId)!.set(p.month, Number(p.amount));
+      const isExento = Number(p.amount) === 0 && p.expectedAmount != null && p.expectedAmount > 0;
+      map.get(p.studentId)!.set(p.month, { amount: Number(p.amount), isExento });
     }
     return map;
   }, [payments]);
@@ -110,7 +112,7 @@ export default function PaymentsReport() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-primary-600 text-white rounded-xl p-5 shadow-sm col-span-1">
               <p className="text-primary-200 text-sm font-medium">Total anual {year}</p>
-              <p className="text-3xl font-bold mt-1">${yearTotal.toLocaleString('es-CL')}</p>
+              <p className="text-3xl font-bold mt-1">{formatCLP(yearTotal)}</p>
               <p className="text-primary-200 text-xs mt-1">{payments.length} pagos registrados</p>
             </div>
             <div className="bg-white rounded-xl p-5 shadow-sm">
@@ -121,7 +123,7 @@ export default function PaymentsReport() {
             <div className="bg-white rounded-xl p-5 shadow-sm">
               <p className="text-gray-500 text-sm font-medium">Promedio mensual</p>
               <p className="text-3xl font-bold text-gray-800 mt-1">
-                ${(yearTotal / 12).toLocaleString('es-CL', { maximumFractionDigits: 0 })}
+                {formatCLP(yearTotal / 12)}
               </p>
               <p className="text-gray-400 text-xs mt-1">ingreso promedio por mes</p>
             </div>
@@ -239,7 +241,7 @@ export default function PaymentsReport() {
                           isCurrentMonth ? 'bg-primary-600' : 'bg-primary-300'
                         } ${stat.total === 0 ? 'opacity-20' : ''}`}
                         style={{ height: `${Math.max(heightPct, stat.total > 0 ? 4 : 2)}%` }}
-                        title={`${MONTHS[i]}: $${stat.total.toLocaleString('es-CL')} (${stat.count} pagos)`}
+                        title={`${MONTHS[i]}: ${formatCLP(stat.total)} (${stat.count} pagos)`}
                       />
                     </div>
                     <span className={`text-xs font-medium ${isCurrentMonth ? 'text-primary-700' : 'text-gray-400'}`}>
@@ -279,7 +281,7 @@ export default function PaymentsReport() {
                   {studentsToShow.map((student) => {
                     const studentPayments = paymentMap.get(student.id);
                     const studentTotal = studentPayments
-                      ? Array.from(studentPayments.values()).reduce((s, a) => s + a, 0)
+                      ? Array.from(studentPayments.values()).reduce((s, a) => s + a.amount, 0)
                       : 0;
                     const paidMonths = studentPayments ? studentPayments.size : 0;
 
@@ -303,13 +305,19 @@ export default function PaymentsReport() {
                           </div>
                         </td>
                         {MONTHS.map((_, i) => {
-                          const amount = studentPayments?.get(i + 1);
+                          const entry = studentPayments?.get(i + 1);
                           return (
                             <td key={i} className="px-2 py-3 text-center">
-                              {amount != null ? (
-                                <span className="inline-flex items-center justify-center bg-green-100 text-green-700 text-xs font-semibold rounded-md px-1.5 py-0.5 min-w-[44px]">
-                                  ${amount.toLocaleString('es-CL')}
-                                </span>
+                              {entry != null ? (
+                                entry.isExento ? (
+                                  <span className="inline-flex items-center justify-center bg-blue-100 text-blue-600 text-xs font-semibold rounded-md px-1.5 py-0.5 min-w-[44px]">
+                                    Exento
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center justify-center bg-green-100 text-green-700 text-xs font-semibold rounded-md px-1.5 py-0.5 min-w-[44px]">
+                                    {formatCLP(entry.amount)}
+                                  </span>
+                                )
                               ) : (
                                 <span className="inline-block w-5 h-0.5 bg-gray-200 rounded mx-auto" />
                               )}
@@ -319,7 +327,7 @@ export default function PaymentsReport() {
                         <td className="px-4 py-3 text-right">
                           <div>
                             <span className="font-semibold text-gray-800">
-                              ${studentTotal.toLocaleString('es-CL')}
+                              {formatCLP(studentTotal)}
                             </span>
                             <span className="text-xs text-gray-400 ml-1">({paidMonths}/12)</span>
                           </div>
@@ -345,7 +353,7 @@ export default function PaymentsReport() {
                       <td key={i} className="px-2 py-3 text-center">
                         {stat.total > 0 ? (
                           <span className="text-xs font-semibold text-primary-700">
-                            ${stat.total.toLocaleString('es-CL')}
+                            {formatCLP(stat.total)}
                           </span>
                         ) : (
                           <span className="text-xs text-gray-300">—</span>
@@ -353,7 +361,7 @@ export default function PaymentsReport() {
                       </td>
                     ))}
                     <td className="px-4 py-3 text-right font-bold text-primary-700">
-                      ${yearTotal.toLocaleString('es-CL')}
+                      {formatCLP(yearTotal)}
                     </td>
                   </tr>
                 </tfoot>

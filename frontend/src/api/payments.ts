@@ -13,4 +13,10 @@ export const paymentsApi = {
 
   create: (data: PaymentForm) =>
     client.post<Payment>('/payments', data).then((r) => r.data),
+
+  abono: (id: number, abono: number) =>
+    client.put<Payment>(`/payments/${id}/abono`, { abono }).then((r) => r.data),
+
+  delete: (id: number) =>
+    client.delete(`/payments/${id}`),
 };

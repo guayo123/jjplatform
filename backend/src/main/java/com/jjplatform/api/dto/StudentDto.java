@@ -3,6 +3,7 @@ package com.jjplatform.api.dto;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
+import java.util.List;
 
 @Data
 public class StudentDto {
@@ -31,5 +32,21 @@ public class StudentDto {
     private String photoUrl;
     private String address;
     private String medicalNotes;
+    private String nickname;
+    private String emergencyPhone;
+    private String bloodType;
+    private String healthInsuranceType;
+    private String healthInsuranceCompany;
     private Boolean active;
+
+    private List<Long> planIds;
+    private List<PlanInfo> enrolledPlans;
+
+    @Data
+    public static class PlanInfo {
+        private Long id;
+        private String name;
+        private String disciplineName;
+        private Integer price;
+    }
 }

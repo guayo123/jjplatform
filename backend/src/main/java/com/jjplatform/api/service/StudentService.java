@@ -3,8 +3,10 @@ package com.jjplatform.api.service;
 import com.jjplatform.api.dto.StudentDto;
 import com.jjplatform.api.exception.ResourceNotFoundException;
 import com.jjplatform.api.model.Academy;
+import com.jjplatform.api.model.Plan;
 import com.jjplatform.api.model.Student;
 import com.jjplatform.api.repository.AcademyRepository;
+import com.jjplatform.api.repository.PlanRepository;
 import com.jjplatform.api.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,13 +21,16 @@ public class StudentService {
 
     private final StudentRepository studentRepository;
     private final AcademyRepository academyRepository;
+    private final PlanRepository planRepository;
 
+    @Transactional(readOnly = true)
     public List<StudentDto> getStudentsByAcademy(Long academyId) {
         return studentRepository.findByAcademyIdOrderByNameAsc(academyId).stream()
                 .map(this::toDto)
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public StudentDto getStudent(Long id, Long academyId) {
         Student student = findStudentByIdAndAcademy(id, academyId);
         return toDto(student);
@@ -49,8 +54,18 @@ public class StudentService {
                 .photoUrl(dto.getPhotoUrl())
                 .address(dto.getAddress())
                 .medicalNotes(dto.getMedicalNotes())
+                .nickname(dto.getNickname())
+                .emergencyPhone(dto.getEmergencyPhone())
+                .bloodType(dto.getBloodType())
+                .healthInsuranceType(dto.getHealthInsuranceType())
+                .healthInsuranceCompany(dto.getHealthInsuranceCompany())
                 .active(true)
                 .build();
+
+        if (dto.getPlanIds() != null && !dto.getPlanIds().isEmpty()) {
+            List<Plan> plans = planRepository.findAllById(dto.getPlanIds());
+            student.setPlans(plans);
+        }
 
         student = studentRepository.save(student);
         return toDto(student);
@@ -71,8 +86,18 @@ public class StudentService {
         student.setPhotoUrl(dto.getPhotoUrl());
         student.setAddress(dto.getAddress());
         student.setMedicalNotes(dto.getMedicalNotes());
+        student.setNickname(dto.getNickname());
+        student.setEmergencyPhone(dto.getEmergencyPhone());
+        student.setBloodType(dto.getBloodType());
+        student.setHealthInsuranceType(dto.getHealthInsuranceType());
+        student.setHealthInsuranceCompany(dto.getHealthInsuranceCompany());
         if (dto.getActive() != null) {
             student.setActive(dto.getActive());
+        }
+
+        if (dto.getPlanIds() != null) {
+            List<Plan> plans = dto.getPlanIds().isEmpty() ? List.of() : planRepository.findAllById(dto.getPlanIds());
+            student.setPlans(plans);
         }
 
         student = studentRepository.save(student);
@@ -110,7 +135,24 @@ public class StudentService {
         dto.setPhotoUrl(student.getPhotoUrl());
         dto.setAddress(student.getAddress());
         dto.setMedicalNotes(student.getMedicalNotes());
+        dto.setNickname(student.getNickname());
+        dto.setEmergencyPhone(student.getEmergencyPhone());
+        dto.setBloodType(student.getBloodType());
+        dto.setHealthInsuranceType(student.getHealthInsuranceType());
+        dto.setHealthInsuranceCompany(student.getHealthInsuranceCompany());
         dto.setActive(student.getActive());
+
+        dto.setEnrolledPlans(student.getPlans().stream()
+                .filter(p -> Boolean.TRUE.equals(p.getActive()))
+                .map(p -> {
+                    StudentDto.PlanInfo planInfo = new StudentDto.PlanInfo();
+                    planInfo.setId(p.getId());
+                    planInfo.setName(p.getName());
+                    planInfo.setDisciplineName(p.getDiscipline() != null ? p.getDiscipline().getName() : null);
+                    planInfo.setPrice(p.getPrice());
+                    return planInfo;
+                }).toList());
+
         return dto;
     }
 }

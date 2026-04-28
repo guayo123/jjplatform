@@ -1,5 +1,5 @@
 import client from './client';
-import type { AcademyPublic, AcademySettings, Plan, PlanForm, Schedule, ScheduleForm } from '../types';
+import type { AcademyPublic, AcademySettings, Discipline, Plan, PlanForm, Schedule, ScheduleForm } from '../types';
 
 export const academiesApi = {
   list: () =>
@@ -14,6 +14,19 @@ export const academiesApi = {
 
   updateSettings: (data: Partial<AcademySettings>) =>
     client.put<AcademySettings>('/academy', data).then((r) => r.data),
+
+  // Admin: disciplines
+  getDisciplines: () =>
+    client.get<Discipline[]>('/academy/disciplines').then((r) => r.data),
+
+  createDiscipline: (name: string) =>
+    client.post<Discipline>('/academy/disciplines', { name }).then((r) => r.data),
+
+  updateDiscipline: (id: number, name: string) =>
+    client.put<Discipline>(`/academy/disciplines/${id}`, { name }).then((r) => r.data),
+
+  toggleDiscipline: (id: number) =>
+    client.put<Discipline>(`/academy/disciplines/${id}/toggle-active`).then((r) => r.data),
 
   // Admin: plans
   getPlans: () =>

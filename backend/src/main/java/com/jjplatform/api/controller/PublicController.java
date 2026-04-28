@@ -9,7 +9,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/public")
@@ -52,16 +54,27 @@ public class PublicController {
             sd.setStartTime(s.getStartTime());
             sd.setEndTime(s.getEndTime());
             sd.setClassName(s.getClassName());
+            com.jjplatform.api.model.Professor prof =
+                    (s.getPlan() != null) ? s.getPlan().getProfessor() : null;
+            sd.setProfessorName(prof != null ? prof.getName() : null);
+            sd.setProfessorPhotoUrl(prof != null ? prof.getPhotoUrl() : null);
             return sd;
         }).toList());
 
-        dto.setPhotos(a.getPhotos().stream().map(p -> {
-            AcademyPublicDto.PhotoDto pd = new AcademyPublicDto.PhotoDto();
-            pd.setId(p.getId());
-            pd.setUrl(p.getUrl());
-            pd.setCaption(p.getCaption());
-            return pd;
-        }).toList());
+        // Exclude photos that are being used as professor or student profile pictures
+        java.util.Set<String> profileUrls = new java.util.HashSet<>();
+        a.getProfessors().forEach(p -> { if (p.getPhotoUrl() != null) profileUrls.add(p.getPhotoUrl()); });
+        a.getStudents().forEach(s -> { if (s.getPhotoUrl() != null) profileUrls.add(s.getPhotoUrl()); });
+
+        dto.setPhotos(a.getPhotos().stream()
+                .filter(p -> !profileUrls.contains(p.getUrl()))
+                .map(p -> {
+                    AcademyPublicDto.PhotoDto pd = new AcademyPublicDto.PhotoDto();
+                    pd.setId(p.getId());
+                    pd.setUrl(p.getUrl());
+                    pd.setCaption(p.getCaption());
+                    return pd;
+                }).toList());
 
         dto.setTournaments(a.getTournaments().stream().map(t -> {
             AcademyPublicDto.TournamentSummaryDto td = new AcademyPublicDto.TournamentSummaryDto();
@@ -84,6 +97,10 @@ public class PublicController {
                     pd.setPrice(p.getPrice());
                     pd.setFeatures(p.getFeatures());
                     pd.setDisplayOrder(p.getDisplayOrder());
+                    if (p.getDiscipline() != null) {
+                        pd.setDisciplineId(p.getDiscipline().getId());
+                        pd.setDisciplineName(p.getDiscipline().getName());
+                    }
                     return pd;
                 }).toList());
 
@@ -97,6 +114,33 @@ public class PublicController {
                     rd.setToBelt(p.getToBelt());
                     rd.setPromotionDate(p.getPromotionDate().toString());
                     return rd;
+                }).toList());
+
+        dto.setProfessors(a.getProfessors().stream()
+                .filter(p -> Boolean.TRUE.equals(p.getActive()))
+                .sorted(Comparator.comparingInt(p -> p.getDisplayOrder() != null ? p.getDisplayOrder() : 0))
+                .map(p -> {
+                    AcademyPublicDto.ProfessorDto pd = new AcademyPublicDto.ProfessorDto();
+                    pd.setId(p.getId());
+                    pd.setName(p.getName());
+                    pd.setPhotoUrl(p.getPhotoUrl());
+                    pd.setBio(p.getBio());
+                    pd.setAchievements(p.getAchievements());
+                    pd.setBelt(p.getBelt());
+                    pd.setDisplayOrder(p.getDisplayOrder());
+                    List<com.jjplatform.api.model.Plan> profPlans = a.getPlans().stream()
+                            .filter(plan -> plan.getProfessor() != null
+                                    && plan.getProfessor().getId().equals(p.getId()))
+                            .collect(Collectors.toList());
+                    pd.setPlanNames(profPlans.stream()
+                            .map(com.jjplatform.api.model.Plan::getName)
+                            .collect(Collectors.toList()));
+                    pd.setDisciplineNames(profPlans.stream()
+                            .filter(plan -> plan.getDiscipline() != null)
+                            .map(plan -> plan.getDiscipline().getName())
+                            .distinct()
+                            .collect(Collectors.toList()));
+                    return pd;
                 }).toList());
 
         return dto;

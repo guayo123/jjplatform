@@ -22,9 +22,11 @@ export default function Navbar() {
         { to: '/admin/payments',         label: 'Pagos' },
         { to: '/admin/payments/report',  label: 'Reporte' },
         { to: '/admin/tournaments',      label: 'Torneos' },
+        { to: '/admin/professors',       label: 'Profesores' },
+        { to: '/admin/disciplines',      label: 'Disciplinas' },
+        { to: '/admin/plans',            label: 'Planes' },
         { to: '/admin/schedules',        label: 'Horarios' },
         { to: '/admin/photos',           label: 'Fotos' },
-        { to: '/admin/plans',            label: 'Planes' },
         { to: '/admin/settings',         label: 'Configuración' },
         ...(isAdmin ? [{ to: '/admin/users', label: 'Usuarios' }] : []),
       ];

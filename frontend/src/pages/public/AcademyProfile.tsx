@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Lightbox from 'yet-another-react-lightbox';
 import Zoom from 'yet-another-react-lightbox/plugins/zoom';
@@ -27,6 +27,17 @@ function classColor(name: string): string {
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
   return CLASS_COLORS[h % CLASS_COLORS.length];
 }
+function planIcon(disciplineName: string | null): string {
+  const n = (disciplineName ?? '').toLowerCase();
+  if (n.includes('jiu') || n.includes('bjj')) return '🥋';
+  if (n.includes('grap')) return '🤼';
+  if (n.includes('escala') || n.includes('climb')) return '🧗';
+  if (n.includes('lucha') || n.includes('wrestling')) return '🤼‍♂️';
+  if (n.includes('funcional') || n.includes('fitness')) return '💪';
+  if (n.includes('kid') || n.includes('niño')) return '⭐';
+  return '🥋';
+}
+
 function classIcon(name: string): string {
   const n = name.toLowerCase();
   if (n.includes('kid') || n.includes('niño') || n.includes('infant')) return '⭐';
@@ -37,6 +48,63 @@ function classIcon(name: string): string {
   if (n.includes('escala') || n.includes('climb')) return '🧗';
   if (n.includes('bjj') || n.includes('jiu')) return '🥋';
   return '🥋';
+}
+
+function beltColors(belt: string): { bg: string; text: string; border: string } {
+  const b = belt.toLowerCase();
+  if (b.includes('negro'))                           return { bg: '#111', text: '#fff', border: '#ef4444' };
+  if (b.includes('marrón') || b.includes('cafe') || b.includes('café')) return { bg: '#92400e', text: '#fff', border: '#b45309' };
+  if (b.includes('morado') || b.includes('purple')) return { bg: '#7c3aed', text: '#fff', border: '#6d28d9' };
+  if (b.includes('azul') || b.includes('blue'))     return { bg: '#2563eb', text: '#fff', border: '#1d4ed8' };
+  if (b.includes('blanco') || b.includes('white'))  return { bg: '#f3f4f6', text: '#111', border: '#d1d5db' };
+  return { bg: '#374151', text: '#fff', border: '#4b5563' };
+}
+
+function BeltBadge({ belt, size = 'sm' }: { belt: string; size?: 'sm' | 'lg' }) {
+  const c = beltColors(belt);
+  return (
+    <span
+      className={`inline-flex items-center gap-1 font-bold rounded-full border ${size === 'lg' ? 'px-3 py-1 text-sm' : 'px-2 py-0.5 text-[10px]'}`}
+      style={{ background: c.bg, color: c.text, borderColor: c.border }}
+    >
+      🥋 {belt}
+    </span>
+  );
+}
+
+function ProfessorCard({ prof, onClick }: { prof: AcademyPublic['professors'][number]; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="group text-left bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-primary-500/40 transition-all hover:shadow-lg hover:shadow-primary-500/10 focus:outline-none w-full"
+    >
+      <div className="relative aspect-[3/4] overflow-hidden">
+        {prof.photoUrl ? (
+          <img src={prof.photoUrl} alt={prof.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        ) : (
+          <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+            <span className="text-6xl font-black text-gray-600">{prof.name.charAt(0)}</span>
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/10 to-transparent" />
+        {prof.belt && (
+          <div className="absolute top-3 left-3"><BeltBadge belt={prof.belt} /></div>
+        )}
+        <div className="absolute bottom-0 left-0 right-0 p-3">
+          <p className="font-bold text-white text-sm leading-tight drop-shadow">{prof.name}</p>
+          {prof.disciplineNames && prof.disciplineNames.length > 0 && (
+            <p className="text-[11px] text-gray-400 mt-0.5 truncate">{prof.disciplineNames.join(' · ')}</p>
+          )}
+        </div>
+      </div>
+      <div className="px-3 py-2 flex items-center justify-between">
+        {prof.bio ? (
+          <p className="text-xs text-gray-500 line-clamp-1 flex-1">{prof.bio}</p>
+        ) : <span />}
+        <span className="text-xs text-primary-400 font-semibold flex-shrink-0 ml-2">Ver más →</span>
+      </div>
+    </button>
+  );
 }
 
 function hexAlpha(hex: string, alpha: number): string {
@@ -54,6 +122,11 @@ export default function AcademyProfile() {
   const todayIdx = new Date().getDay();
   const todayName = DAY_ORDER[todayIdx === 0 ? 6 : todayIdx - 1];
   const [selectedDay, setSelectedDay] = useState(todayName);
+  const [planDisc, setPlanDisc] = useState('Todos');
+  const [activePlanIdx, setActivePlanIdx] = useState(0);
+  const planSwiperRef = useRef<any>(null);
+  const [selectedProfessor, setSelectedProfessor] = useState<AcademyPublic['professors'][number] | null>(null);
+  const [profDisc, setProfDisc] = useState('Todos');
 
   useEffect(() => {
     if (id) {
@@ -91,6 +164,21 @@ export default function AcademyProfile() {
   const sortedDays = Object.keys(schedulesByDay).sort(sortByDay);
   const openTournaments = academy.tournaments.filter((t) => t.status === 'OPEN' || t.status === 'IN_PROGRESS');
   const pastTournaments = academy.tournaments.filter((t) => t.status === 'COMPLETED');
+
+  const planDisciplines = Array.from(
+    new Set(academy.plans.filter(p => p.disciplineName).map(p => p.disciplineName!))
+  ).sort((a, b) => a.localeCompare(b));
+
+  const filteredPlans = planDisc === 'Todos'
+    ? academy.plans
+    : academy.plans.filter(p => p.disciplineName === planDisc);
+
+  const popularPlanId = filteredPlans.length > 1
+    ? [...filteredPlans]
+        .filter(p => p.displayOrder != null)
+        .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))[0]?.id
+    : undefined;
+
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -235,6 +323,7 @@ export default function AcademyProfile() {
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Contenido</p>
             <ul className="space-y-0.5">
               {[
+                { id: 'section-profesores',   label: 'Profesores',           show: academy.professors && academy.professors.length > 0 },
                 { id: 'section-graduaciones', label: 'Últimas Graduaciones', show: academy.recentPromotions && academy.recentPromotions.length > 0 },
                 { id: 'section-clases',  label: 'Horarios de Clases', show: academy.schedules.length > 0 },
                 { id: 'section-torneos', label: 'Torneos',             show: academy.tournaments.length > 0 },
@@ -267,6 +356,154 @@ export default function AcademyProfile() {
             <p className="text-gray-400 leading-relaxed max-w-3xl">{academy.description}</p>
           </section>
         )}
+
+        {/* Professors */}
+        {academy.professors && academy.professors.length > 0 && (() => {
+          const profDisciplines = Array.from(
+            new Set(academy.professors.flatMap(p => p.disciplineNames ?? []))
+          ).sort((a, b) => a.localeCompare(b));
+          const filteredProfs = profDisc === 'Todos'
+            ? academy.professors
+            : academy.professors.filter(p => (p.disciplineNames ?? []).includes(profDisc));
+
+          return (
+            <section id="section-profesores">
+              <h2 className="text-xl font-bold mb-5 flex items-center gap-2">
+                <span className="w-1 h-6 bg-primary-500 rounded-full" />
+                Nuestros Profesores
+              </h2>
+
+              {/* Discipline tabs */}
+              {profDisciplines.length > 0 && (
+                <div className="flex gap-2 mb-5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                  {['Todos', ...profDisciplines].map((d) => {
+                    const isActive = profDisc === d;
+                    const count = d === 'Todos' ? academy.professors.length : academy.professors.filter(p => (p.disciplineNames ?? []).includes(d)).length;
+                    return (
+                      <button
+                        key={d}
+                        onClick={() => setProfDisc(d)}
+                        className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all border ${
+                          isActive
+                            ? 'bg-primary-600 border-primary-500 text-white shadow-lg shadow-primary-500/20'
+                            : 'border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white bg-gray-900'
+                        }`}
+                      >
+                        {d}
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-gray-800 text-gray-500'}`}>{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Mobile: Swiper */}
+              <div className="sm:hidden">
+                <Swiper
+                  key={profDisc}
+                  modules={[Navigation, Pagination]}
+                  slidesPerView={1.6}
+                  spaceBetween={12}
+                  centeredSlides={filteredProfs.length > 1}
+                  grabCursor
+                  loop={filteredProfs.length > 2}
+                  pagination={{ clickable: true }}
+                  className="pb-8"
+                >
+                  {filteredProfs.map((p) => (
+                    <SwiperSlide key={p.id} className="h-auto">
+                      <ProfessorCard prof={p} onClick={() => setSelectedProfessor(p)} />
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
+              </div>
+
+              {/* Desktop: grid */}
+              <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {filteredProfs.map((p) => (
+                  <ProfessorCard key={p.id} prof={p} onClick={() => setSelectedProfessor(p)} />
+                ))}
+              </div>
+
+              {/* Professor detail modal */}
+              {selectedProfessor && (
+                <div
+                  className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                  onClick={() => setSelectedProfessor(null)}
+                >
+                  <div
+                    className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="relative h-72 sm:h-80 overflow-hidden rounded-t-2xl flex-shrink-0">
+                      {selectedProfessor.photoUrl ? (
+                        <img src={selectedProfessor.photoUrl} alt={selectedProfessor.name} className="w-full h-full object-cover object-top" />
+                      ) : (
+                        <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                          <span className="text-8xl font-black text-gray-600">{selectedProfessor.name.charAt(0)}</span>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/30 to-transparent" />
+                      <button
+                        onClick={() => setSelectedProfessor(null)}
+                        className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                      <div className="absolute bottom-0 left-0 right-0 p-5">
+                        <h2 className="text-2xl font-extrabold text-white">{selectedProfessor.name}</h2>
+                        {selectedProfessor.belt && <div className="mt-2"><BeltBadge belt={selectedProfessor.belt} size="lg" /></div>}
+                      </div>
+                    </div>
+                    <div className="p-5 space-y-5">
+                      {(selectedProfessor.disciplineNames ?? []).length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedProfessor.disciplineNames.map((d, i) => (
+                            <span key={i} className="text-xs bg-primary-500/10 border border-primary-500/30 text-primary-400 px-2.5 py-1 rounded-full font-medium">{d}</span>
+                          ))}
+                        </div>
+                      )}
+                      {selectedProfessor.bio && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Sobre el Profesor</p>
+                          <p className="text-gray-300 text-sm leading-relaxed">{selectedProfessor.bio}</p>
+                        </div>
+                      )}
+                      {selectedProfessor.achievements && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Logros y Títulos</p>
+                          <ul className="space-y-2">
+                            {selectedProfessor.achievements.split('\n').filter(Boolean).map((a, i) => (
+                              <li key={i} className="flex items-start gap-2.5 text-sm text-gray-300">
+                                <span className="text-yellow-400 flex-shrink-0 mt-0.5">🏆</span>
+                                {a}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {selectedProfessor.planNames.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Planes que dicta</p>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedProfessor.planNames.map((plan, i) => (
+                              <span key={i} className="text-xs bg-gray-800 border border-gray-700 text-gray-300 px-2.5 py-1 rounded-full">{plan}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {!selectedProfessor.bio && !selectedProfessor.achievements && (
+                        <p className="text-gray-500 text-sm italic">Sin información adicional registrada.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
+          );
+        })()}
 
         {/* Recent Promotions */}
         {academy.recentPromotions && academy.recentPromotions.length > 0 && (
@@ -424,7 +661,28 @@ export default function AcademyProfile() {
                         >
                           {classIcon(s.className)}
                         </span>
-                        <p className="flex-1 font-semibold text-white text-sm sm:text-base truncate">{s.className}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-white text-sm sm:text-base truncate">{s.className}</p>
+                          {s.professorName && (
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                              {s.professorPhotoUrl ? (
+                                <img
+                                  src={s.professorPhotoUrl}
+                                  alt={s.professorName}
+                                  className="w-5 h-5 rounded-full object-cover ring-1 ring-white/20 flex-shrink-0"
+                                />
+                              ) : (
+                                <span className="w-5 h-5 rounded-full bg-gray-700 flex items-center justify-center text-[10px] font-bold text-gray-400 ring-1 ring-white/10 flex-shrink-0">
+                                  {s.professorName.charAt(0)}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-400">
+                                <span className="text-gray-600">Profesor: </span>
+                                {s.professorName}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                         <div
                           className="flex items-center gap-1.5 text-sm font-mono font-medium flex-shrink-0 px-3 py-1 rounded-lg"
                           style={{ background: hexAlpha(color, 0.2), color: '#fff' }}
@@ -596,52 +854,182 @@ export default function AcademyProfile() {
               <span className="w-1 h-6 bg-primary-500 rounded-full" />
               Planes y Tarifas
             </h2>
-            <p className="text-gray-500 text-sm mb-6">Elige el plan que mejor se adapte a ti.</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {academy.plans.map((plan) => (
-                <div
-                  key={plan.id}
-                  className="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex flex-col gap-4 hover:border-primary-500/40 transition-colors"
-                >
-                  <div>
-                    <h3 className="text-lg font-bold text-white">{plan.name}</h3>
-                    {plan.description && (
-                      <p className="text-sm text-gray-400 mt-1">{plan.description}</p>
-                    )}
-                  </div>
+            <p className="text-gray-500 text-sm mb-5">Elige el plan que mejor se adapte a ti.</p>
 
-                  {plan.price > 0 && (
-                    <div>
-                      <span className="text-3xl font-extrabold text-white">
-                        ${plan.price.toLocaleString('es-CL')}
-                      </span>
-                      <span className="text-gray-500 text-sm ml-1">/ mes</span>
-                    </div>
-                  )}
-
-                  {plan.features && (
-                    <ul className="space-y-2 flex-1">
-                      {plan.features.split('\n').filter(Boolean).map((f, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-gray-300">
-                          <span className="text-primary-400 font-bold mt-0.5 flex-shrink-0">✓</span>
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {academy.whatsapp && (
-                    <a
-                      href={`https://wa.me/${academy.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola, me interesa el plan "${plan.name}"`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-auto block text-center bg-primary-600 hover:bg-primary-500 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm"
+            {/* Discipline tabs — scrollable, shown only when there are disciplines */}
+            {planDisciplines.length > 0 && (
+              <div className="flex gap-2 mb-6 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                {['Todos', ...planDisciplines].map((d) => {
+                  const isActive = planDisc === d;
+                  const count = d === 'Todos'
+                    ? academy.plans.length
+                    : academy.plans.filter(p => p.disciplineName === d).length;
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => {
+                        setPlanDisc(d);
+                        setActivePlanIdx(0);
+                        planSwiperRef.current?.slideTo(0);
+                      }}
+                      className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all border ${
+                        isActive
+                          ? 'bg-primary-600 border-primary-500 text-white shadow-lg shadow-primary-500/20'
+                          : 'border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white bg-gray-900'
+                      }`}
                     >
-                      Consultar por WhatsApp
-                    </a>
-                  )}
+                      {d !== 'Todos' && <span className="text-base leading-none">{planIcon(d)}</span>}
+                      {d}
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
+                        isActive ? 'bg-white/20 text-white' : 'bg-gray-800 text-gray-500'
+                      }`}>{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Mobile: Swiper */}
+            <div className="sm:hidden">
+              <Swiper
+                key={planDisc}
+                slidesPerView={1.15}
+                centeredSlides
+                spaceBetween={14}
+                grabCursor
+                loop={filteredPlans.length > 2}
+                onSlideChange={(s) => setActivePlanIdx(s.realIndex)}
+                onSwiper={(s) => { planSwiperRef.current = s; }}
+                className="pb-6 !overflow-visible"
+              >
+                {filteredPlans.map((plan) => {
+                  const isPopular = plan.id === popularPlanId;
+                  return (
+                    <SwiperSlide key={plan.id} className="h-auto pt-5">
+                      <div className={`relative rounded-2xl p-5 flex flex-col gap-4 h-full ${
+                        isPopular
+                          ? 'bg-gray-900 border-2 border-yellow-500/70 shadow-lg shadow-yellow-500/15'
+                          : 'bg-gray-900 border border-blue-500/40 shadow-lg shadow-blue-500/10'
+                      }`}>
+                        {isPopular && (
+                          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                            <span className="bg-yellow-500 text-black text-[10px] font-black px-3 py-1 rounded-full tracking-widest uppercase">Más Popular</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-3">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${isPopular ? 'bg-yellow-500/20' : 'bg-gray-800'}`}>
+                            {planIcon(plan.disciplineName)}
+                          </div>
+                          <h3 className="text-base font-black uppercase tracking-tight text-white leading-tight">{plan.name}</h3>
+                        </div>
+                        {plan.description && <p className="text-xs text-gray-400 -mt-1">{plan.description}</p>}
+                        {plan.price > 0 && (
+                          <div className="flex items-end gap-1">
+                            <span className={`text-3xl font-extrabold ${isPopular ? 'text-yellow-400' : 'text-white'}`}>${plan.price.toLocaleString('es-CL')}</span>
+                            <span className="text-gray-500 text-sm mb-0.5">/mes</span>
+                          </div>
+                        )}
+                        {plan.features && (
+                          <ul className="space-y-2 flex-1">
+                            {plan.features.split('\n').filter(Boolean).map((f, i) => (
+                              <li key={i} className="flex items-center gap-2 text-sm text-gray-300">
+                                <svg className={`w-4 h-4 flex-shrink-0 ${isPopular ? 'text-yellow-400' : 'text-primary-400'}`} viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                                </svg>
+                                {f}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {academy.whatsapp && (
+                          <a
+                            href={`https://wa.me/${academy.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola, me interesa el plan "${plan.name}"`)}`}
+                            target="_blank" rel="noopener noreferrer"
+                            className={`mt-auto block text-center font-bold py-2.5 rounded-xl text-sm transition-all ${
+                              isPopular
+                                ? 'bg-yellow-500 hover:bg-yellow-400 text-black shadow-md shadow-yellow-500/30'
+                                : 'border border-gray-700 hover:border-primary-500 hover:bg-primary-500/10 text-white'
+                            }`}
+                          >
+                            Consultar por WhatsApp
+                          </a>
+                        )}
+                      </div>
+                    </SwiperSlide>
+                  );
+                })}
+              </Swiper>
+              {filteredPlans.length > 1 && (
+                <div className="flex justify-center gap-2 mt-1">
+                  {filteredPlans.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => planSwiperRef.current?.slideTo(i)}
+                      className={`rounded-full transition-all duration-300 ${i === activePlanIdx ? 'w-6 h-2 bg-primary-400' : 'w-2 h-2 bg-gray-700 hover:bg-gray-500'}`}
+                    />
+                  ))}
                 </div>
-              ))}
+              )}
+            </div>
+
+            {/* Desktop: grid */}
+            <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredPlans.map((plan) => {
+                const isPopular = plan.id === popularPlanId;
+                return (
+                  <div key={plan.id} className={`pt-5 ${isPopular ? 'sm:-mt-2 sm:mb-2' : ''}`}>
+                    <div className={`relative rounded-2xl p-6 flex flex-col gap-4 h-full transition-all ${
+                      isPopular
+                        ? 'bg-gray-900 border-2 border-yellow-500/70 shadow-xl shadow-yellow-500/15'
+                        : 'bg-gray-900 border border-blue-500/40 shadow-lg shadow-blue-500/10 hover:border-blue-500/60'
+                    }`}>
+                      {isPopular && (
+                        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                          <span className="bg-yellow-500 text-black text-[10px] font-black px-3 py-1 rounded-full tracking-widest uppercase">Más Popular</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${isPopular ? 'bg-yellow-500/20' : 'bg-gray-800'}`}>
+                          {planIcon(plan.disciplineName)}
+                        </div>
+                        <h3 className="text-lg font-black uppercase tracking-tight text-white leading-tight">{plan.name}</h3>
+                      </div>
+                      {plan.description && <p className="text-sm text-gray-400 -mt-1">{plan.description}</p>}
+                      {plan.price > 0 && (
+                        <div className="flex items-end gap-1">
+                          <span className={`text-3xl font-extrabold ${isPopular ? 'text-yellow-400' : 'text-white'}`}>${plan.price.toLocaleString('es-CL')}</span>
+                          <span className="text-gray-500 text-sm mb-0.5">/mes</span>
+                        </div>
+                      )}
+                      {plan.features && (
+                        <ul className="space-y-2 flex-1">
+                          {plan.features.split('\n').filter(Boolean).map((f, i) => (
+                            <li key={i} className="flex items-center gap-2 text-sm text-gray-300">
+                              <svg className={`w-4 h-4 flex-shrink-0 ${isPopular ? 'text-yellow-400' : 'text-primary-400'}`} viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                              </svg>
+                              {f}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {academy.whatsapp && (
+                        <a
+                          href={`https://wa.me/${academy.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola, me interesa el plan "${plan.name}"`)}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className={`mt-auto block text-center font-bold py-2.5 rounded-xl text-sm transition-all ${
+                            isPopular
+                              ? 'bg-yellow-500 hover:bg-yellow-400 text-black shadow-md shadow-yellow-500/30'
+                              : 'border border-gray-700 hover:border-primary-500 hover:bg-primary-500/10 text-white'
+                          }`}
+                        >
+                          Consultar por WhatsApp
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </section>
         )}

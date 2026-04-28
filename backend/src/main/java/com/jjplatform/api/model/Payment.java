@@ -27,8 +27,17 @@ public class Payment {
     @JoinColumn(name = "academy_id", nullable = false)
     private Academy academy;
 
+    @Column(precision = 10, scale = 2)
+    private BigDecimal expectedAmount;
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
+
+    @Builder.Default
+    @Column(precision = 10, scale = 2)
+    private BigDecimal discount = BigDecimal.ZERO;
+
+    private String discountType;
 
     @Column(nullable = false)
     private Integer month;

@@ -1,32 +1,48 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { academiesApi } from '../../api/academies';
-import type { Plan, PlanForm } from '../../types';
+import { professorsApi } from '../../api/professors';
+import type { Discipline, Plan, PlanForm, Professor } from '../../types';
 
-const emptyForm: PlanForm = {
+const emptyForm = (): PlanForm => ({
   name: '',
   description: '',
   price: 0,
   features: '',
   displayOrder: 0,
-};
+  disciplineId: null,
+  professorId: null,
+});
 
 export default function Plans() {
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [disciplines, setDisciplines] = useState<Discipline[]>([]);
+  const [professors, setProfessors] = useState<Professor[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [form, setForm] = useState<PlanForm>(emptyForm);
+  const [form, setForm] = useState<PlanForm>(emptyForm());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = () =>
-    academiesApi.getPlans().then(setPlans).finally(() => setLoading(false));
+  const load = () => {
+    setLoading(true);
+    Promise.all([
+      academiesApi.getPlans().catch(() => [] as Plan[]),
+      academiesApi.getDisciplines().catch(() => [] as Discipline[]),
+      professorsApi.list().catch(() => [] as Professor[]),
+    ]).then(([p, d, pr]) => {
+      setPlans(p);
+      setDisciplines(d);
+      setProfessors(pr.filter((x) => x.active));
+    }).finally(() => setLoading(false));
+  };
 
   useEffect(() => { load(); }, []);
 
   const openNew = () => {
     setEditingId(null);
-    setForm(emptyForm);
+    setForm(emptyForm());
     setError(null);
     setShowForm(true);
   };
@@ -39,6 +55,8 @@ export default function Plans() {
       price: plan.price,
       features: plan.features,
       displayOrder: plan.displayOrder,
+      disciplineId: plan.disciplineId,
+      professorId: plan.professorId,
     });
     setError(null);
     setShowForm(true);
@@ -76,6 +94,8 @@ export default function Plans() {
       </div>
     );
 
+  const activeDisciplines = disciplines.filter((d) => d.active);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -96,8 +116,8 @@ export default function Plans() {
       {/* Form modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
               <h2 className="font-semibold text-gray-800">
                 {editingId != null ? 'Editar plan' : 'Nuevo plan'}
               </h2>
@@ -108,6 +128,54 @@ export default function Plans() {
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-sm">{error}</div>
               )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Disciplina</label>
+                {activeDisciplines.length === 0 ? (
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    No hay disciplinas creadas.{' '}
+                    <Link to="/admin/disciplines" className="underline font-medium">
+                      Crea disciplinas aquí
+                    </Link>{' '}
+                    antes de asignar un plan.
+                  </p>
+                ) : (
+                  <select
+                    value={form.disciplineId ?? ''}
+                    onChange={(e) => setForm({ ...form, disciplineId: e.target.value ? Number(e.target.value) : null })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                  >
+                    <option value="">Sin disciplina</option>
+                    {activeDisciplines.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Profesor</label>
+                {professors.length === 0 ? (
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    No hay profesores creados.{' '}
+                    <Link to="/admin/professors" className="underline font-medium">
+                      Crea profesores aquí
+                    </Link>{' '}
+                    para asignarlos a un plan.
+                  </p>
+                ) : (
+                  <select
+                    value={form.professorId ?? ''}
+                    onChange={(e) => setForm({ ...form, professorId: e.target.value ? Number(e.target.value) : null })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                  >
+                    <option value="">Sin profesor asignado</option>
+                    {professors.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}{p.belt ? ` · ${p.belt}` : ''}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del plan *</label>
@@ -132,14 +200,20 @@ export default function Plans() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Precio mensual (CLP)</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={form.price}
-                  onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="65000"
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">$</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={form.price > 0 ? form.price.toLocaleString('es-CL') : ''}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\./g, '').replace(/[^\d]/g, '');
+                      setForm({ ...form, price: raw ? Number(raw) : 0 });
+                    }}
+                    placeholder="65.000"
+                    className="w-full pl-7 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  />
+                </div>
               </div>
 
               <div>
@@ -207,6 +281,18 @@ export default function Plans() {
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
+                  <div className="flex flex-wrap gap-1 mb-1">
+                    {plan.disciplineName && (
+                      <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">
+                        {plan.disciplineName}
+                      </span>
+                    )}
+                    {plan.professorName && (
+                      <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                        👤 {plan.professorName}
+                      </span>
+                    )}
+                  </div>
                   <h3 className="font-bold text-gray-800">{plan.name}</h3>
                   {plan.description && (
                     <p className="text-sm text-gray-500 mt-0.5">{plan.description}</p>
