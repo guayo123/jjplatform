@@ -129,18 +129,35 @@ public class PublicController {
                     pd.setAchievements(p.getAchievements());
                     pd.setBelt(p.getBelt());
                     pd.setDisplayOrder(p.getDisplayOrder());
+                    // Disciplines and class names from plans where professor is the default
                     List<com.jjplatform.api.model.Plan> profPlans = a.getPlans().stream()
                             .filter(plan -> plan.getProfessor() != null
                                     && plan.getProfessor().getId().equals(p.getId()))
                             .collect(Collectors.toList());
-                    pd.setPlanNames(profPlans.stream()
-                            .map(com.jjplatform.api.model.Plan::getName)
-                            .collect(Collectors.toList()));
-                    pd.setDisciplineNames(profPlans.stream()
-                            .filter(plan -> plan.getDiscipline() != null)
-                            .map(plan -> plan.getDiscipline().getName())
-                            .distinct()
-                            .collect(Collectors.toList()));
+
+                    // Extra disciplines and class names from schedules explicitly assigned to this professor
+                    List<com.jjplatform.api.model.ClassSchedule> profSchedules = a.getSchedules().stream()
+                            .filter(s -> s.getProfessor() != null && s.getProfessor().getId().equals(p.getId()))
+                            .collect(Collectors.toList());
+
+                    List<String> allPlanNames = java.util.stream.Stream.concat(
+                            profPlans.stream().map(com.jjplatform.api.model.Plan::getName),
+                            profSchedules.stream()
+                                    .map(com.jjplatform.api.model.ClassSchedule::getClassName)
+                                    .filter(n -> n != null && !n.isBlank())
+                    ).distinct().collect(Collectors.toList());
+
+                    List<String> allDisciplineNames = java.util.stream.Stream.concat(
+                            profPlans.stream()
+                                    .filter(plan -> plan.getDiscipline() != null)
+                                    .map(plan -> plan.getDiscipline().getName()),
+                            profSchedules.stream()
+                                    .filter(s -> s.getPlan() != null && s.getPlan().getDiscipline() != null)
+                                    .map(s -> s.getPlan().getDiscipline().getName())
+                    ).distinct().collect(Collectors.toList());
+
+                    pd.setPlanNames(allPlanNames);
+                    pd.setDisciplineNames(allDisciplineNames);
                     return pd;
                 }).toList());
 
