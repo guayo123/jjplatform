@@ -6,15 +6,31 @@ import { useConfirm } from '../../components/ConfirmContext';
 import type { Professor } from '../../types';
 
 const BELT_COLORS: Record<string, string> = {
+  // BJJ / Jiu-Jitsu
   Blanco:  'bg-gray-100 text-gray-700 border border-gray-300',
-  Gris:    'bg-gray-300 text-gray-800',
-  Amarillo:'bg-yellow-100 text-yellow-800',
-  Naranja: 'bg-orange-100 text-orange-800',
-  Verde:   'bg-green-100 text-green-800',
   Azul:    'bg-blue-100 text-blue-800',
   Morado:  'bg-purple-100 text-purple-800',
   Café:    'bg-amber-100 text-amber-900',
   Negro:   'bg-gray-900 text-white',
+  // Judo / Karate
+  Amarillo:'bg-yellow-100 text-yellow-800',
+  Naranja: 'bg-orange-100 text-orange-800',
+  Verde:   'bg-green-100 text-green-800',
+  Marrón:  'bg-amber-100 text-amber-900',
+  // Capoeira
+  'Corda Cru':    'bg-amber-50 text-amber-700 border border-amber-200',
+  'Corda Amarela':'bg-yellow-100 text-yellow-800',
+  'Corda Laranja':'bg-orange-100 text-orange-800',
+  'Corda Verde':  'bg-green-100 text-green-800',
+  'Corda Azul':   'bg-blue-100 text-blue-800',
+  'Corda Roxo':   'bg-purple-100 text-purple-800',
+  'Corda Café':   'bg-amber-100 text-amber-900',
+  'Corda Preto':  'bg-gray-900 text-white',
+  // Kickboxing / Muay Thai
+  'Nivel Principiante':   'bg-gray-100 text-gray-600',
+  'Nivel Amateur':        'bg-sky-100 text-sky-800',
+  'Nivel Semiprofesional':'bg-orange-100 text-orange-800',
+  'Nivel Profesional':    'bg-red-100 text-red-800',
 };
 
 export default function Professors() {

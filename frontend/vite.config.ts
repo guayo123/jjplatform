@@ -12,4 +12,15 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-ui':    ['swiper', 'yet-another-react-lightbox'],
+          'vendor-misc':  ['axios', 'zustand', 'qrcode'],
+        },
+      },
+    },
+  },
 });

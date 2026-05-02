@@ -73,7 +73,7 @@ export interface Student {
   healthInsuranceCompany: string | null;
   active: boolean;
   planIds?: number[];
-  enrolledPlans?: Array<{ id: number; name: string; disciplineName: string | null; price: number | null }>;
+  enrolledPlans?: Array<{ id: number; name: string; disciplineName: string | null; price: number | null; professorId: number | null; professorName: string | null }>;
 }
 
 export type PromotionType = 'PROMOCION' | 'DEGRADACION' | 'GRADO';

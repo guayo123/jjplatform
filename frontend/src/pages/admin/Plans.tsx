@@ -3,6 +3,11 @@ import { Link } from 'react-router-dom';
 import { academiesApi } from '../../api/academies';
 import { professorsApi } from '../../api/professors';
 import type { Discipline, Plan, PlanForm, Professor } from '../../types';
+import FormInput from '../../components/FormInput';
+import FormSelect from '../../components/FormSelect';
+import FormTextarea from '../../components/FormTextarea';
+
+const lbl = 'block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5';
 
 const emptyForm = (): PlanForm => ({
   name: '',
@@ -135,94 +140,86 @@ export default function Plans() {
 
       {/* Form modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
-              <h2 className="font-semibold text-gray-800">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl shadow-black/60 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 sticky top-0 bg-gray-900 z-10">
+              <h2 className="font-bold text-white">
                 {editingId != null ? 'Editar plan' : 'Nuevo plan'}
               </h2>
-              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+              <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-white text-xl leading-none transition-colors">✕</button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-sm">{error}</div>
+                <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-3 py-2 text-sm">{error}</div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Disciplina</label>
+                <label className={lbl}>Disciplina</label>
                 {activeDisciplines.length === 0 ? (
-                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
                     No hay disciplinas creadas.{' '}
-                    <Link to="/admin/disciplines" className="underline font-medium">
-                      Crea disciplinas aquí
-                    </Link>{' '}
+                    <Link to="/admin/disciplines" className="underline font-medium">Crea disciplinas aquí</Link>{' '}
                     antes de asignar un plan.
                   </p>
                 ) : (
-                  <select
+                  <FormSelect
                     value={form.disciplineId ?? ''}
                     onChange={(e) => setForm({ ...form, disciplineId: e.target.value ? Number(e.target.value) : null })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
                   >
                     <option value="">Sin disciplina</option>
                     {activeDisciplines.map((d) => (
                       <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
-                  </select>
+                  </FormSelect>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Profesor</label>
+                <label className={lbl}>Profesor</label>
                 {professors.length === 0 ? (
-                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
                     No hay profesores creados.{' '}
-                    <Link to="/admin/professors" className="underline font-medium">
-                      Crea profesores aquí
-                    </Link>{' '}
+                    <Link to="/admin/professors" className="underline font-medium">Crea profesores aquí</Link>{' '}
                     para asignarlos a un plan.
                   </p>
                 ) : (
-                  <select
+                  <FormSelect
                     value={form.professorId ?? ''}
                     onChange={(e) => setForm({ ...form, professorId: e.target.value ? Number(e.target.value) : null })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
                   >
                     <option value="">Sin profesor asignado</option>
                     {professors.map((p) => (
                       <option key={p.id} value={p.id}>{p.name}{p.belt ? ` · ${p.belt}` : ''}</option>
                     ))}
-                  </select>
+                  </FormSelect>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del plan *</label>
-                <input
+                <label className={lbl}>Nombre del plan *</label>
+                <FormInput
                   required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Ej: Plan Completo, BJJ Kids, etc."
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción corta</label>
-                <input
+                <label className={lbl}>Descripción corta</label>
+                <FormInput
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Ej: Acceso a todas las clases"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Precio mensual (CLP)</label>
+                <label className={lbl}>Precio mensual (CLP)</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">$</span>
-                  <input
+                  <FormInput
                     type="text"
                     inputMode="numeric"
                     value={form.price > 0 ? form.price.toLocaleString('es-CL') : ''}
@@ -231,49 +228,48 @@ export default function Plans() {
                       setForm({ ...form, price: raw ? Number(raw) : 0 });
                     }}
                     placeholder="65.000"
-                    className="w-full pl-7 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    className="pl-7"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={lbl}>
                   Características incluidas
-                  <span className="text-gray-400 font-normal ml-1">(una por línea)</span>
+                  <span className="text-gray-600 font-normal ml-1 normal-case">(una por línea)</span>
                 </label>
-                <textarea
+                <FormTextarea
                   rows={4}
                   value={form.features}
                   onChange={(e) => setForm({ ...form, features: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
                   placeholder={"Lunes, Miércoles y Viernes\nHorario 18:00 - 19:30\n+ $15.000 matrícula"}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Orden de visualización</label>
-                <input
+                <label className={lbl}>Orden de visualización</label>
+                <FormInput
                   type="number"
                   min={0}
                   value={form.displayOrder}
                   onChange={(e) => setForm({ ...form, displayOrder: Number(e.target.value) })}
-                  className="w-32 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-32"
                 />
-                <p className="text-xs text-gray-400 mt-1">Número menor = aparece primero</p>
+                <p className="text-xs text-gray-500 mt-1">Número menor = aparece primero</p>
               </div>
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3 pt-2 border-t border-gray-800">
                 <button
                   type="submit"
                   disabled={saving}
-                  className="bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
                 >
                   {saving ? 'Guardando...' : 'Guardar'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="border border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
                 >
                   Cancelar
                 </button>

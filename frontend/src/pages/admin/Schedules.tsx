@@ -4,6 +4,8 @@ import { professorsApi } from '../../api/professors';
 import { useToast } from '../../components/ToastContext';
 import { useConfirm } from '../../components/ConfirmContext';
 import SchedulePosterModal from './SchedulePosterModal';
+import FormInput from '../../components/FormInput';
+import FormSelect from '../../components/FormSelect';
 import type { Plan, Professor, Schedule, AcademySettings } from '../../types';
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -295,28 +297,24 @@ export default function Schedules() {
       {/* Modal */}
       {modal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
           onClick={() => setModal(null)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4"
+            className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl shadow-black/60 p-6 w-full max-w-md mx-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-lg font-semibold mb-5">
+            <h2 className="text-lg font-bold text-white mb-5">
               {isEdit ? 'Editar clase' : 'Agregar clase'}
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Plan selector */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Plan / Clase *
-                </label>
-                <select
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Plan / Clase *</label>
+                <FormSelect
                   required
                   value={form.planId ?? ''}
                   onChange={(e) => handlePlanChange(e.target.value ? Number(e.target.value) : null)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
                 >
                   <option value="">Seleccionar plan...</option>
                   {Object.entries(plansByDiscipline).map(([discipline, dPlans]) => (
@@ -326,56 +324,47 @@ export default function Schedules() {
                       ))}
                     </optgroup>
                   ))}
-                </select>
+                </FormSelect>
                 {plans.length === 0 && (
-                  <p className="text-xs text-amber-600 mt-1">
-                    No hay planes activos. Crea planes en la sección "Planes y Tarifas".
-                  </p>
+                  <p className="text-xs text-amber-400 mt-1">No hay planes activos. Crea planes en "Planes y Tarifas".</p>
                 )}
               </div>
 
-              {/* Nombre de la clase */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
                   Nombre de la clase
-                  <span className="text-xs font-normal text-gray-400 ml-1">(se muestra en el horario)</span>
+                  <span className="text-gray-600 font-normal ml-1 normal-case">(se muestra en el horario)</span>
                 </label>
-                <input
+                <FormInput
                   type="text"
                   value={form.className}
                   onChange={(e) => setForm((f) => ({ ...f, className: e.target.value }))}
                   placeholder={selectedPlan?.name ?? 'Ej: NOGI, BJJ Kimono…'}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
 
-              {/* Profesor */}
               {professors.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
                     Profesor
-                    <span className="text-xs font-normal text-gray-400 ml-1">(sobreescribe el del plan)</span>
+                    <span className="text-gray-600 font-normal ml-1 normal-case">(sobreescribe el del plan)</span>
                   </label>
-                  <select
+                  <FormSelect
                     value={form.professorId ?? ''}
                     onChange={(e) => setForm((f) => ({ ...f, professorId: e.target.value ? Number(e.target.value) : null }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
                   >
                     <option value="">Usar profesor del plan</option>
                     {professors.map((p) => (
                       <option key={p.id} value={p.id}>{p.name}{p.belt ? ` · ${p.belt}` : ''}</option>
                     ))}
-                  </select>
+                  </FormSelect>
                 </div>
               )}
 
-              {/* Días */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
                   {isEdit ? 'Día' : 'Días'}
-                  {!isEdit && (
-                    <span className="text-xs font-normal text-gray-400 ml-1">(puedes seleccionar varios)</span>
-                  )}
+                  {!isEdit && <span className="text-gray-600 font-normal ml-1 normal-case">(puedes seleccionar varios)</span>}
                 </label>
                 <div className="flex flex-wrap gap-1.5">
                   {DAYS.map((day) => {
@@ -385,10 +374,10 @@ export default function Schedules() {
                         key={day}
                         type="button"
                         onClick={() => toggleDay(day)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
                           active
-                            ? 'bg-primary-600 text-white'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            ? 'bg-primary-600 border-primary-500 text-white shadow-md shadow-primary-500/20'
+                            : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white'
                         }`}
                       >
                         {day}
@@ -398,42 +387,29 @@ export default function Schedules() {
                 </div>
               </div>
 
-              {/* Horario */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Inicio</label>
-                  <input
-                    required
-                    type="time"
-                    value={form.startTime}
-                    onChange={(e) => setForm({ ...form, startTime: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  />
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Inicio</label>
+                  <FormInput required type="time" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fin</label>
-                  <input
-                    required
-                    type="time"
-                    value={form.endTime}
-                    onChange={(e) => setForm({ ...form, endTime: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  />
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Fin</label>
+                  <FormInput required type="time" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} />
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-1">
+              <div className="flex gap-3 pt-2 border-t border-gray-800">
                 <button
                   type="button"
                   onClick={() => setModal(null)}
-                  className="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+                  className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 transition-colors"
+                  className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 transition-colors"
                 >
                   {saving ? 'Guardando…' : isEdit ? 'Actualizar' : 'Agregar'}
                 </button>

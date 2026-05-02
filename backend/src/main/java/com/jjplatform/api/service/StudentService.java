@@ -150,6 +150,10 @@ public class StudentService {
                     planInfo.setName(p.getName());
                     planInfo.setDisciplineName(p.getDiscipline() != null ? p.getDiscipline().getName() : null);
                     planInfo.setPrice(p.getPrice());
+                    if (p.getProfessor() != null) {
+                        planInfo.setProfessorId(p.getProfessor().getId());
+                        planInfo.setProfessorName(p.getProfessor().getName());
+                    }
                     return planInfo;
                 }).toList());
 

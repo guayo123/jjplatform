@@ -1,9 +1,48 @@
 # Notas de Versión — JJPlatform
-## Actualización: Abril 2026 (2)
+## Última actualización: Mayo 2026
 
 ---
 
-## Nuevas funcionalidades — Segunda entrega
+## Actualización — Mayo 2026
+
+### Diseño "Dojo" — Componentes de formulario unificados
+- Se crearon componentes reutilizables con estilo oscuro consistente: `FormInput`, `FormSelect`, `FormTextarea`
+- Todos los formularios del panel admin (Alumnos, Profesores, Planes, Horarios, Pagos, Torneos, Usuarios, Disciplinas, Configuración) actualizados al nuevo estilo
+- Nuevo componente `DatePicker` personalizado (sin librerías externas): calendario en español, lunes primero, indicador de hoy, acceso rápido "Hoy"
+- Nuevo componente `ImageUpload` con drag & drop, vista previa, botón de remover y spinner de carga
+
+### Alumno — Plan y profesor asignado
+- En el detalle de alumno, nueva sección **"Planes y Profesores"** que muestra cada plan contratado con su disciplina, precio mensual y el profesor que lo dicta
+- El backend ahora retorna `professorId` y `professorName` dentro de `enrolledPlans`
+
+### Perfil público — Acceso rápido a Planes
+- Se agregó el botón **Planes** en la fila de accesos rápidos del perfil público, junto a Clases, Torneos y Fotos
+- Solo aparece si la academia tiene planes configurados y lleva al ancla correspondiente en la página
+
+### Navegación — Footer y botón Volver
+- Nuevo `Footer` reutilizable visible en todos los módulos del panel admin
+- Nuevo `BackButton` inteligente: aparece automáticamente en subrutas con destino calculado según la jerarquía de rutas (no depende del historial del navegador)
+  - En móvil: solo ícono circular
+  - En escritorio: ícono + etiqueta de la sección padre
+
+---
+
+## Nuevas funcionalidades — Tercera entrega (Abril 2026)
+
+### Horarios — Profesor por horario
+- Cada horario puede tener un **profesor propio** independiente del plan
+- Al crear o editar un horario, un selector permite elegir cualquier profesor activo
+- Si no se elige uno, se usa el profesor del plan como valor por defecto
+- El perfil público refleja correctamente el profesor asignado al horario específico
+- Los profesores asignados a horarios aparecen ahora con sus disciplinas y clases en sus tarjetas del perfil público
+
+### Corrección — Perfil público: 404 al refrescar
+- Configurado el rewrite en Vercel para que al refrescar cualquier ruta (ej: `/admin/students`) no devuelva 404
+- React Router ahora maneja correctamente todas las rutas desde `index.html`
+
+---
+
+## Nuevas funcionalidades — Segunda entrega (Abril 2026)
 
 ### Pagos — Vista "Por plan"
 - Nueva vista en la sección Pagos accesible desde el toggle **"Por mes" / "Por plan"**

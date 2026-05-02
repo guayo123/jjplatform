@@ -48,5 +48,7 @@ public class StudentDto {
         private String name;
         private String disciplineName;
         private Integer price;
+        private Long professorId;
+        private String professorName;
     }
 }

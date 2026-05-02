@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import DatePicker from '../../components/DatePicker';
+import FormInput from '../../components/FormInput';
+import FormSelect from '../../components/FormSelect';
+import FormTextarea from '../../components/FormTextarea';
+import ImageUpload from '../../components/ImageUpload';
 import { studentsApi } from '../../api/students';
 import { academiesApi } from '../../api/academies';
 import { filesApi } from '../../api/files';
@@ -37,13 +42,15 @@ function groupPlansByDiscipline(plans: Plan[]) {
   const grouped = new Map<string, Plan[]>();
   plans.forEach((plan) => {
     const key = plan.disciplineName || 'Sin disciplina';
-    if (!grouped.has(key)) {
-      grouped.set(key, []);
-    }
+    if (!grouped.has(key)) grouped.set(key, []);
     grouped.get(key)!.push(plan);
   });
   return Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]));
 }
+
+const lbl = 'block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5';
+const hint = 'mt-1 text-xs text-gray-500';
+const err = 'mt-1 text-xs text-red-400';
 
 export default function StudentForm() {
   const { id } = useParams<{ id: string }>();
@@ -52,24 +59,11 @@ export default function StudentForm() {
   const { createStudent, updateStudent } = useStudentStore();
 
   const [form, setForm] = useState<StudentFormType>({
-    name: '',
-    nickname: null,
-    rut: null,
-    email: null,
-    phone: null,
-    emergencyPhone: null,
-    joinDate: null,
-    age: null,
-    weight: null,
-    belt: null,
-    photoUrl: null,
-    address: null,
-    medicalNotes: null,
-    bloodType: null,
-    healthInsuranceType: null,
-    healthInsuranceCompany: null,
-    active: true,
-    planIds: [],
+    name: '', nickname: null, rut: null, email: null, phone: null,
+    emergencyPhone: null, joinDate: null, age: null, weight: null,
+    belt: null, photoUrl: null, address: null, medicalNotes: null,
+    bloodType: null, healthInsuranceType: null, healthInsuranceCompany: null,
+    active: true, planIds: [],
   });
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -78,59 +72,34 @@ export default function StudentForm() {
   const { toast } = useToast();
 
   const validate = () => {
-    const newErrors: { name?: string; rut?: string; email?: string; age?: string } = {};
-    if (!form.name.trim()) {
-      newErrors.name = 'El nombre es obligatorio';
-    } else if (!/^[a-zA-ZÀ-ɏ\s]+$/.test(form.name)) {
-      newErrors.name = 'El nombre solo puede contener letras';
-    }
-    if (form.rut && !validateRut(form.rut)) {
-      newErrors.rut = 'RUT inválido';
-    }
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      newErrors.email = 'Correo electrónico inválido';
-    }
-    if (form.age !== null && (form.age < 1 || form.age > 150)) {
-      newErrors.age = 'La edad debe estar entre 1 y 150';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const e: typeof errors = {};
+    if (!form.name.trim()) e.name = 'El nombre es obligatorio';
+    else if (!/^[a-zA-ZÀ-ɏ\s]+$/.test(form.name)) e.name = 'El nombre solo puede contener letras';
+    if (form.rut && !validateRut(form.rut)) e.rut = 'RUT inválido';
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Correo electrónico inválido';
+    if (form.age !== null && (form.age < 1 || form.age > 150)) e.age = 'La edad debe estar entre 1 y 150';
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
-  useEffect(() => {
-    academiesApi.getPlans().then(setPlans);
-  }, []);
+  useEffect(() => { academiesApi.getPlans().then(setPlans); }, []);
 
   useEffect(() => {
     if (id) {
       studentsApi.get(Number(id)).then((s) =>
         setForm({
-          name: s.name,
-          nickname: s.nickname,
-          rut: s.rut,
-          email: s.email,
-          phone: s.phone,
-          emergencyPhone: s.emergencyPhone,
-          joinDate: s.joinDate,
-          age: s.age,
-          weight: s.weight,
-          belt: s.belt,
-          photoUrl: s.photoUrl,
-          address: s.address,
-          medicalNotes: s.medicalNotes,
-          bloodType: s.bloodType,
-          healthInsuranceType: s.healthInsuranceType,
-          healthInsuranceCompany: s.healthInsuranceCompany,
-          active: s.active,
-          planIds: s.enrolledPlans?.map(p => p.id) || [],
+          name: s.name, nickname: s.nickname, rut: s.rut, email: s.email,
+          phone: s.phone, emergencyPhone: s.emergencyPhone, joinDate: s.joinDate,
+          age: s.age, weight: s.weight, belt: s.belt, photoUrl: s.photoUrl,
+          address: s.address, medicalNotes: s.medicalNotes, bloodType: s.bloodType,
+          healthInsuranceType: s.healthInsuranceType, healthInsuranceCompany: s.healthInsuranceCompany,
+          active: s.active, planIds: s.enrolledPlans?.map(p => p.id) || [],
         })
       );
     }
   }, [id]);
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handlePhotoUpload = async (file: File) => {
     setUploading(true);
     try {
       const { url } = await filesApi.upload(file, false);
@@ -166,91 +135,95 @@ export default function StudentForm() {
       {saving && <LoadingOverlay message={isEdit ? 'Actualizando alumno...' : 'Creando alumno...'} />}
       <h1 className="text-2xl font-bold mb-6">{isEdit ? 'Editar Alumno' : 'Nuevo Alumno'}</h1>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm p-6 space-y-5">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-          <input
-            type="text"
-            value={form.name}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (/^[a-zA-ZÀ-ɏ\s]*$/.test(val)) {
-                setForm({ ...form, name: val });
-                setErrors((err) => ({ ...err, name: undefined }));
-              }
-            }}
-            required
-            className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none ${
-              errors.name ? 'border-red-400' : 'border-gray-300'
-            }`}
+      <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-5">
+
+        {/* Foto */}
+        <div className="flex gap-5 items-start">
+          <ImageUpload
+            value={form.photoUrl}
+            onFile={handlePhotoUpload}
+            onRemove={() => setForm((f) => ({ ...f, photoUrl: null }))}
+            uploading={uploading}
+            label="foto del alumno"
+            aspect="portrait"
           />
-          {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
+          <div className="flex-1 space-y-4">
+            <div>
+              <label className={lbl}>Nombre *</label>
+              <FormInput
+                type="text"
+                value={form.name}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (/^[a-zA-ZÀ-ɏ\s]*$/.test(val)) {
+                    setForm({ ...form, name: val });
+                    setErrors((er) => ({ ...er, name: undefined }));
+                  }
+                }}
+                required
+                error={errors.name}
+                placeholder="Nombre completo"
+              />
+              {errors.name && <p className={err}>{errors.name}</p>}
+            </div>
+            <div>
+              <label className={lbl}>Apodo</label>
+              <FormInput
+                type="text"
+                value={form.nickname ?? ''}
+                onChange={(e) => setForm({ ...form, nickname: e.target.value || null })}
+                placeholder="ej: El Tigre, Chico..."
+              />
+            </div>
+          </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Apodo</label>
-          <input
-            type="text"
-            value={form.nickname ?? ''}
-            onChange={(e) => setForm({ ...form, nickname: e.target.value || null })}
-            placeholder="ej: El Tigre, Chico, etc."
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">RUT</label>
-          <input
+          <label className={lbl}>RUT</label>
+          <FormInput
             type="text"
             value={form.rut ?? ''}
             onChange={(e) => {
-              const formatted = formatRut(e.target.value);
-              setForm((f) => ({ ...f, rut: formatted || null }));
-              setErrors((err) => ({ ...err, rut: undefined }));
+              setForm((f) => ({ ...f, rut: formatRut(e.target.value) || null }));
+              setErrors((er) => ({ ...er, rut: undefined }));
             }}
             onBlur={() => {
-              if (form.rut && !validateRut(form.rut)) {
-                setErrors((err) => ({ ...err, rut: 'RUT inválido' }));
-              }
+              if (form.rut && !validateRut(form.rut))
+                setErrors((er) => ({ ...er, rut: 'RUT inválido' }));
             }}
             placeholder="12.345.678-9"
             maxLength={12}
-            className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none ${
-              errors.rut ? 'border-red-400' : 'border-gray-300'
-            }`}
+            error={errors.rut}
           />
-          {errors.rut && <p className="mt-1 text-xs text-red-500">{errors.rut}</p>}
+          {errors.rut && <p className={err}>{errors.rut}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
-          <input
+          <label className={lbl}>Correo electrónico</label>
+          <FormInput
             type="email"
             value={form.email ?? ''}
             onChange={(e) => {
               setForm((f) => ({ ...f, email: e.target.value || null }));
-              setErrors((err) => ({ ...err, email: undefined }));
+              setErrors((er) => ({ ...er, email: undefined }));
             }}
             onBlur={() => {
-              if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-                setErrors((err) => ({ ...err, email: 'Correo electrónico inválido' }));
-              }
+              if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
+                setErrors((er) => ({ ...er, email: 'Correo electrónico inválido' }));
             }}
             placeholder="nombre@ejemplo.com"
-            className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none ${
-              errors.email ? 'border-red-400' : 'border-gray-300'
-            }`}
+            error={errors.email}
           />
-          {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email}</p>}
+          {errors.email && <p className={err}>{errors.email}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono / WhatsApp</label>
+          <label className={lbl}>Teléfono / WhatsApp</label>
           <div className="flex">
-            <span className="inline-flex items-center px-3 text-sm text-gray-600 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg font-medium select-none">
+            <span className="inline-flex items-center px-3 text-sm text-gray-400 bg-gray-800 border border-r-0 border-gray-700 rounded-l-lg font-medium select-none">
               +56
             </span>
-            <input
+            <FormInput
               type="tel"
               value={form.phone?.replace(/^\+?56/, '') ?? ''}
               onChange={(e) => {
@@ -259,19 +232,19 @@ export default function StudentForm() {
               }}
               placeholder="9 1234 5678"
               maxLength={9}
-              className="flex-1 min-w-0 border border-gray-300 rounded-r-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+              className="rounded-l-none"
             />
           </div>
-          <p className="mt-1 text-xs text-gray-400">Se usará para enviar recordatorios de pago por WhatsApp</p>
+          <p className={hint}>Se usará para enviar recordatorios de pago por WhatsApp</p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono de emergencia</label>
+          <label className={lbl}>Teléfono de emergencia</label>
           <div className="flex">
-            <span className="inline-flex items-center px-3 text-sm text-gray-600 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg font-medium select-none">
+            <span className="inline-flex items-center px-3 text-sm text-gray-400 bg-gray-800 border border-r-0 border-gray-700 rounded-l-lg font-medium select-none">
               +56
             </span>
-            <input
+            <FormInput
               type="tel"
               value={form.emergencyPhone?.replace(/^\+?56/, '') ?? ''}
               onChange={(e) => {
@@ -280,204 +253,160 @@ export default function StudentForm() {
               }}
               placeholder="9 1234 5678"
               maxLength={9}
-              className="flex-1 min-w-0 border border-gray-300 rounded-r-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+              className="rounded-l-none"
             />
           </div>
-          <p className="mt-1 text-xs text-gray-400">Contacto en caso de emergencia</p>
+          <p className={hint}>Contacto en caso de emergencia</p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de ingreso</label>
-          <input
-            type="date"
+          <label className={lbl}>Fecha de ingreso</label>
+          <DatePicker
             value={form.joinDate ?? ''}
             max={new Date().toISOString().split('T')[0]}
-            onChange={(e) => setForm((f) => ({ ...f, joinDate: e.target.value || null }))}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+            onChange={(v) => setForm((f) => ({ ...f, joinDate: v || null }))}
           />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Edad</label>
-          <input
-            type="number"
-            value={form.age ?? ''}
-            onChange={(e) => {
-              const val = e.target.value ? Number(e.target.value) : null;
-              setForm({ ...form, age: val });
-              if (val !== null && (val < 1 || val > 150)) {
-                setErrors((err) => ({ ...err, age: 'La edad debe estar entre 1 y 150' }));
-              } else {
-                setErrors((err) => ({ ...err, age: undefined }));
-              }
-            }}
-            min={1}
-            max={150}
-            className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none ${
-              errors.age ? 'border-red-400' : 'border-gray-300'
-            }`}
-          />
-          {errors.age && <p className="mt-1 text-xs text-red-500">{errors.age}</p>}
         </div>
 
         <div className={isEdit ? '' : 'grid grid-cols-2 gap-4'}>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label>
-            <input
+            <label className={lbl}>Edad</label>
+            <FormInput
               type="number"
-              value={form.weight ?? ''}
-              onChange={(e) => setForm({ ...form, weight: e.target.value ? Number(e.target.value) : null })}
-              min={1}
-              max={300}
-              step={0.1}
-              placeholder="ej: 72.5"
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+              value={form.age ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : null;
+                setForm({ ...form, age: val });
+                if (val !== null && (val < 1 || val > 150))
+                  setErrors((er) => ({ ...er, age: 'La edad debe estar entre 1 y 150' }));
+                else setErrors((er) => ({ ...er, age: undefined }));
+              }}
+              min={1} max={150}
+              error={errors.age}
             />
+            {errors.age && <p className={err}>{errors.age}</p>}
           </div>
           {!isEdit && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Cinturón inicial</label>
-              <select
+              <label className={lbl}>Cinturón inicial</label>
+              <FormSelect
                 value={form.belt ?? ''}
                 onChange={(e) => setForm({ ...form, belt: e.target.value || null })}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none bg-white"
               >
                 <option value="">Sin cinturón</option>
                 <optgroup label="Juveniles (≤ 15 años)">
-                  <option value="Blanco">Blanco</option>
-                  <option value="Gris">Gris</option>
-                  <option value="Amarillo">Amarillo</option>
-                  <option value="Naranja">Naranja</option>
-                  <option value="Verde">Verde</option>
+                  {['Blanco','Gris','Amarillo','Naranja','Verde'].map(b => <option key={b} value={b}>{b}</option>)}
                 </optgroup>
                 <optgroup label="Adultos (16+ años)">
-                  <option value="Blanco">Blanco</option>
-                  <option value="Azul">Azul</option>
-                  <option value="Morado">Morado</option>
-                  <option value="Café">Café</option>
-                  <option value="Negro">Negro</option>
+                  {['Blanco','Azul','Morado','Café','Negro'].map(b => <option key={b} value={b}>{b}</option>)}
                 </optgroup>
-              </select>
+              </FormSelect>
             </div>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Foto</label>
-          <input type="file" accept="image/*" onChange={handlePhotoUpload} className="text-sm" />
-          {uploading && <p className="text-sm text-gray-500 mt-1">Subiendo...</p>}
-          {form.photoUrl && (
-            <img src={form.photoUrl} alt="preview" className="mt-2 w-24 h-24 rounded-lg object-cover" />
-          )}
+          <label className={lbl}>Peso (kg)</label>
+          <FormInput
+            type="number"
+            value={form.weight ?? ''}
+            onChange={(e) => setForm({ ...form, weight: e.target.value ? Number(e.target.value) : null })}
+            min={1} max={300} step={0.1}
+            placeholder="ej: 72.5"
+          />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
-          <input
+          <label className={lbl}>Dirección</label>
+          <FormInput
             type="text"
             value={form.address ?? ''}
             onChange={(e) => setForm({ ...form, address: e.target.value || null })}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de sangre</label>
-            <select
+            <label className={lbl}>Tipo de sangre</label>
+            <FormSelect
               value={form.bloodType ?? ''}
               onChange={(e) => setForm({ ...form, bloodType: e.target.value || null })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none bg-white"
             >
               <option value="">Sin especificar</option>
-              {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+              {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(t => <option key={t} value={t}>{t}</option>)}
+            </FormSelect>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Previsión de salud</label>
-            <select
+            <label className={lbl}>Previsión de salud</label>
+            <FormSelect
               value={form.healthInsuranceType ?? ''}
-              onChange={(e) =>
-                setForm({ ...form, healthInsuranceType: e.target.value || null, healthInsuranceCompany: null })
-              }
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none bg-white"
+              onChange={(e) => setForm({ ...form, healthInsuranceType: e.target.value || null, healthInsuranceCompany: null })}
             >
               <option value="">Sin especificar</option>
               <option value="FONASA">Fonasa</option>
               <option value="ISAPRE">Isapre</option>
-            </select>
+            </FormSelect>
           </div>
         </div>
 
         {form.healthInsuranceType === 'ISAPRE' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Isapre</label>
-            <select
+            <label className={lbl}>Isapre</label>
+            <FormSelect
               value={form.healthInsuranceCompany ?? ''}
               onChange={(e) => setForm({ ...form, healthInsuranceCompany: e.target.value || null })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none bg-white"
             >
               <option value="">Seleccionar Isapre</option>
-              {['Banmédica', 'Colmena', 'Consalud', 'CruzBlanca', 'Nueva Masvida', 'Vida Tres', 'Esencial', 'Isalud', 'Fundación', 'Cruz del Norte'].map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+              {['Banmédica','Colmena','Consalud','CruzBlanca','Nueva Masvida','Vida Tres','Esencial','Isalud','Fundación','Cruz del Norte'].map(c => <option key={c} value={c}>{c}</option>)}
+            </FormSelect>
           </div>
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Enfermedades de base / Notas médicas</label>
-          <textarea
+          <label className={lbl}>Enfermedades de base / Notas médicas</label>
+          <FormTextarea
             value={form.medicalNotes ?? ''}
             onChange={(e) => setForm({ ...form, medicalNotes: e.target.value || null })}
             rows={3}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none resize-none"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
-          <button
-            type="button"
-            onClick={() => setForm({ ...form, active: !form.active })}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              form.active ? 'bg-green-500' : 'bg-gray-300'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                form.active ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-          <span className="ml-3 text-sm text-gray-600">{form.active ? 'Activo' : 'Inactivo'}</span>
+          <label className={lbl}>Estado</label>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, active: !form.active })}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.active ? 'bg-green-500' : 'bg-gray-700'}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${form.active ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+            <span className="text-sm text-gray-400">{form.active ? 'Activo' : 'Inactivo'}</span>
+          </div>
         </div>
 
         {plans.length > 0 && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">Disciplinas y Planes</label>
-            <div className="space-y-4">
+            <label className={lbl}>Disciplinas y Planes</label>
+            <div className="space-y-4 mt-1">
               {groupPlansByDiscipline(plans.filter(p => p.active)).map(([discipline, disciplinePlans]) => (
                 <div key={discipline}>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2 uppercase tracking-wide">{discipline}</h3>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{discipline}</p>
                   <div className="flex flex-wrap gap-2">
                     {disciplinePlans.map((plan) => (
                       <button
                         key={plan.id}
                         type="button"
                         onClick={() => {
-                          const newPlanIds = form.planIds?.includes(plan.id)
-                            ? form.planIds.filter(id => id !== plan.id)
+                          const newIds = form.planIds?.includes(plan.id)
+                            ? form.planIds.filter(i => i !== plan.id)
                             : [...(form.planIds || []), plan.id];
-                          setForm({ ...form, planIds: newPlanIds });
+                          setForm({ ...form, planIds: newIds });
                         }}
-                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                        className={`px-3 py-1.5 rounded-lg font-medium text-sm transition-all border ${
                           form.planIds?.includes(plan.id)
-                            ? 'bg-primary-500 text-white shadow-md'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            ? 'bg-primary-600 border-primary-500 text-white shadow-md shadow-primary-500/20'
+                            : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white'
                         }`}
                       >
                         {plan.name}
@@ -490,7 +419,7 @@ export default function StudentForm() {
           </div>
         )}
 
-        <div className="flex gap-3 pt-2">
+        <div className="flex gap-3 pt-2 border-t border-gray-800">
           <button
             type="submit"
             disabled={saving}
@@ -501,7 +430,7 @@ export default function StudentForm() {
           <button
             type="button"
             onClick={() => navigate('/admin/students')}
-            className="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            className="px-6 py-2.5 border border-gray-700 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
           >
             Cancelar
           </button>

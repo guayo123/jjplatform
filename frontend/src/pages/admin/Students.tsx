@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useStudentStore } from '../../stores/studentStore';
 import { useAuthStore } from '../../stores/authStore';
 import Button from '../../components/Button';
+import FormInput from '../../components/FormInput';
+import FormSelect from '../../components/FormSelect';
 import type { Student } from '../../types';
 
 const BELT_COLORS: Record<string, string> = {
@@ -59,15 +61,11 @@ function BeltBadge({ belt }: { belt: string }) {
 
 function OpSelect({ value, onChange }: { value: CompOp; onChange: (v: CompOp) => void }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value as CompOp)}
-      className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-300 w-16"
-    >
+    <FormSelect value={value} onChange={(e) => onChange(e.target.value as CompOp)} className="w-16 px-2 py-1.5">
       <option value=">=">&ge;</option>
       <option value="<=">&le;</option>
       <option value="=">=</option>
-    </select>
+    </FormSelect>
   );
 }
 
@@ -147,69 +145,62 @@ export default function Students() {
 
       {/* Filter panel */}
       {students.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-4 mb-4 space-y-3">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-4 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Name */}
-            <input
+            <FormInput
               type="text"
               placeholder="Buscar por nombre..."
               value={filters.name}
               onChange={(e) => set('name', e.target.value)}
-              className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 w-full"
             />
 
-            {/* Belt */}
-            <select
+            <FormSelect
               value={filters.belt}
               onChange={(e) => set('belt', e.target.value)}
-              className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-300 w-full"
             >
               <option value="">Todos los cinturones</option>
               {ALL_BELTS.map((b) => (
                 <option key={b} value={b}>{b}</option>
               ))}
-            </select>
+            </FormSelect>
 
-            {/* Age */}
             <div className="flex items-center gap-1">
               <span className="text-xs text-gray-500 whitespace-nowrap">Edad</span>
               <OpSelect value={filters.ageOp} onChange={(v) => set('ageOp', v)} />
-              <input
+              <FormInput
                 type="number"
                 placeholder="—"
                 value={filters.age}
                 onChange={(e) => set('age', e.target.value)}
-                className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 w-20"
+                className="w-20 px-2 py-1.5"
                 min={0}
               />
             </div>
 
-            {/* Weight */}
             <div className="flex items-center gap-1">
               <span className="text-xs text-gray-500 whitespace-nowrap">Peso</span>
               <OpSelect value={filters.weightOp} onChange={(v) => set('weightOp', v)} />
-              <input
+              <FormInput
                 type="number"
                 placeholder="—"
                 value={filters.weight}
                 onChange={(e) => set('weight', e.target.value)}
-                className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 w-20"
+                className="w-20 px-2 py-1.5"
                 min={0}
               />
             </div>
           </div>
 
-          {/* Status + results count + clear */}
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+            <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-1">
               {(['all', 'active', 'inactive'] as const).map((s) => (
                 <button
                   key={s}
                   onClick={() => set('status', s)}
                   className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                     filters.status === s
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'bg-gray-700 text-white shadow-sm'
+                      : 'text-gray-500 hover:text-gray-300'
                   }`}
                 >
                   {s === 'all' ? 'Todos' : s === 'active' ? 'Activos' : 'Inactivos'}

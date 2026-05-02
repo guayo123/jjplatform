@@ -1,17 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { filesApi } from '../../api/files';
 import { useAuthStore } from '../../stores/authStore';
 import { academiesApi } from '../../api/academies';
 import { useToast } from '../../components/ToastContext';
 import { useConfirm } from '../../components/ConfirmContext';
 import type { Photo } from '../../types';
+import FormInput from '../../components/FormInput';
 
 export default function Photos() {
   const academyId = useAuthStore((s) => s.academyId);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [uploading, setUploading] = useState(false);
   const [caption, setCaption] = useState('');
+  const [dragging, setDragging] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const confirm = useConfirm();
 
@@ -21,9 +24,8 @@ export default function Photos() {
     }
   }, [academyId]);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const uploadFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) return;
     setUploading(true);
     try {
       const result = await filesApi.upload(file, caption || undefined);
@@ -34,6 +36,13 @@ export default function Photos() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    await uploadFile(file);
   };
 
   const handleDelete = async (photo: Photo) => {
@@ -58,27 +67,45 @@ export default function Photos() {
     <div>
       <h1 className="text-2xl font-bold mb-6">Galería de Fotos</h1>
 
-      {/* Upload form */}
-      <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-        <h2 className="font-semibold mb-3">Subir nueva foto</h2>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <input
-            type="text"
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            placeholder="Descripción (opcional)"
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1"
-          />
-          <label className="cursor-pointer bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium text-center transition-colors">
-            {uploading ? 'Subiendo...' : 'Seleccionar imagen'}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleUpload}
-              disabled={uploading}
-              className="hidden"
-            />
-          </label>
+      {/* Upload zone */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6 space-y-4">
+        <h2 className="font-bold text-white">Subir nueva foto</h2>
+
+        <FormInput
+          type="text"
+          value={caption}
+          onChange={(e) => setCaption(e.target.value)}
+          placeholder="Descripción de la foto (opcional)"
+        />
+
+        <div
+          onClick={() => !uploading && fileInputRef.current?.click()}
+          onDrop={(e) => { e.preventDefault(); setDragging(false); if (!uploading) uploadFile(e.dataTransfer.files[0]); }}
+          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed cursor-pointer transition-all h-36 select-none
+            ${dragging ? 'border-primary-500 bg-primary-500/10' : 'border-gray-700 hover:border-gray-500 hover:bg-gray-800/40'}
+            ${uploading ? 'cursor-wait opacity-60' : ''}
+          `}
+        >
+          {uploading ? (
+            <div className="w-7 h-7 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${dragging ? 'bg-primary-500/20' : 'bg-gray-800'}`}>
+                <svg className={`w-5 h-5 ${dragging ? 'text-primary-400' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <p className={`text-sm font-semibold ${dragging ? 'text-primary-400' : 'text-gray-400'}`}>
+                  {dragging ? 'Suelta aquí' : 'Arrastra una imagen o haz clic para seleccionar'}
+                </p>
+                <p className="text-xs text-gray-600 mt-0.5">JPG, PNG o WebP</p>
+              </div>
+            </>
+          )}
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUpload} disabled={uploading} className="hidden" />
         </div>
       </div>
 

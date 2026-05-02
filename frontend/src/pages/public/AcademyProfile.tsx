@@ -52,11 +52,27 @@ function classIcon(name: string): string {
 
 function beltColors(belt: string): { bg: string; text: string; border: string } {
   const b = belt.toLowerCase();
-  if (b.includes('negro'))                           return { bg: '#111', text: '#fff', border: '#ef4444' };
+  // Dark belts
+  if (b.includes('negro') || b.includes('preto'))                        return { bg: '#111', text: '#fff', border: '#ef4444' };
+  // Brown / Café
   if (b.includes('marrón') || b.includes('cafe') || b.includes('café')) return { bg: '#92400e', text: '#fff', border: '#b45309' };
-  if (b.includes('morado') || b.includes('purple')) return { bg: '#7c3aed', text: '#fff', border: '#6d28d9' };
-  if (b.includes('azul') || b.includes('blue'))     return { bg: '#2563eb', text: '#fff', border: '#1d4ed8' };
-  if (b.includes('blanco') || b.includes('white'))  return { bg: '#f3f4f6', text: '#111', border: '#d1d5db' };
+  // Purple / Morado / Roxo
+  if (b.includes('morado') || b.includes('roxo'))                        return { bg: '#7c3aed', text: '#fff', border: '#6d28d9' };
+  // Blue / Azul
+  if (b.includes('azul'))                                                return { bg: '#2563eb', text: '#fff', border: '#1d4ed8' };
+  // Green / Verde
+  if (b.includes('verde'))                                               return { bg: '#16a34a', text: '#fff', border: '#15803d' };
+  // Orange / Naranja / Laranja
+  if (b.includes('naranja') || b.includes('laranja'))                    return { bg: '#ea580c', text: '#fff', border: '#c2410c' };
+  // Yellow / Amarillo / Amarela
+  if (b.includes('amarillo') || b.includes('amarela'))                   return { bg: '#ca8a04', text: '#fff', border: '#a16207' };
+  // White / Blanco / Cru
+  if (b.includes('blanco') || b.includes('cru'))                        return { bg: '#f3f4f6', text: '#111', border: '#d1d5db' };
+  // Kickboxing levels
+  if (b.includes('profesional'))                                         return { bg: '#991b1b', text: '#fff', border: '#7f1d1d' };
+  if (b.includes('semiprofesional'))                                     return { bg: '#c2410c', text: '#fff', border: '#9a3412' };
+  if (b.includes('amateur'))                                             return { bg: '#0369a1', text: '#fff', border: '#075985' };
+  if (b.includes('principiante'))                                        return { bg: '#374151', text: '#fff', border: '#4b5563' };
   return { bg: '#374151', text: '#fff', border: '#4b5563' };
 }
 
@@ -257,6 +273,15 @@ export default function AcademyProfile() {
                   >
                     <p className="text-lg font-bold text-white">{academy.photos.length}</p>
                     <p className="text-xs text-gray-500">Fotos</p>
+                  </button>
+                )}
+                {academy.plans && academy.plans.length > 0 && (
+                  <button
+                    onClick={() => document.getElementById('section-planes')?.scrollIntoView({ behavior: 'smooth' })}
+                    className="bg-gray-900 border border-gray-800 hover:border-primary-500/50 hover:bg-gray-800 rounded-lg px-3 py-2 text-center transition-colors cursor-pointer"
+                  >
+                    <p className="text-lg font-bold text-white">{academy.plans.length}</p>
+                    <p className="text-xs text-gray-500">Planes</p>
                   </button>
                 )}
               </div>

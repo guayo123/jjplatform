@@ -4,6 +4,7 @@ import { studentsApi } from '../../api/students';
 import { beltPromotionsApi } from '../../api/beltPromotions';
 import { useToast } from '../../components/ToastContext';
 import BeltImage from '../../components/BeltImage';
+import DatePicker from '../../components/DatePicker';
 import type { Student, BeltPromotion, PromotionType } from '../../types';
 
 const BELT_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -188,14 +189,6 @@ export default function StudentDetail() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      {/* Back */}
-      <Link to="/admin/students" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors">
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        Volver a alumnos
-      </Link>
-
       {/* Student card */}
       <div className="bg-white rounded-xl shadow-sm p-6">
         <div className="flex items-start gap-5">
@@ -239,6 +232,41 @@ export default function StudentDetail() {
           </Link>
         </div>
       </div>
+
+      {/* Plans & professors */}
+      {student.enrolledPlans && student.enrolledPlans.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-5">
+          <h2 className="font-bold text-gray-900 mb-4">Planes y Profesores</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {student.enrolledPlans.map((plan) => (
+              <div key={plan.id} className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50">
+                <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center flex-shrink-0 text-sm font-bold">
+                  {plan.name.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 text-sm truncate">{plan.name}</p>
+                  {plan.disciplineName && (
+                    <p className="text-xs text-gray-500 mt-0.5">{plan.disciplineName}</p>
+                  )}
+                  {plan.price != null && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      ${plan.price.toLocaleString('es-CL')}/mes
+                    </p>
+                  )}
+                  {plan.professorName && (
+                    <div className="flex items-center gap-1 mt-1.5">
+                      <svg className="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <span className="text-xs text-gray-600 font-medium">{plan.professorName}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Belt history */}
       <div className="bg-white rounded-xl shadow-sm">
@@ -296,12 +324,10 @@ export default function StudentDetail() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Fecha *</label>
-                <input
-                  type="date"
+                <DatePicker
                   value={gradeForm.promotionDate}
                   max={new Date().toISOString().split('T')[0]}
-                  onChange={(e) => setGradeForm((f) => ({ ...f, promotionDate: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                  onChange={(v) => setGradeForm((f) => ({ ...f, promotionDate: v }))}
                 />
               </div>
               <div>
@@ -358,12 +384,10 @@ export default function StudentDetail() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Fecha *</label>
-                <input
-                  type="date"
+                <DatePicker
                   value={beltForm.promotionDate}
                   max={new Date().toISOString().split('T')[0]}
-                  onChange={(e) => setBeltForm((f) => ({ ...f, promotionDate: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+                  onChange={(v) => setBeltForm((f) => ({ ...f, promotionDate: v }))}
                 />
               </div>
               <div>

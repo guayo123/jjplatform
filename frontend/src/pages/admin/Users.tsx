@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { usersApi } from '../../api/users';
 import { useConfirm } from '../../components/ConfirmContext';
 import type { AppUser, CreateUserRequest } from '../../types';
+import FormInput from '../../components/FormInput';
+import FormSelect from '../../components/FormSelect';
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   ADMIN:     { label: 'Admin',     color: 'bg-primary-100 text-primary-800' },
@@ -106,57 +108,54 @@ export default function Users() {
 
       {/* Form */}
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm p-6 space-y-4">
-          <h2 className="font-semibold text-gray-800">Crear nuevo usuario</h2>
+        <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
+          <h2 className="font-bold text-white">Crear nuevo usuario</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Email</label>
+              <FormInput
                 type="email"
                 required
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 placeholder="usuario@email.com"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña inicial</label>
-              <input
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Contraseña inicial</label>
+              <FormInput
                 type="password"
                 required
                 minLength={6}
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 placeholder="Mínimo 6 caracteres"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-              <select
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Rol</label>
+              <FormSelect
                 value={form.role}
                 onChange={(e) => setForm({ ...form, role: e.target.value as 'PROFESOR' | 'ENCARGADO' })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
               >
                 <option value="PROFESOR">Profesor (solo lectura)</option>
                 <option value="ENCARGADO">Encargado (pagos + alumnos)</option>
-              </select>
-              <p className="text-xs text-gray-400 mt-1">{ROLE_DESCRIPTIONS[form.role]}</p>
+              </FormSelect>
+              <p className="text-xs text-gray-500 mt-1">{ROLE_DESCRIPTIONS[form.role]}</p>
             </div>
           </div>
           <div className="flex gap-3">
             <button
               type="submit"
               disabled={submitting}
-              className="bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white px-4 py-2 rounded-lg text-sm font-medium"
+              className="bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white px-4 py-2.5 rounded-lg text-sm font-medium"
             >
               {submitting ? 'Creando...' : 'Crear usuario'}
             </button>
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="text-gray-500 hover:text-gray-700 px-4 py-2 rounded-lg text-sm border border-gray-200"
+              className="border border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white px-4 py-2.5 rounded-lg text-sm transition-colors"
             >
               Cancelar
             </button>

@@ -4,9 +4,22 @@ import { professorsApi } from '../../api/professors';
 import { filesApi } from '../../api/files';
 import { useToast } from '../../components/ToastContext';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import FormInput from '../../components/FormInput';
+import FormSelect from '../../components/FormSelect';
+import FormTextarea from '../../components/FormTextarea';
+import ImageUpload from '../../components/ImageUpload';
 import type { ProfessorForm as ProfessorFormType } from '../../types';
 
-const BELTS = ['Blanco', 'Gris', 'Amarillo', 'Naranja', 'Verde', 'Azul', 'Morado', 'Café', 'Negro'];
+const BELT_GROUPS: { label: string; options: string[] }[] = [
+  { label: 'BJJ / Jiu-Jitsu', options: ['Blanco', 'Azul', 'Morado', 'Café', 'Negro'] },
+  { label: 'Capoeira (cordas)', options: ['Corda Cru', 'Corda Amarela', 'Corda Laranja', 'Corda Verde', 'Corda Azul', 'Corda Roxo', 'Corda Café', 'Corda Preto'] },
+  { label: 'Kickboxing / Muay Thai', options: ['Nivel Principiante', 'Nivel Amateur', 'Nivel Semiprofesional', 'Nivel Profesional'] },
+  { label: 'Judo / Karate', options: ['Blanco', 'Amarillo', 'Naranja', 'Verde', 'Azul', 'Marrón', 'Negro'] },
+];
+
+const lbl = 'block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5';
+const hint = 'mt-1 text-xs text-gray-500';
+const err = 'mt-1 text-xs text-red-400';
 
 export default function ProfessorForm() {
   const { id } = useParams<{ id: string }>();
@@ -14,12 +27,7 @@ export default function ProfessorForm() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState<ProfessorFormType>({
-    name: '',
-    photoUrl: null,
-    bio: null,
-    achievements: null,
-    belt: null,
-    displayOrder: 0,
+    name: '', photoUrl: null, bio: null, achievements: null, belt: null, displayOrder: 0,
   });
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -29,21 +37,12 @@ export default function ProfessorForm() {
   useEffect(() => {
     if (id) {
       professorsApi.get(Number(id)).then((p) =>
-        setForm({
-          name: p.name,
-          photoUrl: p.photoUrl,
-          bio: p.bio,
-          achievements: p.achievements,
-          belt: p.belt,
-          displayOrder: p.displayOrder ?? 0,
-        })
+        setForm({ name: p.name, photoUrl: p.photoUrl, bio: p.bio, achievements: p.achievements, belt: p.belt, displayOrder: p.displayOrder ?? 0 })
       );
     }
   }, [id]);
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handlePhotoUpload = async (file: File) => {
     setUploading(true);
     try {
       const { url } = await filesApi.upload(file, false);
@@ -57,16 +56,11 @@ export default function ProfessorForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) {
-      setNameError('El nombre es obligatorio');
-      return;
-    }
+    if (!form.name.trim()) { setNameError('El nombre es obligatorio'); return; }
     setSaving(true);
     try {
       const [result] = await Promise.allSettled([
-        isEdit && id
-          ? professorsApi.update(Number(id), form)
-          : professorsApi.create(form),
+        isEdit && id ? professorsApi.update(Number(id), form) : professorsApi.create(form),
         new Promise((resolve) => setTimeout(resolve, 1500)),
       ]);
       if (result.status === 'rejected') throw result.reason;
@@ -84,102 +78,86 @@ export default function ProfessorForm() {
       {saving && <LoadingOverlay message={isEdit ? 'Actualizando profesor...' : 'Creando profesor...'} />}
       <h1 className="text-2xl font-bold mb-6">{isEdit ? 'Editar Profesor' : 'Nuevo Profesor'}</h1>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm p-6 space-y-5">
+      <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-5">
 
-        {/* Nombre */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-          <input
-            type="text"
-            value={form.name}
-            onChange={(e) => {
-              setForm({ ...form, name: e.target.value });
-              setNameError('');
-            }}
-            required
-            className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none ${
-              nameError ? 'border-red-400' : 'border-gray-300'
-            }`}
-            placeholder="Nombre completo del profesor"
+        {/* Foto + Nombre */}
+        <div className="flex gap-5 items-start">
+          <ImageUpload
+            value={form.photoUrl}
+            onFile={handlePhotoUpload}
+            onRemove={() => setForm((f) => ({ ...f, photoUrl: null }))}
+            uploading={uploading}
+            label="foto del profesor"
+            aspect="portrait"
           />
-          {nameError && <p className="mt-1 text-xs text-red-500">{nameError}</p>}
-        </div>
-
-        {/* Foto */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Foto</label>
-          <input type="file" accept="image/*" onChange={handlePhotoUpload} className="text-sm" />
-          {uploading && <p className="text-sm text-gray-500 mt-1">Subiendo...</p>}
-          {form.photoUrl && (
-            <div className="mt-2 flex items-center gap-3">
-              <img src={form.photoUrl} alt="preview" className="w-20 h-20 rounded-xl object-cover" />
-              <button
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, photoUrl: null }))}
-                className="text-xs text-red-500 hover:text-red-600"
-              >
-                Quitar foto
-              </button>
+          <div className="flex-1 space-y-4">
+            <div>
+              <label className={lbl}>Nombre *</label>
+              <FormInput
+                type="text"
+                value={form.name}
+                onChange={(e) => { setForm({ ...form, name: e.target.value }); setNameError(''); }}
+                required
+                error={nameError}
+                placeholder="Nombre completo del profesor"
+              />
+              {nameError && <p className={err}>{nameError}</p>}
             </div>
-          )}
+            <div>
+              <label className={lbl}>Cinturón / Rango</label>
+              <FormSelect
+                value={form.belt ?? ''}
+                onChange={(e) => setForm({ ...form, belt: e.target.value || null })}
+              >
+                <option value="">Sin especificar</option>
+                {BELT_GROUPS.map((group) => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.options.map((b) => (
+                      <option key={`${group.label}-${b}`} value={b}>{b}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </FormSelect>
+            </div>
+          </div>
         </div>
 
-        {/* Cinturón */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Cinturón / Rango</label>
-          <select
-            value={form.belt ?? ''}
-            onChange={(e) => setForm({ ...form, belt: e.target.value || null })}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none bg-white"
-          >
-            <option value="">Sin especificar</option>
-            {BELTS.map((b) => (
-              <option key={b} value={b}>{b}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Biografía */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Biografía</label>
-          <textarea
+          <label className={lbl}>Biografía</label>
+          <FormTextarea
             value={form.bio ?? ''}
             onChange={(e) => setForm({ ...form, bio: e.target.value || null })}
             rows={4}
             placeholder="Describe la trayectoria y experiencia del profesor..."
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none resize-none"
           />
         </div>
 
-        {/* Logros */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className={lbl}>
             Logros y títulos
-            <span className="text-gray-400 font-normal ml-1">(uno por línea)</span>
+            <span className="text-gray-600 font-normal ml-1 normal-case">(uno por línea)</span>
           </label>
-          <textarea
+          <FormTextarea
             value={form.achievements ?? ''}
             onChange={(e) => setForm({ ...form, achievements: e.target.value || null })}
             rows={4}
             placeholder={"Campeón Mundial IBJJF 2022\nCinturón negro bajo Prof. X\nMedalla de oro Panamericanos 2021"}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none resize-none"
           />
         </div>
 
-        {/* Orden */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Orden de visualización</label>
-          <input
+          <label className={lbl}>Orden de visualización</label>
+          <FormInput
             type="number"
             min={0}
             value={form.displayOrder}
             onChange={(e) => setForm({ ...form, displayOrder: Number(e.target.value) })}
-            className="w-32 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+            className="w-32"
           />
-          <p className="mt-1 text-xs text-gray-400">Número menor = aparece primero en el perfil público</p>
+          <p className={hint}>Número menor = aparece primero en el perfil público</p>
         </div>
 
-        <div className="flex gap-3 pt-2">
+        <div className="flex gap-3 pt-2 border-t border-gray-800">
           <button
             type="submit"
             disabled={saving}
@@ -190,7 +168,7 @@ export default function ProfessorForm() {
           <button
             type="button"
             onClick={() => navigate('/admin/professors')}
-            className="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            className="px-6 py-2.5 border border-gray-700 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
           >
             Cancelar
           </button>

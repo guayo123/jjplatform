@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { academiesApi } from '../../api/academies';
 import { useToast } from '../../components/ToastContext';
 import type { Discipline } from '../../types';
+import FormInput from '../../components/FormInput';
 
 export default function Disciplines() {
   const [disciplines, setDisciplines] = useState<Discipline[]>([]);
@@ -86,43 +87,37 @@ export default function Disciplines() {
 
       {/* Form modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-800">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl shadow-black/60 w-full max-w-sm">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+              <h2 className="font-bold text-white">
                 {editingId != null ? 'Editar disciplina' : 'Nueva disciplina'}
               </h2>
-              <button
-                onClick={() => setShowForm(false)}
-                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
-              >
-                ✕
-              </button>
+              <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-white text-xl leading-none transition-colors">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-                <input
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Nombre *</label>
+                <FormInput
                   required
                   autoFocus
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="ej: Jiujitsu, Kickboxing, Capoeira"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
               <div className="flex gap-3 pt-1">
                 <button
                   type="submit"
                   disabled={saving}
-                  className="bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
                 >
                   {saving ? 'Guardando...' : 'Guardar'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="border border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
                 >
                   Cancelar
                 </button>

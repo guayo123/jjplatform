@@ -5,6 +5,8 @@ import { useStudentStore } from '../../stores/studentStore';
 import { useAuthStore } from '../../stores/authStore';
 import { formatCLP } from '../../utils/format';
 import type { Payment, PaymentForm, Plan } from '../../types';
+import FormInput from '../../components/FormInput';
+import FormSelect from '../../components/FormSelect';
 
 const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
@@ -186,32 +188,32 @@ export default function Payments() {
           </button>
         </div>
 
-        <select
+        <FormSelect
           value={month}
           onChange={(e) => setMonth(Number(e.target.value))}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          className="w-auto"
         >
           {MONTH_NAMES.map((name, i) => (
             <option key={i} value={i + 1}>{name}</option>
           ))}
-        </select>
-        <input
+        </FormSelect>
+        <FormInput
           type="number"
           value={year}
           onChange={(e) => setYear(Number(e.target.value))}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24"
+          className="w-24"
         />
       </div>
 
       {/* ── Vista por plan ─────────────────────────────────────────────────── */}
       {view === 'plan' && (
         <div className="space-y-5">
-          <div className="bg-white rounded-xl shadow-sm p-5">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Seleccionar plan</label>
-            <select
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Seleccionar plan</label>
+            <FormSelect
               value={selectedPlanId ?? ''}
               onChange={(e) => setSelectedPlanId(e.target.value ? Number(e.target.value) : null)}
-              className="w-full max-w-sm border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+              className="max-w-sm"
             >
               <option value="">Seleccionar plan…</option>
               {Object.entries(plansByDiscipline).map(([discipline, dPlans]) => (
@@ -221,7 +223,7 @@ export default function Payments() {
                   ))}
                 </optgroup>
               ))}
-            </select>
+            </FormSelect>
           </div>
 
           {selectedPlan && (
@@ -302,23 +304,21 @@ export default function Payments() {
 
       {/* Payment form */}
       {canEdit && showForm && (
-        <form onSubmit={handleCreate} className="bg-white rounded-xl shadow-sm p-6 mb-6 space-y-5">
-          <h2 className="font-semibold text-gray-800">Nuevo pago — {MONTH_NAMES[month - 1]} {year}</h2>
+        <form onSubmit={handleCreate} className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6 space-y-5">
+          <h2 className="font-bold text-white">Nuevo pago — {MONTH_NAMES[month - 1]} {year}</h2>
 
-          {/* Student selector */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Alumno</label>
-            <select
+            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Alumno</label>
+            <FormSelect
               value={form.studentId}
               onChange={(e) => handleStudentChange(Number(e.target.value))}
               required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
             >
               <option value={0}>Seleccionar...</option>
               {unpaidStudents.map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
-            </select>
+            </FormSelect>
           </div>
 
           {/* Plan breakdown */}
@@ -361,56 +361,55 @@ export default function Payments() {
           {/* Discount + Net expected */}
           {selectedStudent && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Descuento</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Descuento</label>
               <div className="flex gap-2 items-center">
                 <div className="relative flex-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">
                     {form.discountType === 'PERCENT' ? '' : '$'}
                   </span>
-                  <input
+                  <FormInput
                     type="text"
                     inputMode="numeric"
                     value={discountInput}
                     onChange={(e) => setDiscountInput(e.target.value.replace(/[^0-9.]/g, ''))}
                     onBlur={handleDiscountBlur}
                     placeholder="0"
-                    className={`w-full border border-gray-300 rounded-lg py-2 pr-3 text-sm ${form.discountType === 'PERCENT' ? 'pl-3' : 'pl-6'}`}
+                    className={form.discountType === 'PERCENT' ? '' : 'pl-6'}
                   />
                 </div>
-                <select
+                <FormSelect
                   value={form.discountType}
                   onChange={(e) => {
                     setForm(f => ({ ...f, discountType: e.target.value as 'AMOUNT' | 'PERCENT', discount: 0 }));
                     setDiscountInput('');
                   }}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-36"
                 >
                   <option value="AMOUNT">$ pesos</option>
                   <option value="PERCENT">% porcentaje</option>
-                </select>
+                </FormSelect>
               </div>
               {(form.discount ?? 0) > 0 && (
-                <p className="text-sm text-primary-600 mt-1.5 font-medium">
+                <p className="text-sm text-primary-400 mt-1.5 font-medium">
                   Neto a pagar: {formatCLP(netExpected)}
                 </p>
               )}
             </div>
           )}
 
-          {/* Amount paid */}
           {selectedStudent && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Monto pagado</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Monto pagado</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">$</span>
-                <input
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">$</span>
+                <FormInput
                   type="text"
                   inputMode="numeric"
                   value={amountInput}
                   onChange={(e) => setAmountInput(e.target.value.replace(/[^0-9.]/g, ''))}
                   onBlur={handleAmountBlur}
                   required
-                  className="w-full border border-gray-300 rounded-lg pl-6 pr-3 py-2 text-sm"
+                  className="pl-6"
                 />
               </div>
               {/* Status indicator */}
@@ -436,22 +435,20 @@ export default function Payments() {
             </div>
           )}
 
-          {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notas</label>
-            <input
+            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Notas</label>
+            <FormInput
               type="text"
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
             />
           </div>
 
-          <div className="flex gap-3">
-            <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+          <div className="flex gap-3 pt-2 border-t border-gray-800">
+            <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium">
               Guardar pago
             </button>
-            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+            <button type="button" onClick={() => setShowForm(false)} className="border border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white px-4 py-2.5 rounded-lg text-sm transition-colors">
               Cancelar
             </button>
           </div>
@@ -460,10 +457,10 @@ export default function Payments() {
 
       {/* Abono modal */}
       {abonoTarget && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <form onSubmit={handleAbono} className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
-            <h2 className="font-semibold text-gray-800">Registrar abono</h2>
-            <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <form onSubmit={handleAbono} className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl shadow-black/60 p-6 w-full max-w-sm space-y-4">
+            <h2 className="font-bold text-white">Registrar abono</h2>
+            <div className="bg-gray-800 rounded-lg p-3 space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Alumno</span>
                 <span className="font-medium">{abonoTarget.studentName}</span>
@@ -483,17 +480,17 @@ export default function Payments() {
                 <span className="text-green-600 font-medium">{formatCLP(Number(abonoTarget.amount))}</span>
               </div>
               {abonoTarget.remaining != null && abonoTarget.remaining > 0 && (
-                <div className="flex justify-between border-t border-gray-200 pt-1 mt-1">
-                  <span className="font-semibold text-orange-600">Pendiente</span>
-                  <span className="font-semibold text-orange-600">{formatCLP(abonoTarget.remaining)}</span>
+                <div className="flex justify-between border-t border-gray-700 pt-1 mt-1">
+                  <span className="font-semibold text-orange-400">Pendiente</span>
+                  <span className="font-semibold text-orange-400">{formatCLP(abonoTarget.remaining)}</span>
                 </div>
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Monto del abono</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Monto del abono</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">$</span>
-                <input
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">$</span>
+                <FormInput
                   type="text"
                   inputMode="numeric"
                   value={abonoInput}
@@ -502,7 +499,7 @@ export default function Payments() {
                   required
                   autoFocus
                   placeholder="0"
-                  className="w-full border border-gray-300 rounded-lg pl-6 pr-3 py-2 text-sm"
+                  className="pl-6"
                 />
               </div>
               {abonoTarget.remaining != null && abonoTarget.remaining > 0 && (
@@ -520,7 +517,7 @@ export default function Payments() {
               <button
                 type="button"
                 onClick={() => { setAbonoTarget(null); setAbonoInput(''); }}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+                className="border border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white px-4 py-2.5 rounded-lg text-sm transition-colors"
               >
                 Cancelar
               </button>
