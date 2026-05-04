@@ -92,6 +92,10 @@ export interface BeltPromotion {
   notes: string | null;
   performedBy: string | null;
   deletable: boolean;
+  deleted: boolean;
+  deletedBy: string | null;
+  deletedReason: string | null;
+  deletedAt: string | null;
 }
 
 export interface BeltPromotionForm {

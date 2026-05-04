@@ -8,6 +8,6 @@ export const beltPromotionsApi = {
   create: (data: BeltPromotionForm) =>
     client.post<BeltPromotion>('/belt-promotions', data).then((r) => r.data),
 
-  delete: (id: number) =>
-    client.delete(`/belt-promotions/${id}`),
+  anular: (id: number, reason: string) =>
+    client.patch<BeltPromotion>(`/belt-promotions/${id}/anular`, { reason }).then((r) => r.data),
 };

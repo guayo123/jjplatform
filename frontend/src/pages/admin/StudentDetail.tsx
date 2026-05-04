@@ -76,6 +76,8 @@ export default function StudentDetail() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeForm, setActiveForm] = useState<ActiveForm>(null);
+  const [anularTarget, setAnularTarget] = useState<BeltPromotion | null>(null);
+  const [anularReason, setAnularReason] = useState('');
 
   const [gradeForm, setGradeForm] = useState({
     promotionDate: new Date().toISOString().split('T')[0],
@@ -151,22 +153,24 @@ export default function StudentDetail() {
     }
   };
 
-  const handleDelete = async (promotionId: number) => {
+  const handleAnular = async () => {
+    if (!anularTarget) return;
+    setSaving(true);
     try {
-      await beltPromotionsApi.delete(promotionId);
-      setPromotions((prev) => {
-        const remaining = prev.filter((p) => p.id !== promotionId);
-        const last = remaining[0];
-        setStudent((s) => s ? {
-          ...s,
-          belt: last ? last.toBelt : null,
-          stripes: last ? last.toStripes : 0,
-        } : s);
-        return remaining;
-      });
-      toast.success('Graduación eliminada');
+      const updated = await beltPromotionsApi.anular(anularTarget.id, anularReason);
+      setPromotions((prev) => prev.map((p) => p.id === updated.id ? updated : p));
+      const active = promotions
+        .map((p) => p.id === updated.id ? updated : p)
+        .filter((p) => !p.deleted);
+      const last = active[0];
+      setStudent((s) => s ? { ...s, belt: last?.toBelt ?? null, stripes: last?.toStripes ?? 0 } : s);
+      setAnularTarget(null);
+      setAnularReason('');
+      toast.success('Registro anulado');
     } catch {
-      toast.error('Error al eliminar');
+      toast.error('Error al anular');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -419,20 +423,19 @@ export default function StudentDetail() {
             <ol className="relative border-l-2 border-gray-200 space-y-6 ml-3">
               {promotions.map((p) => {
                 const cfg = TYPE_CONFIG[p.type];
+                const isAnulado = p.deleted;
                 return (
-                  <li key={p.id} className="ml-5">
+                  <li key={p.id} className={`ml-5 ${isAnulado ? 'opacity-40' : ''}`}>
                     <span className="absolute -left-2 w-4 h-4 rounded-full border-2 border-white bg-primary-500 flex items-center justify-center">
                       <span className="w-1.5 h-1.5 rounded-full bg-white" />
                     </span>
-                    <div className={`rounded-xl p-4 border ${p.type === 'DEGRADACION' ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
+                    <div className={`rounded-xl p-4 border ${isAnulado ? 'bg-gray-100 border-gray-200' : p.type === 'DEGRADACION' ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          {/* Type label */}
-                          <span className={`text-xs font-bold uppercase tracking-wide ${cfg.color}`}>
+                          <span className={`text-xs font-bold uppercase tracking-wide ${isAnulado ? 'text-gray-400 line-through' : cfg.color}`}>
                             {cfg.icon} {cfg.label}
                           </span>
 
-                          {/* Belt or stripe change */}
                           {p.type === 'GRADO' ? (
                             <div className="flex items-center gap-3 mt-2">
                               <BeltImage belt={p.toBelt} stripes={p.fromStripes ?? 0} className="max-w-[120px]" />
@@ -452,25 +455,28 @@ export default function StudentDetail() {
                           )}
 
                           <p className="text-xs text-gray-500 mt-2">{formatDate(p.promotionDate)}</p>
-
-                          {p.type === 'DEGRADACION' && p.performedBy && (
-                            <p className="text-xs text-red-400 mt-1">Registrado por: {p.performedBy}</p>
-                          )}
                           {p.notes && <p className="text-sm text-gray-600 mt-1 italic">"{p.notes}"</p>}
+
+                          {isAnulado && (
+                            <div className="mt-2 pt-2 border-t border-gray-200 space-y-0.5">
+                              <p className="text-xs font-semibold text-gray-500">Anulado por {p.deletedBy}{p.deletedAt ? ` · ${formatDate(p.deletedAt)}` : ''}</p>
+                              {p.deletedReason && <p className="text-xs text-gray-400 italic">"{p.deletedReason}"</p>}
+                            </div>
+                          )}
                         </div>
 
-                        {/* Delete button — solo PROMOCION */}
-                        {p.deletable ? (
+                        {!isAnulado && p.deletable && (
                           <button
-                            onClick={() => handleDelete(p.id)}
+                            onClick={() => { setAnularTarget(p); setAnularReason(''); }}
                             className="flex-shrink-0 text-gray-300 hover:text-red-400 transition-colors"
-                            title="Eliminar"
+                            title="Anular registro"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                           </button>
-                        ) : (
+                        )}
+                        {!isAnulado && !p.deletable && (
                           <span className="flex-shrink-0 text-xs text-gray-300 italic" title="Registro permanente">🔒</span>
                         )}
                       </div>
@@ -482,6 +488,43 @@ export default function StudentDetail() {
           )}
         </div>
       </div>
+
+      {/* Modal anular */}
+      {anularTarget && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-6 w-full max-w-sm space-y-4">
+            <h2 className="font-bold text-white">Anular registro</h2>
+            <p className="text-sm text-gray-400">
+              Este registro quedará visible en el historial pero marcado como anulado. La acción no se puede deshacer.
+            </p>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Motivo (opcional)</label>
+              <textarea
+                value={anularReason}
+                onChange={(e) => setAnularReason(e.target.value)}
+                rows={3}
+                placeholder="Ej: registro duplicado, error de fecha..."
+                className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 placeholder:text-gray-500 resize-none"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleAnular}
+                disabled={saving}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+              >
+                {saving ? 'Anulando...' : 'Anular registro'}
+              </button>
+              <button
+                onClick={() => setAnularTarget(null)}
+                className="border border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white px-4 py-2 rounded-lg text-sm transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

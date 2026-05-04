@@ -51,4 +51,15 @@ public class BeltPromotion {
     @Builder.Default
     @Column(nullable = false, columnDefinition = "boolean default true")
     private Boolean deletable = true;
+
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private Boolean deleted = false;
+
+    private String deletedBy;
+
+    @Column(columnDefinition = "TEXT")
+    private String deletedReason;
+
+    private LocalDate deletedAt;
 }

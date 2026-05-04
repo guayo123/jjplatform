@@ -26,4 +26,9 @@ public class BeltPromotionDto {
     private String type;
     private String performedBy;
     private Boolean deletable;
+    private Boolean deleted;
+    private String deletedBy;
+    private String deletedReason;
+    private String deletedAt;
+    private String reason; // used only in PATCH /anular request
 }

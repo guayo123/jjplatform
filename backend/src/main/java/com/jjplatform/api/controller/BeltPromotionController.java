@@ -30,10 +30,9 @@ public class BeltPromotionController {
         return ResponseEntity.status(201).body(beltPromotionService.create(dto, academyId));
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    @PatchMapping("/{id}/anular")
+    public ResponseEntity<BeltPromotionDto> anular(@PathVariable Long id, @RequestBody BeltPromotionDto body) {
         Long academyId = securityHelper.getCurrentAcademyId();
-        beltPromotionService.delete(id, academyId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(beltPromotionService.anular(id, academyId, body.getReason()));
     }
 }

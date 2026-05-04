@@ -50,7 +50,7 @@ public class BeltPromotionService {
         int toStripes   = dto.getToStripes()   != null ? dto.getToStripes()   : 0;
 
         PromotionType type = detectType(fromBelt, toBelt);
-        boolean deletable  = type == PromotionType.PROMOCION;
+        boolean deletable  = type != PromotionType.DEGRADACION;
         String performedBy = securityHelper.getCurrentUser().getEmail();
 
         BeltPromotion promotion = BeltPromotion.builder()
@@ -75,29 +75,37 @@ public class BeltPromotionService {
     }
 
     @Transactional
-    public void delete(Long id, Long academyId) {
+    public BeltPromotionDto anular(Long id, Long academyId, String reason) {
         BeltPromotion promotion = beltPromotionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Promotion not found"));
         if (!promotion.getAcademy().getId().equals(academyId))
             throw new ResourceNotFoundException("Promotion not found in this academy");
         if (Boolean.FALSE.equals(promotion.getDeletable()))
-            throw new IllegalArgumentException("Este registro no puede eliminarse");
+            throw new IllegalArgumentException("Este registro no puede anularse");
+        if (Boolean.TRUE.equals(promotion.getDeleted()))
+            throw new IllegalArgumentException("Este registro ya fue anulado");
+
+        promotion.setDeleted(true);
+        promotion.setDeletedBy(securityHelper.getCurrentUser().getEmail());
+        promotion.setDeletedReason(reason);
+        promotion.setDeletedAt(LocalDate.now());
+        beltPromotionRepository.save(promotion);
 
         Student student = promotion.getStudent();
-        beltPromotionRepository.delete(promotion);
-        beltPromotionRepository.flush();
+        List<BeltPromotion> active = beltPromotionRepository
+                .findByStudentIdAndAcademyIdOrderByPromotionDateDesc(student.getId(), academyId)
+                .stream().filter(p -> !Boolean.TRUE.equals(p.getDeleted())).toList();
 
-        List<BeltPromotion> remaining = beltPromotionRepository
-                .findByStudentIdAndAcademyIdOrderByPromotionDateDesc(student.getId(), academyId);
-        if (remaining.isEmpty()) {
+        if (active.isEmpty()) {
             student.setBelt(null);
             student.setStripes(0);
         } else {
-            BeltPromotion last = remaining.get(0);
+            BeltPromotion last = active.get(0);
             student.setBelt(last.getToBelt());
             student.setStripes(last.getToStripes() != null ? last.getToStripes() : 0);
         }
         studentRepository.save(student);
+        return toDto(promotion);
     }
 
     private PromotionType detectType(String fromBelt, String toBelt) {
@@ -122,6 +130,10 @@ public class BeltPromotionService {
         dto.setNotes(p.getNotes());
         dto.setPerformedBy(p.getPerformedBy());
         dto.setDeletable(p.getDeletable());
+        dto.setDeleted(p.getDeleted());
+        dto.setDeletedBy(p.getDeletedBy());
+        dto.setDeletedReason(p.getDeletedReason());
+        dto.setDeletedAt(p.getDeletedAt() != null ? p.getDeletedAt().toString() : null);
         return dto;
     }
 }
