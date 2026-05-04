@@ -363,7 +363,7 @@ export default function Payments() {
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Descuento</label>
               <div className="flex gap-2 items-center">
-                <div className="relative flex-1">
+                <div className="relative flex-1 min-w-0">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">
                     {form.discountType === 'PERCENT' ? '' : '$'}
                   </span>
@@ -377,17 +377,18 @@ export default function Payments() {
                     className={form.discountType === 'PERCENT' ? '' : 'pl-6'}
                   />
                 </div>
-                <FormSelect
-                  value={form.discountType}
-                  onChange={(e) => {
-                    setForm(f => ({ ...f, discountType: e.target.value as 'AMOUNT' | 'PERCENT', discount: 0 }));
-                    setDiscountInput('');
-                  }}
-                  className="w-36"
-                >
-                  <option value="AMOUNT">$ pesos</option>
-                  <option value="PERCENT">% porcentaje</option>
-                </FormSelect>
+                <div className="w-36 flex-shrink-0">
+                  <FormSelect
+                    value={form.discountType}
+                    onChange={(e) => {
+                      setForm(f => ({ ...f, discountType: e.target.value as 'AMOUNT' | 'PERCENT', discount: 0 }));
+                      setDiscountInput('');
+                    }}
+                  >
+                    <option value="AMOUNT">$ pesos</option>
+                    <option value="PERCENT">% porcentaje</option>
+                  </FormSelect>
+                </div>
               </div>
               {(form.discount ?? 0) > 0 && (
                 <p className="text-sm text-primary-400 mt-1.5 font-medium">
