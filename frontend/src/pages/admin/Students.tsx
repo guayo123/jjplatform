@@ -61,7 +61,7 @@ function BeltBadge({ belt }: { belt: string }) {
 
 function OpSelect({ value, onChange }: { value: CompOp; onChange: (v: CompOp) => void }) {
   return (
-    <FormSelect value={value} onChange={(e) => onChange(e.target.value as CompOp)} className="w-16 px-2 py-1.5">
+    <FormSelect value={value} onChange={(e) => onChange(e.target.value as CompOp)} className="px-2 py-1.5" style={{ width: '4rem' }}>
       <option value=">=">&ge;</option>
       <option value="<=">&le;</option>
       <option value="=">=</option>

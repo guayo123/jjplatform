@@ -191,7 +191,7 @@ export default function Payments() {
         <FormSelect
           value={month}
           onChange={(e) => setMonth(Number(e.target.value))}
-          className="w-auto"
+          style={{ width: 'auto' }}
         >
           {MONTH_NAMES.map((name, i) => (
             <option key={i} value={i + 1}>{name}</option>
