@@ -61,8 +61,15 @@ function BeltBadge({ belt }: { belt: string }) {
 }
 
 
+function todayYMD(): string {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+}
+
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
+  const m = iso?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return iso ?? '';
+  return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 type ActiveForm = null | 'grado' | 'cinturon';
@@ -80,13 +87,13 @@ export default function StudentDetail() {
   const [anularReason, setAnularReason] = useState('');
 
   const [gradeForm, setGradeForm] = useState({
-    promotionDate: new Date().toISOString().split('T')[0],
+    promotionDate: todayYMD(),
     notes: '',
   });
 
   const [beltForm, setBeltForm] = useState({
     toBelt: '',
-    promotionDate: new Date().toISOString().split('T')[0],
+    promotionDate: todayYMD(),
     notes: '',
   });
 
@@ -154,16 +161,16 @@ export default function StudentDetail() {
   };
 
   const handleAnular = async () => {
-    if (!anularTarget) return;
+    if (!anularTarget || !student) return;
     setSaving(true);
     try {
-      const updated = await beltPromotionsApi.anular(anularTarget.id, anularReason);
-      setPromotions((prev) => prev.map((p) => p.id === updated.id ? updated : p));
-      const active = promotions
-        .map((p) => p.id === updated.id ? updated : p)
-        .filter((p) => !p.deleted);
-      const last = active[0];
-      setStudent((s) => s ? { ...s, belt: last?.toBelt ?? null, stripes: last?.toStripes ?? 0 } : s);
+      await beltPromotionsApi.anular(anularTarget.id, anularReason);
+      const [updatedStudent, updatedPromotions] = await Promise.all([
+        studentsApi.get(student.id),
+        beltPromotionsApi.getByStudent(student.id),
+      ]);
+      setStudent(updatedStudent);
+      setPromotions(updatedPromotions);
       setAnularTarget(null);
       setAnularReason('');
       toast.success('Registro anulado');
@@ -330,7 +337,7 @@ export default function StudentDetail() {
                 <label className="block text-xs font-medium text-gray-600 mb-1">Fecha *</label>
                 <DatePicker
                   value={gradeForm.promotionDate}
-                  max={new Date().toISOString().split('T')[0]}
+                  max={todayYMD()}
                   onChange={(v) => setGradeForm((f) => ({ ...f, promotionDate: v }))}
                 />
               </div>
@@ -390,7 +397,7 @@ export default function StudentDetail() {
                 <label className="block text-xs font-medium text-gray-600 mb-1">Fecha *</label>
                 <DatePicker
                   value={beltForm.promotionDate}
-                  max={new Date().toISOString().split('T')[0]}
+                  max={todayYMD()}
                   onChange={(v) => setBeltForm((f) => ({ ...f, promotionDate: v }))}
                 />
               </div>

@@ -21,6 +21,12 @@ function sortByDay(a: string, b: string) {
   return DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b);
 }
 
+function formatLocalDate(iso: string, opts?: Intl.DateTimeFormatOptions) {
+  const m = iso?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return iso ?? '';
+  return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('es-CL', opts);
+}
+
 const CLASS_COLORS = ['#EF4444','#3B82F6','#22C55E','#F59E0B','#8B5CF6','#EC4899','#06B6D4','#F97316'];
 function classColor(name: string): string {
   let h = 0;
@@ -561,7 +567,7 @@ export default function AcademyProfile() {
                       <span className="text-xs font-semibold text-primary-400">{p.toBelt}</span>
                     </div>
                     <p className="text-xs text-gray-600 mt-0.5">
-                      {new Date(p.promotionDate).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      {formatLocalDate(p.promotionDate, { day: 'numeric', month: 'long', year: 'numeric' })}
                     </p>
                   </div>
                 </div>
@@ -740,7 +746,7 @@ export default function AcademyProfile() {
                     <div>
                       <h3 className="font-bold text-white">{t.name}</h3>
                       <p className="text-gray-500 text-sm mt-1">
-                        {new Date(t.date).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        {formatLocalDate(t.date, { day: 'numeric', month: 'long', year: 'numeric' })}
                       </p>
                     </div>
                     <span className={`text-xs px-2.5 py-1 rounded-full font-semibold flex-shrink-0 ${
@@ -863,7 +869,7 @@ export default function AcademyProfile() {
                 <div key={t.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
                   <h3 className="font-semibold text-gray-300">{t.name}</h3>
                   <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
-                    <span>{new Date(t.date).toLocaleDateString('es-CL')}</span>
+                    <span>{formatLocalDate(t.date)}</span>
                     <span>{t.participantCount} participantes</span>
                   </div>
                 </div>

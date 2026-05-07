@@ -31,7 +31,7 @@ public class BeltPromotionService {
 
     public List<BeltPromotionDto> getByStudent(Long studentId, Long academyId) {
         return beltPromotionRepository
-                .findByStudentIdAndAcademyIdOrderByPromotionDateDesc(studentId, academyId)
+                .findByStudentIdAndAcademyIdOrderByPromotionDateDescIdDesc(studentId, academyId)
                 .stream().map(this::toDto).toList();
     }
 
@@ -85,15 +85,38 @@ public class BeltPromotionService {
         if (Boolean.TRUE.equals(promotion.getDeleted()))
             throw new IllegalArgumentException("Este registro ya fue anulado");
 
+        String performedBy = securityHelper.getCurrentUser().getEmail();
+        LocalDate now = LocalDate.now();
+
         promotion.setDeleted(true);
-        promotion.setDeletedBy(securityHelper.getCurrentUser().getEmail());
+        promotion.setDeletedBy(performedBy);
         promotion.setDeletedReason(reason);
-        promotion.setDeletedAt(LocalDate.now());
+        promotion.setDeletedAt(now);
         beltPromotionRepository.save(promotion);
 
         Student student = promotion.getStudent();
+
+        // Si se anula una PROMOCION de cinturón, anular en cascada los grados (rayas)
+        // que se registraron sobre ese cinturón — ya no tienen base válida.
+        if (promotion.getType() == PromotionType.PROMOCION) {
+            beltPromotionRepository
+                    .findByStudentIdAndAcademyIdOrderByPromotionDateDescIdDesc(student.getId(), academyId)
+                    .stream()
+                    .filter(p -> !Boolean.TRUE.equals(p.getDeleted())
+                            && p.getType() == PromotionType.GRADO
+                            && promotion.getToBelt().equals(p.getToBelt())
+                            && !p.getPromotionDate().isBefore(promotion.getPromotionDate()))
+                    .forEach(p -> {
+                        p.setDeleted(true);
+                        p.setDeletedBy(performedBy);
+                        p.setDeletedReason("Cascada: anulación de promoción a " + promotion.getToBelt());
+                        p.setDeletedAt(now);
+                        beltPromotionRepository.save(p);
+                    });
+        }
+
         List<BeltPromotion> active = beltPromotionRepository
-                .findByStudentIdAndAcademyIdOrderByPromotionDateDesc(student.getId(), academyId)
+                .findByStudentIdAndAcademyIdOrderByPromotionDateDescIdDesc(student.getId(), academyId)
                 .stream().filter(p -> !Boolean.TRUE.equals(p.getDeleted())).toList();
 
         if (active.isEmpty()) {

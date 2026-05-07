@@ -13,6 +13,11 @@ import { useToast } from '../../components/ToastContext';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import type { StudentForm as StudentFormType, Plan } from '../../types';
 
+function todayYMD(): string {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+}
+
 function formatRut(value: string): string {
   const clean = value.replace(/[^0-9kK]/g, '').toUpperCase();
   if (clean.length < 2) return clean;
@@ -68,16 +73,29 @@ export default function StudentForm() {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [errors, setErrors] = useState<{ name?: string; rut?: string; email?: string; age?: string }>({});
+  const [errors, setErrors] = useState<{
+    name?: string; rut?: string; email?: string; phone?: string;
+    emergencyPhone?: string; joinDate?: string; age?: string;
+    belt?: string; address?: string; planIds?: string;
+  }>({});
   const { toast } = useToast();
 
   const validate = () => {
     const e: typeof errors = {};
     if (!form.name.trim()) e.name = 'El nombre es obligatorio';
     else if (!/^[a-zA-ZÀ-ɏ\s]+$/.test(form.name)) e.name = 'El nombre solo puede contener letras';
-    if (form.rut && !validateRut(form.rut)) e.rut = 'RUT inválido';
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Correo electrónico inválido';
-    if (form.age !== null && (form.age < 1 || form.age > 150)) e.age = 'La edad debe estar entre 1 y 150';
+    if (!form.rut) e.rut = 'El RUT es obligatorio';
+    else if (!validateRut(form.rut)) e.rut = 'RUT inválido';
+    if (!form.email) e.email = 'El correo es obligatorio';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Correo electrónico inválido';
+    if (!form.phone) e.phone = 'El teléfono es obligatorio';
+    if (!form.emergencyPhone) e.emergencyPhone = 'El teléfono de emergencia es obligatorio';
+    if (!form.joinDate) e.joinDate = 'La fecha de ingreso es obligatoria';
+    if (form.age === null || form.age === undefined) e.age = 'La edad es obligatoria';
+    else if (form.age < 1 || form.age > 150) e.age = 'La edad debe estar entre 1 y 150';
+    if (!isEdit && !form.belt) e.belt = 'El cinturón inicial es obligatorio';
+    if (!form.address?.trim()) e.address = 'La dirección es obligatoria';
+    if (!form.planIds || form.planIds.length === 0) e.planIds = 'Debe seleccionar al menos un plan';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -160,7 +178,6 @@ export default function StudentForm() {
                     setErrors((er) => ({ ...er, name: undefined }));
                   }
                 }}
-                required
                 error={errors.name}
                 placeholder="Nombre completo"
               />
@@ -179,17 +196,13 @@ export default function StudentForm() {
         </div>
 
         <div>
-          <label className={lbl}>RUT</label>
+          <label className={lbl}>RUT *</label>
           <FormInput
             type="text"
             value={form.rut ?? ''}
             onChange={(e) => {
               setForm((f) => ({ ...f, rut: formatRut(e.target.value) || null }));
               setErrors((er) => ({ ...er, rut: undefined }));
-            }}
-            onBlur={() => {
-              if (form.rut && !validateRut(form.rut))
-                setErrors((er) => ({ ...er, rut: 'RUT inválido' }));
             }}
             placeholder="12.345.678-9"
             maxLength={12}
@@ -199,17 +212,13 @@ export default function StudentForm() {
         </div>
 
         <div>
-          <label className={lbl}>Correo electrónico</label>
+          <label className={lbl}>Correo electrónico *</label>
           <FormInput
             type="email"
             value={form.email ?? ''}
             onChange={(e) => {
               setForm((f) => ({ ...f, email: e.target.value || null }));
               setErrors((er) => ({ ...er, email: undefined }));
-            }}
-            onBlur={() => {
-              if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
-                setErrors((er) => ({ ...er, email: 'Correo electrónico inválido' }));
             }}
             placeholder="nombre@ejemplo.com"
             error={errors.email}
@@ -218,7 +227,7 @@ export default function StudentForm() {
         </div>
 
         <div>
-          <label className={lbl}>Teléfono / WhatsApp</label>
+          <label className={lbl}>Teléfono / WhatsApp *</label>
           <div className="flex">
             <span className="inline-flex items-center px-3 text-sm text-gray-400 bg-gray-800 border border-r-0 border-gray-700 rounded-l-lg font-medium select-none">
               +56
@@ -229,17 +238,19 @@ export default function StudentForm() {
               onChange={(e) => {
                 const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
                 setForm((f) => ({ ...f, phone: digits ? `+56${digits}` : null }));
+                setErrors((er) => ({ ...er, phone: undefined }));
               }}
               placeholder="9 1234 5678"
               maxLength={9}
               className="rounded-l-none"
+              error={errors.phone}
             />
           </div>
-          <p className={hint}>Se usará para enviar recordatorios de pago por WhatsApp</p>
+          {errors.phone ? <p className={err}>{errors.phone}</p> : <p className={hint}>Se usará para enviar recordatorios de pago por WhatsApp</p>}
         </div>
 
         <div>
-          <label className={lbl}>Teléfono de emergencia</label>
+          <label className={lbl}>Teléfono de emergencia *</label>
           <div className="flex">
             <span className="inline-flex items-center px-3 text-sm text-gray-400 bg-gray-800 border border-r-0 border-gray-700 rounded-l-lg font-medium select-none">
               +56
@@ -250,35 +261,41 @@ export default function StudentForm() {
               onChange={(e) => {
                 const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
                 setForm((f) => ({ ...f, emergencyPhone: digits ? `+56${digits}` : null }));
+                setErrors((er) => ({ ...er, emergencyPhone: undefined }));
               }}
               placeholder="9 1234 5678"
               maxLength={9}
               className="rounded-l-none"
+              error={errors.emergencyPhone}
             />
           </div>
-          <p className={hint}>Contacto en caso de emergencia</p>
+          {errors.emergencyPhone ? <p className={err}>{errors.emergencyPhone}</p> : <p className={hint}>Contacto en caso de emergencia</p>}
         </div>
 
         <div>
-          <label className={lbl}>Fecha de ingreso</label>
+          <label className={lbl}>Fecha de ingreso *</label>
           <DatePicker
             value={form.joinDate ?? ''}
-            max={new Date().toISOString().split('T')[0]}
-            onChange={(v) => setForm((f) => ({ ...f, joinDate: v || null }))}
+            max={todayYMD()}
+            onChange={(v) => {
+              setForm((f) => ({ ...f, joinDate: v || null }));
+              setErrors((er) => ({ ...er, joinDate: undefined }));
+            }}
           />
+          {errors.joinDate && <p className={err}>{errors.joinDate}</p>}
         </div>
 
         <div className={isEdit ? '' : 'grid grid-cols-2 gap-4'}>
           <div>
-            <label className={lbl}>Edad</label>
+            <label className={lbl}>Edad *</label>
             <FormInput
               type="number"
               value={form.age ?? ''}
               onChange={(e) => {
                 const val = e.target.value ? Number(e.target.value) : null;
                 setForm({ ...form, age: val });
-                if (val !== null && (val < 1 || val > 150))
-                  setErrors((er) => ({ ...er, age: 'La edad debe estar entre 1 y 150' }));
+                if (val === null) setErrors((er) => ({ ...er, age: 'La edad es obligatoria' }));
+                else if (val < 1 || val > 150) setErrors((er) => ({ ...er, age: 'La edad debe estar entre 1 y 150' }));
                 else setErrors((er) => ({ ...er, age: undefined }));
               }}
               min={1} max={150}
@@ -288,12 +305,16 @@ export default function StudentForm() {
           </div>
           {!isEdit && (
             <div>
-              <label className={lbl}>Cinturón inicial</label>
+              <label className={lbl}>Cinturón inicial *</label>
               <FormSelect
                 value={form.belt ?? ''}
-                onChange={(e) => setForm({ ...form, belt: e.target.value || null })}
+                onChange={(e) => {
+                  setForm({ ...form, belt: e.target.value || null });
+                  setErrors((er) => ({ ...er, belt: undefined }));
+                }}
+                error={errors.belt}
               >
-                <option value="">Sin cinturón</option>
+                <option value="">Seleccionar cinturón...</option>
                 <optgroup label="Juveniles (≤ 15 años)">
                   {['Blanco','Gris','Amarillo','Naranja','Verde'].map(b => <option key={b} value={b}>{b}</option>)}
                 </optgroup>
@@ -301,6 +322,7 @@ export default function StudentForm() {
                   {['Blanco','Azul','Morado','Café','Negro'].map(b => <option key={b} value={b}>{b}</option>)}
                 </optgroup>
               </FormSelect>
+              {errors.belt && <p className={err}>{errors.belt}</p>}
             </div>
           )}
         </div>
@@ -317,12 +339,17 @@ export default function StudentForm() {
         </div>
 
         <div>
-          <label className={lbl}>Dirección</label>
+          <label className={lbl}>Dirección *</label>
           <FormInput
             type="text"
             value={form.address ?? ''}
-            onChange={(e) => setForm({ ...form, address: e.target.value || null })}
+            onChange={(e) => {
+              setForm({ ...form, address: e.target.value || null });
+              setErrors((er) => ({ ...er, address: undefined }));
+            }}
+            error={errors.address}
           />
+          {errors.address && <p className={err}>{errors.address}</p>}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -387,7 +414,7 @@ export default function StudentForm() {
 
         {plans.length > 0 && (
           <div>
-            <label className={lbl}>Disciplinas y Planes</label>
+            <label className={lbl}>Disciplinas y Planes *</label>
             <div className="space-y-4 mt-1">
               {groupPlansByDiscipline(plans.filter(p => p.active)).map(([discipline, disciplinePlans]) => (
                 <div key={discipline}>
@@ -418,6 +445,8 @@ export default function StudentForm() {
             </div>
           </div>
         )}
+
+        {errors.planIds && <p className={err}>{errors.planIds}</p>}
 
         <div className="flex gap-3 pt-2 border-t border-gray-800">
           <button
