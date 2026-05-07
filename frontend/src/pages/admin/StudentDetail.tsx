@@ -195,7 +195,10 @@ export default function StudentDetail() {
   );
 
   const canAddGrade = !!student.belt && (student.stripes ?? 0) < maxStripes(student.belt);
-  const { juveniles, adultos } = getAvailableBelts(student.belt, student.age);
+  const hasActivePromotions = promotions.some((p) => !p.deleted);
+  const { juveniles, adultos } = hasActivePromotions
+    ? getAvailableBelts(student.belt, student.age)
+    : getAvailableBelts(null, student.age);
   const hasBeltOptions = juveniles.length > 0 || adultos.length > 0;
 
   return (

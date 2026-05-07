@@ -3,9 +3,11 @@ package com.jjplatform.api.service;
 import com.jjplatform.api.dto.StudentDto;
 import com.jjplatform.api.exception.ResourceNotFoundException;
 import com.jjplatform.api.model.Academy;
+import com.jjplatform.api.model.BeltPromotion;
 import com.jjplatform.api.model.Plan;
 import com.jjplatform.api.model.Student;
 import com.jjplatform.api.repository.AcademyRepository;
+import com.jjplatform.api.repository.BeltPromotionRepository;
 import com.jjplatform.api.repository.PlanRepository;
 import com.jjplatform.api.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,8 @@ public class StudentService {
     private final StudentRepository studentRepository;
     private final AcademyRepository academyRepository;
     private final PlanRepository planRepository;
+    private final BeltPromotionRepository beltPromotionRepository;
+    private final SecurityHelper securityHelper;
 
     @Transactional(readOnly = true)
     public List<StudentDto> getStudentsByAcademy(Long academyId) {
@@ -68,6 +72,25 @@ public class StudentService {
         }
 
         student = studentRepository.save(student);
+
+        if (dto.getBelt() != null) {
+            LocalDate promotionDate = student.getJoinDate() != null ? student.getJoinDate() : LocalDate.now();
+            String performedBy = securityHelper.getCurrentUser().getEmail();
+            BeltPromotion initial = BeltPromotion.builder()
+                    .student(student)
+                    .academy(academy)
+                    .type(BeltPromotion.PromotionType.PROMOCION)
+                    .fromBelt(null)
+                    .fromStripes(0)
+                    .toBelt(dto.getBelt())
+                    .toStripes(0)
+                    .promotionDate(promotionDate)
+                    .performedBy(performedBy)
+                    .deletable(true)
+                    .build();
+            beltPromotionRepository.save(initial);
+        }
+
         return toDto(student);
     }
 
