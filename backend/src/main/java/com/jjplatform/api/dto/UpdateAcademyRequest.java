@@ -13,4 +13,5 @@ public class UpdateAcademyRequest {
     private String wpPhoneNumberId;
     private String wpAccessToken;
     private String wpVerifyToken;
+    private String wpAdminPhones;
 }

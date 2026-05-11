@@ -2,12 +2,16 @@ package com.jjplatform.api.service;
 
 import com.jjplatform.api.model.Academy;
 import com.jjplatform.api.model.ClassSchedule;
+import com.jjplatform.api.model.Payment;
 import com.jjplatform.api.model.Plan;
 import com.jjplatform.api.model.Professor;
+import com.jjplatform.api.model.Student;
 import com.jjplatform.api.repository.AcademyRepository;
 import com.jjplatform.api.repository.ClassScheduleRepository;
+import com.jjplatform.api.repository.PaymentRepository;
 import com.jjplatform.api.repository.PlanRepository;
 import com.jjplatform.api.repository.ProfessorRepository;
+import com.jjplatform.api.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +33,8 @@ public class AcademyChatService {
     private final PlanRepository planRepository;
     private final ClassScheduleRepository classScheduleRepository;
     private final ProfessorRepository professorRepository;
+    private final StudentRepository studentRepository;
+    private final PaymentRepository paymentRepository;
     private final ConversationStore conversationStore;
     private final RestTemplate restTemplate;
 
@@ -56,9 +62,23 @@ public class AcademyChatService {
         List<Map<String, String>> history = conversationStore.getHistory(phone);
         conversationStore.append(phone, "user", userMessage);
 
-        String reply = callAI(buildSystemPrompt(academy), buildMessages(history, userMessage));
+        String systemPrompt = isAdminPhone(academy, phone)
+                ? buildAdminSystemPrompt(academy)
+                : buildSystemPrompt(academy);
+
+        String reply = callAI(systemPrompt, buildMessages(history, userMessage));
         conversationStore.append(phone, "assistant", reply);
         return reply;
+    }
+
+    private boolean isAdminPhone(Academy academy, String phone) {
+        if (academy.getWpAdminPhones() == null || academy.getWpAdminPhones().isBlank()) return false;
+        String normalized = phone.replaceAll("[^0-9]", "");
+        for (String admin : academy.getWpAdminPhones().split("[,;\\s]+")) {
+            if (admin.replaceAll("[^0-9]", "").endsWith(normalized) || normalized.endsWith(admin.replaceAll("[^0-9]", "")))
+                return true;
+        }
+        return false;
     }
 
     /** Llamado desde el panel de prueba — sin historial. */
@@ -202,6 +222,56 @@ public class AcademyChatService {
         last.put("content", userMessage);
         messages.add(last);
         return messages;
+    }
+
+    // ── Admin system prompt ───────────────────────────────────────────────────
+
+    private String buildAdminSystemPrompt(Academy academy) {
+        Long academyId = academy.getId();
+        java.time.LocalDate today = java.time.LocalDate.now();
+        int currentMonth = today.getMonthValue();
+        int currentYear = today.getYear();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Eres un asistente interno de la academia ").append(academy.getName()).append(". ");
+        sb.append("Estás hablando con un ADMINISTRADOR autorizado. Puedes compartir datos confidenciales de alumnos.\n\n");
+        sb.append("REGLAS:\n");
+        sb.append("- Responde siempre en español, de forma directa y concisa.\n");
+        sb.append("- No uses markdown ni asteriscos, solo texto plano.\n");
+        sb.append("- Usa los datos de abajo para responder. No inventes información.\n\n");
+
+        List<Student> students = studentRepository.findByAcademyIdAndActiveTrue(academyId);
+        List<Payment> monthPayments = paymentRepository.findByAcademyIdAndMonthAndYear(academyId, currentMonth, currentYear);
+        java.util.Set<Long> paidIds = monthPayments.stream()
+                .map(p -> p.getStudent().getId()).collect(java.util.stream.Collectors.toSet());
+
+        String[] beltOrder = {"Blanco", "Amarillo", "Naranja", "Verde", "Azul", "Morado", "Marron", "Marrón", "Negro"};
+        java.util.Map<String, Integer> beltRank = new java.util.HashMap<>();
+        for (int i = 0; i < beltOrder.length; i++) beltRank.put(beltOrder[i].toLowerCase(), i);
+
+        sb.append("ALUMNOS ACTIVOS (").append(students.size()).append(" total):\n");
+        sb.append("Fecha actual: ").append(today).append(". Mes de referencia para pagos: ")
+                .append(currentMonth).append("/").append(currentYear).append("\n\n");
+
+        for (Student s : students) {
+            sb.append("- ").append(s.getName());
+            if (s.getAge() != null) sb.append(", ").append(s.getAge()).append(" años");
+            if (s.getWeight() != null) sb.append(", ").append(s.getWeight()).append(" kg");
+            if (s.getBelt() != null && !s.getBelt().isBlank()) {
+                sb.append(", cinturón ").append(s.getBelt());
+                if (s.getStripes() != null && s.getStripes() > 0)
+                    sb.append(" (").append(s.getStripes()).append(" grado").append(s.getStripes() > 1 ? "s" : "").append(")");
+            }
+            sb.append(paidIds.contains(s.getId()) ? ", PAGÓ " : ", NO PAGÓ ")
+              .append(currentMonth).append("/").append(currentYear);
+            sb.append("\n");
+        }
+
+        sb.append("\nRESUMEN DE PAGOS ").append(currentMonth).append("/").append(currentYear).append(":\n");
+        sb.append("- Pagaron: ").append(paidIds.size()).append(" alumnos\n");
+        sb.append("- Deben: ").append(students.size() - paidIds.size()).append(" alumnos\n");
+
+        return sb.toString();
     }
 
     // ── System prompt ─────────────────────────────────────────────────────────

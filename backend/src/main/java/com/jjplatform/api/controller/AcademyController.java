@@ -63,6 +63,7 @@ public class AcademyController {
         if (request.getWpPhoneNumberId() != null) academy.setWpPhoneNumberId(request.getWpPhoneNumberId().isBlank() ? null : request.getWpPhoneNumberId().trim());
         if (request.getWpAccessToken() != null) academy.setWpAccessToken(request.getWpAccessToken().isBlank() ? null : request.getWpAccessToken().trim());
         if (request.getWpVerifyToken() != null) academy.setWpVerifyToken(request.getWpVerifyToken().isBlank() ? null : request.getWpVerifyToken().trim());
+        if (request.getWpAdminPhones() != null) academy.setWpAdminPhones(request.getWpAdminPhones().isBlank() ? null : request.getWpAdminPhones().trim());
 
         academy = academyRepository.save(academy);
         return ResponseEntity.ok(toMap(academy));
@@ -343,6 +344,7 @@ public class AcademyController {
         map.put("wpPhoneNumberId", a.getWpPhoneNumberId() != null ? a.getWpPhoneNumberId() : "");
         map.put("wpAccessToken", a.getWpAccessToken() != null ? a.getWpAccessToken() : "");
         map.put("wpVerifyToken", a.getWpVerifyToken() != null ? a.getWpVerifyToken() : "");
+        map.put("wpAdminPhones", a.getWpAdminPhones() != null ? a.getWpAdminPhones() : "");
         return map;
     }
 

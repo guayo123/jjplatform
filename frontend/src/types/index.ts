@@ -310,4 +310,5 @@ export interface AcademySettings {
   wpPhoneNumberId: string;
   wpAccessToken: string;
   wpVerifyToken: string;
+  wpAdminPhones: string;
 }

@@ -250,6 +250,16 @@ export default function Settings() {
           <p className={hint}>Token secreto que tú defines — lo usarás al configurar el webhook en Meta</p>
         </div>
 
+        <div>
+          <label className={lbl}>Números admin (modo consulta interna)</label>
+          <FormInput
+            value={form.wpAdminPhones ?? ''}
+            onChange={(e) => setForm({ ...form, wpAdminPhones: e.target.value })}
+            placeholder="Ej: 56983087224, 56912345678"
+          />
+          <p className={hint}>Números separados por coma. Desde estos números el bot puede responder consultas internas (alumnos, pagos, cinturones).</p>
+        </div>
+
         {form.wpPhoneNumberId && form.wpVerifyToken && (
           <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-4 space-y-2">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">URL del Webhook</p>

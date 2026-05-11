@@ -47,6 +47,9 @@ public class Academy {
     @Column(length = 100)
     private String wpVerifyToken;
 
+    @Column(length = 500)
+    private String wpAdminPhones;
+
     @Builder.Default
     @Column(nullable = false)
     private Boolean active = true;
