@@ -52,7 +52,7 @@ public class AcademyChatService {
     private static final String GEMINI_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=";
     private static final String GROQ_URL   = "https://api.groq.com/openai/v1/chat/completions";
-    private static final String GROQ_MODEL = "llama-3.3-70b-versatile";
+    private static final String GROQ_MODEL = "llama-3.1-8b-instant";
 
     /** Llamado desde el webhook — mantiene historial por número de teléfono. */
     public String chat(Long academyId, String phone, String userMessage) {
@@ -149,7 +149,7 @@ public class AcademyChatService {
         Map<String, Object> body = new HashMap<>();
         body.put("model", GROQ_MODEL);
         body.put("messages", allMessages);
-        body.put("max_tokens", 1024);
+        body.put("max_tokens", 768);
         body.put("temperature", 0.7);
 
         try {
