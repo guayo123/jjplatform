@@ -289,7 +289,8 @@ public class AcademyChatService {
             sb.append(" al ").append(academy.getWhatsapp());
         sb.append(".\n");
         sb.append("- No inventes información que no esté aquí.\n");
-        sb.append("- Cuando pregunten por horarios, lista TODOS los horarios exactamente como aparecen, sin omitir ninguno aunque sea la misma clase en diferentes horarios del día.\n");
+        sb.append("- Cuando pregunten por horarios en general, responde primero listando las disciplinas disponibles y pregunta cuál le interesa. Ejemplo: 'Tenemos BJJ, No-gi, Kickboxing, Capoeira y Kali Filipino. ¿De cuál quieres ver los horarios?'\n");
+        sb.append("- Cuando pregunten por una disciplina específica, agrupa sus horarios por días de forma compacta. Ejemplo: 'BJJ: Lunes, Miércoles y Viernes 10:00-11:00 y 20:30-21:30'.\n");
         sb.append("- Si saludan, saluda de vuelta presentándote como el asistente de ").append(academy.getName()).append(".\n");
         sb.append("- Recuerda el contexto de la conversación para responder de forma coherente.\n\n");
 
