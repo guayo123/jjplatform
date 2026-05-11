@@ -269,7 +269,61 @@ public class AcademyChatService {
 
         sb.append("\nRESUMEN DE PAGOS ").append(currentMonth).append("/").append(currentYear).append(":\n");
         sb.append("- Pagaron: ").append(paidIds.size()).append(" alumnos\n");
-        sb.append("- Deben: ").append(students.size() - paidIds.size()).append(" alumnos\n");
+        sb.append("- Deben: ").append(students.size() - paidIds.size()).append(" alumnos\n\n");
+
+        sb.append(buildAcademyInfoSection(academy));
+
+        return sb.toString();
+    }
+
+    private String buildAcademyInfoSection(Academy academy) {
+        Long academyId = academy.getId();
+        StringBuilder sb = new StringBuilder();
+
+        List<Plan> activePlans = planRepository.findByAcademyIdOrderByDisplayOrderAscIdAsc(academyId)
+                .stream().filter(p -> Boolean.TRUE.equals(p.getActive())).toList();
+        if (!activePlans.isEmpty()) {
+            sb.append("PLANES Y PRECIOS:\n");
+            for (Plan p : activePlans) {
+                sb.append("- ").append(p.getName());
+                if (p.getPrice() != null) sb.append(": $").append(String.format("%,d", p.getPrice())).append(" CLP/mes");
+                if (p.getDescription() != null && !p.getDescription().isBlank())
+                    sb.append(". ").append(p.getDescription());
+                sb.append("\n");
+            }
+            sb.append("\n");
+        }
+
+        List<ClassSchedule> schedules = classScheduleRepository
+                .findByAcademyIdOrderByDayOfWeekAscStartTimeAsc(academyId);
+        if (!schedules.isEmpty()) {
+            sb.append("HORARIOS:\n");
+            String[] dayOrder = {"LUNES","MARTES","MIERCOLES","JUEVES","VIERNES","SABADO","DOMINGO"};
+            String[] dayNames = {"Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"};
+            for (int i = 0; i < dayOrder.length; i++) {
+                final String day = dayOrder[i];
+                final String dayName = dayNames[i];
+                schedules.stream()
+                        .filter(s -> day.equals(s.getDayOfWeek()))
+                        .forEach(s -> sb.append("- ").append(dayName)
+                                .append(" ").append(s.getStartTime())
+                                .append(" a ").append(s.getEndTime())
+                                .append(": ").append(s.getClassName()).append("\n"));
+            }
+            sb.append("\n");
+        }
+
+        List<Professor> professors = professorRepository
+                .findByAcademyIdOrderByDisplayOrderAscNameAsc(academyId)
+                .stream().filter(p -> Boolean.TRUE.equals(p.getActive())).toList();
+        if (!professors.isEmpty()) {
+            sb.append("PROFESORES:\n");
+            for (Professor p : professors) {
+                sb.append("- ").append(p.getName());
+                if (p.getBelt() != null) sb.append(", cinturón ").append(p.getBelt());
+                sb.append("\n");
+            }
+        }
 
         return sb.toString();
     }
