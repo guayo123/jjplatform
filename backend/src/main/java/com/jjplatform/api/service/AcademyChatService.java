@@ -235,7 +235,8 @@ public class AcademyChatService {
         StringBuilder sb = new StringBuilder();
         sb.append(buildSystemPrompt(academy));
         sb.append("\n--- MODO ADMINISTRADOR ---\n");
-        sb.append("Estás hablando con un ADMINISTRADOR. También tienes acceso a datos internos de alumnos.\n\n");
+        sb.append("Estás hablando con un ADMINISTRADOR. También tienes acceso a datos internos de alumnos.\n");
+        sb.append("IMPORTANTE: Cuando pregunten por cinturones, peso, edad o pagos, usa SOLO la sección ALUMNOS ACTIVOS, no la de profesores.\n\n");
 
         List<Student> students = studentRepository.findByAcademyIdAndActiveTrue(academyId);
         List<Payment> monthPayments = paymentRepository.findByAcademyIdAndMonthAndYear(academyId, currentMonth, currentYear);
