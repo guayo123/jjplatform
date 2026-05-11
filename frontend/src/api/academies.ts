@@ -54,6 +54,9 @@ export const academiesApi = {
   deleteSchedule: (id: number) =>
     client.delete(`/academy/schedules/${id}`).then((r) => r.data),
 
+  testBot: (message: string) =>
+    client.post<{ response: string }>('/academy/chat/test', { message }).then((r) => r.data),
+
   uploadLogo: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);

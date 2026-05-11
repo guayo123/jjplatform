@@ -10,4 +10,7 @@ public class UpdateAcademyRequest {
     private String phone;
     private String whatsapp;
     private String instagram;
+    private String wpPhoneNumberId;
+    private String wpAccessToken;
+    private String wpVerifyToken;
 }

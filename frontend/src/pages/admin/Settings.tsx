@@ -18,7 +18,24 @@ export default function Settings() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [botQuestion, setBotQuestion] = useState('');
+  const [botResponse, setBotResponse] = useState<string | null>(null);
+  const [botTesting, setBotTesting] = useState(false);
   const { toast } = useToast();
+
+  const handleTestBot = async () => {
+    if (!botQuestion.trim()) return;
+    setBotTesting(true);
+    setBotResponse(null);
+    try {
+      const { response } = await academiesApi.testBot(botQuestion.trim());
+      setBotResponse(response);
+    } catch {
+      setBotResponse('Error al conectar con el bot. Verifica que ANTHROPIC_API_KEY esté configurado en el servidor.');
+    } finally {
+      setBotTesting(false);
+    }
+  };
 
   const hasChanges = form && original ? JSON.stringify(form) !== JSON.stringify(original) : false;
 
@@ -193,6 +210,86 @@ export default function Settings() {
                 </span>
               )}
             </div>
+          </div>
+        )}
+
+        <h2 className={sectionTitle}>Bot de WhatsApp</h2>
+        <p className="text-xs text-gray-500 -mt-3">
+          Configura las credenciales de la API de WhatsApp Business (Meta) para activar el asistente virtual.
+          El bot responderá automáticamente preguntas frecuentes de potenciales alumnos.
+        </p>
+
+        <div>
+          <label className={lbl}>Phone Number ID</label>
+          <FormInput
+            value={form.wpPhoneNumberId ?? ''}
+            onChange={(e) => setForm({ ...form, wpPhoneNumberId: e.target.value })}
+            placeholder="Ej: 123456789012345"
+          />
+          <p className={hint}>Encuéntralo en Meta for Developers → Tu App → WhatsApp → API Setup</p>
+        </div>
+
+        <div>
+          <label className={lbl}>Access Token</label>
+          <FormInput
+            type="password"
+            value={form.wpAccessToken ?? ''}
+            onChange={(e) => setForm({ ...form, wpAccessToken: e.target.value })}
+            placeholder="Token permanente de acceso"
+          />
+          <p className={hint}>Token permanente generado en Meta Business Suite → Configuración del sistema</p>
+        </div>
+
+        <div>
+          <label className={lbl}>Verify Token</label>
+          <FormInput
+            value={form.wpVerifyToken ?? ''}
+            onChange={(e) => setForm({ ...form, wpVerifyToken: e.target.value })}
+            placeholder="Ej: mi_token_secreto_dojo_2024"
+          />
+          <p className={hint}>Token secreto que tú defines — lo usarás al configurar el webhook en Meta</p>
+        </div>
+
+        {form.wpPhoneNumberId && form.wpVerifyToken && (
+          <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-4 space-y-2">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">URL del Webhook</p>
+            <p className="text-xs font-mono text-primary-400 break-all">
+              {'https://fantastic-success-production-b215.up.railway.app/api/public/webhooks/whatsapp/' + form.id}
+            </p>
+            <p className="text-xs text-gray-500">
+              Copia esta URL en Meta for Developers → Webhooks → Callback URL y usa tu Verify Token de arriba.
+            </p>
+          </div>
+        )}
+
+        <h2 className={sectionTitle}>Probar bot</h2>
+        <p className="text-xs text-gray-500 -mt-3">
+          Simula una pregunta de un cliente y ve cómo respondería el bot con la información actual de tu academia.
+        </p>
+
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={botQuestion}
+            onChange={(e) => setBotQuestion(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleTestBot()}
+            placeholder="Ej: ¿Cuáles son los horarios de clases?"
+            className="flex-1 bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 placeholder:text-gray-500"
+          />
+          <button
+            type="button"
+            onClick={handleTestBot}
+            disabled={botTesting || !botQuestion.trim()}
+            className="bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+          >
+            {botTesting ? 'Consultando...' : 'Probar'}
+          </button>
+        </div>
+
+        {botResponse !== null && (
+          <div className={`rounded-lg p-4 text-sm border ${botResponse.startsWith('Error') ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-gray-800 border-gray-700 text-gray-200'}`}>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-2 text-gray-500">Respuesta del bot</p>
+            <p className="whitespace-pre-wrap leading-relaxed">{botResponse}</p>
           </div>
         )}
 

@@ -307,4 +307,7 @@ export interface AcademySettings {
   whatsapp: string;
   instagram: string;
   logoUrl: string | null;
+  wpPhoneNumberId: string;
+  wpAccessToken: string;
+  wpVerifyToken: string;
 }

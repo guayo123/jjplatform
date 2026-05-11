@@ -5,7 +5,9 @@ import { useAuthStore } from '../../stores/authStore';
 import Button from '../../components/Button';
 import FormInput from '../../components/FormInput';
 import FormSelect from '../../components/FormSelect';
-import type { Student } from '../../types';
+import { beltPromotionsApi } from '../../api/beltPromotions';
+import { exportStudentsExcel, exportStudentsPDF } from '../../utils/export';
+import type { Student, BeltPromotion } from '../../types';
 
 const BELT_COLORS: Record<string, string> = {
   Blanco:  'bg-gray-100 text-gray-700 border border-gray-300',
@@ -76,6 +78,7 @@ export default function Students() {
   const canEdit = role === 'ADMIN' || role === 'ENCARGADO' || role === 'PROFESOR';
 
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetchStudents();
@@ -109,6 +112,18 @@ export default function Students() {
     });
   }, [students, filters]);
 
+  const handleExport = async (format: 'excel' | 'pdf') => {
+    setExporting(true);
+    try {
+      let promotions: BeltPromotion[] = [];
+      try { promotions = await beltPromotionsApi.getAll(); } catch { /* sin graduaciones */ }
+      if (format === 'excel') exportStudentsExcel(filtered, promotions);
+      else exportStudentsPDF(filtered, promotions);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleToggleActive = async (student: Student) => {
     await updateStudent(student.id, {
       name: student.name,
@@ -136,11 +151,39 @@ export default function Students() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Alumnos</h1>
-        {canEdit && (
-          <Button onClick={() => navigate('/admin/students/new')}>
-            + Nuevo alumno
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {filtered.length > 0 && (
+            <>
+              <button
+                onClick={() => handleExport('excel')}
+                disabled={exporting}
+                title="Exportar a Excel (incluye graduaciones)"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-green-600 text-green-600 hover:bg-green-50 text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6m0 0l-3 3m3-3l3 3M3 7h18M5 7V5a2 2 0 012-2h10a2 2 0 012 2v2" />
+                </svg>
+                {exporting ? '...' : 'Excel'}
+              </button>
+              <button
+                onClick={() => handleExport('pdf')}
+                disabled={exporting}
+                title="Exportar a PDF (incluye graduaciones)"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-500 text-red-500 hover:bg-red-50 text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6m0 0l-3 3m3-3l3 3M3 7h18M5 7V5a2 2 0 012-2h10a2 2 0 012 2v2" />
+                </svg>
+                {exporting ? '...' : 'PDF'}
+              </button>
+            </>
+          )}
+          {canEdit && (
+            <Button onClick={() => navigate('/admin/students/new')}>
+              + Nuevo alumno
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filter panel */}

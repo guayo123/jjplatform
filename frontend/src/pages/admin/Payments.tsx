@@ -4,6 +4,7 @@ import { academiesApi } from '../../api/academies';
 import { useStudentStore } from '../../stores/studentStore';
 import { useAuthStore } from '../../stores/authStore';
 import { formatCLP } from '../../utils/format';
+import { exportPaymentsExcel, exportPaymentsPDF } from '../../utils/export';
 import type { Payment, PaymentForm, Plan } from '../../types';
 import FormInput from '../../components/FormInput';
 import FormSelect from '../../components/FormSelect';
@@ -161,14 +162,40 @@ export default function Payments() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Pagos</h1>
-        {canEdit && view === 'month' && (
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            + Registrar pago
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {payments.length > 0 && view === 'month' && (
+            <>
+              <button
+                onClick={() => exportPaymentsExcel(payments, month, year)}
+                title="Exportar a Excel"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-green-600 text-green-600 hover:bg-green-50 text-sm font-medium transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6m0 0l-3 3m3-3l3 3M3 7h18M5 7V5a2 2 0 012-2h10a2 2 0 012 2v2" />
+                </svg>
+                Excel
+              </button>
+              <button
+                onClick={() => exportPaymentsPDF(payments, month, year)}
+                title="Exportar a PDF"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-500 text-red-500 hover:bg-red-50 text-sm font-medium transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6m0 0l-3 3m3-3l3 3M3 7h18M5 7V5a2 2 0 012-2h10a2 2 0 012 2v2" />
+                </svg>
+                PDF
+              </button>
+            </>
+          )}
+          {canEdit && view === 'month' && (
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              + Registrar pago
+            </button>
+          )}
+        </div>
       </div>
 
       {/* View toggle + Month/Year selector */}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { studentsApi } from '../../api/students';
 import { beltPromotionsApi } from '../../api/beltPromotions';
@@ -181,6 +181,33 @@ export default function StudentDetail() {
     }
   };
 
+  // Agrupación cronológica de cinturones con sus grados — debe ir antes de early returns
+  const beltPeriods = useMemo(() => {
+    type BeltPeriod = {
+      belt: string;
+      startDate: string;
+      grades: Array<{ stripes: number; date: string; notes: string | null }>;
+    };
+    const active = promotions
+      .filter((p) => !p.deleted)
+      .slice()
+      .sort((a, b) => a.promotionDate.localeCompare(b.promotionDate) || a.id - b.id);
+
+    const periods: BeltPeriod[] = [];
+    for (const p of active) {
+      if (p.type === 'PROMOCION' || p.type === 'DEGRADACION') {
+        periods.push({ belt: p.toBelt, startDate: p.promotionDate, grades: [] });
+      } else if (p.type === 'GRADO' && periods.length > 0) {
+        periods[periods.length - 1].grades.push({
+          stripes: p.toStripes,
+          date: p.promotionDate,
+          notes: p.notes,
+        });
+      }
+    }
+    return periods;
+  }, [promotions]);
+
   const toggleForm = (form: ActiveForm) =>
     setActiveForm((prev) => prev === form ? null : form);
 
@@ -278,6 +305,57 @@ export default function StudentDetail() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Belt progression summary */}
+      {beltPeriods.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-5">
+          <h2 className="font-bold text-gray-900 mb-4">Progresión de Cinturones</h2>
+          <div className="relative">
+            {beltPeriods.map((period, idx) => {
+              const isCurrent = idx === beltPeriods.length - 1;
+              const c = BELT_COLORS[period.belt] ?? { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300' };
+              return (
+                <div key={idx} className="flex gap-4">
+                  {/* Línea vertical + punto */}
+                  <div className="flex flex-col items-center">
+                    <div className={`w-4 h-4 rounded-full border-2 border-white shadow-sm flex-shrink-0 mt-0.5 ${isCurrent ? 'bg-primary-600 ring-2 ring-primary-200' : 'bg-gray-300'}`} />
+                    {idx < beltPeriods.length - 1 && (
+                      <div className="w-0.5 bg-gray-200 flex-1 my-1 min-h-[1rem]" />
+                    )}
+                  </div>
+
+                  {/* Contenido del período */}
+                  <div className={`flex-1 pb-5 ${idx === beltPeriods.length - 1 ? 'pb-0' : ''}`}>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border ${c.bg} ${c.text} ${c.border}`}>
+                        {period.belt}
+                      </span>
+                      <span className="text-xs text-gray-400">{formatDate(period.startDate)}</span>
+                      {isCurrent && (
+                        <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">Actual</span>
+                      )}
+                    </div>
+
+                    {period.grades.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {period.grades.map((g, gi) => (
+                          <div key={gi} className="flex items-start gap-2 text-xs text-gray-500 pl-1">
+                            <span className="text-amber-400 mt-px">{'★'.repeat(g.stripes)}</span>
+                            <span>
+                              Grado {g.stripes} — <span className="text-gray-600">{formatDate(g.date)}</span>
+                              {g.notes && <span className="italic text-gray-400 ml-1">"{g.notes}"</span>}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

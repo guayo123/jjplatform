@@ -39,6 +39,14 @@ public class Academy {
 
     private String instagram;
 
+    private String wpPhoneNumberId;
+
+    @Column(length = 512)
+    private String wpAccessToken;
+
+    @Column(length = 100)
+    private String wpVerifyToken;
+
     @Builder.Default
     @Column(nullable = false)
     private Boolean active = true;

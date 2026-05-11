@@ -35,6 +35,12 @@ public class BeltPromotionService {
                 .stream().map(this::toDto).toList();
     }
 
+    public List<BeltPromotionDto> getAll(Long academyId) {
+        return beltPromotionRepository
+                .findByAcademyIdOrderByStudentNameAscPromotionDateDesc(academyId)
+                .stream().map(this::toDto).toList();
+    }
+
     @Transactional
     public BeltPromotionDto create(BeltPromotionDto dto, Long academyId) {
         Academy academy = academyRepository.findById(academyId)

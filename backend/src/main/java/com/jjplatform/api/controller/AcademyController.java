@@ -11,6 +11,7 @@ import com.jjplatform.api.repository.ClassScheduleRepository;
 import com.jjplatform.api.repository.DisciplineRepository;
 import com.jjplatform.api.repository.PlanRepository;
 import com.jjplatform.api.repository.ProfessorRepository;
+import com.jjplatform.api.service.AcademyChatService;
 import com.jjplatform.api.service.SecurityHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +33,7 @@ public class AcademyController {
     private final DisciplineRepository disciplineRepository;
     private final ProfessorRepository professorRepository;
     private final SecurityHelper securityHelper;
+    private final AcademyChatService academyChatService;
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> getMyAcademy() {
@@ -58,9 +60,22 @@ public class AcademyController {
             academy.setPhone(request.getWhatsapp());
         }
         if (request.getInstagram() != null) academy.setInstagram(request.getInstagram());
+        if (request.getWpPhoneNumberId() != null) academy.setWpPhoneNumberId(request.getWpPhoneNumberId().isBlank() ? null : request.getWpPhoneNumberId().trim());
+        if (request.getWpAccessToken() != null) academy.setWpAccessToken(request.getWpAccessToken().isBlank() ? null : request.getWpAccessToken().trim());
+        if (request.getWpVerifyToken() != null) academy.setWpVerifyToken(request.getWpVerifyToken().isBlank() ? null : request.getWpVerifyToken().trim());
 
         academy = academyRepository.save(academy);
         return ResponseEntity.ok(toMap(academy));
+    }
+
+    @PostMapping("/chat/test")
+    public ResponseEntity<Map<String, String>> testBot(@RequestBody Map<String, String> body) {
+        Long academyId = securityHelper.getCurrentAcademyId();
+        String message = body.get("message");
+        if (message == null || message.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("error", "El mensaje no puede estar vacío"));
+        String response = academyChatService.chatTest(academyId, message);
+        return ResponseEntity.ok(Map.of("response", response));
     }
 
     // ─── Disciplines ──────────────────────────────────────────────────────────
@@ -325,6 +340,9 @@ public class AcademyController {
         map.put("whatsapp", a.getWhatsapp() != null ? a.getWhatsapp() : "");
         map.put("instagram", a.getInstagram() != null ? a.getInstagram() : "");
         map.put("logoUrl", a.getLogoUrl());
+        map.put("wpPhoneNumberId", a.getWpPhoneNumberId() != null ? a.getWpPhoneNumberId() : "");
+        map.put("wpAccessToken", a.getWpAccessToken() != null ? a.getWpAccessToken() : "");
+        map.put("wpVerifyToken", a.getWpVerifyToken() != null ? a.getWpVerifyToken() : "");
         return map;
     }
 
