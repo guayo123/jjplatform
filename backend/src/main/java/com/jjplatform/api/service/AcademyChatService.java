@@ -149,7 +149,7 @@ public class AcademyChatService {
         Map<String, Object> body = new HashMap<>();
         body.put("model", GROQ_MODEL);
         body.put("messages", allMessages);
-        body.put("max_tokens", 512);
+        body.put("max_tokens", 1024);
         body.put("temperature", 0.7);
 
         try {
@@ -322,17 +322,11 @@ public class AcademyChatService {
                 .findByAcademyIdOrderByDayOfWeekAscStartTimeAsc(academyId);
         if (!schedules.isEmpty()) {
             sb.append("HORARIOS:\n");
-            String[] dayOrder = {"LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"};
-            String[] dayNames = {"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"};
-            for (int i = 0; i < dayOrder.length; i++) {
-                final String day = dayOrder[i];
-                final String dayName = dayNames[i];
-                schedules.stream()
-                        .filter(s -> day.equals(s.getDayOfWeek()))
-                        .forEach(s -> sb.append("- ").append(dayName)
-                                .append(" ").append(s.getStartTime())
-                                .append(" a ").append(s.getEndTime())
-                                .append(": ").append(s.getClassName()).append("\n"));
+            for (ClassSchedule s : schedules) {
+                sb.append("- ").append(s.getDayOfWeek())
+                        .append(" ").append(s.getStartTime())
+                        .append(" a ").append(s.getEndTime())
+                        .append(": ").append(s.getClassName()).append("\n");
             }
             sb.append("\n");
         }
