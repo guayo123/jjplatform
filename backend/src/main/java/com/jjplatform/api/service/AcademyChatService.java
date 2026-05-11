@@ -240,6 +240,8 @@ public class AcademyChatService {
         sb.append("- No uses markdown ni asteriscos, solo texto plano.\n");
         sb.append("- Usa los datos de abajo para responder. No inventes información.\n\n");
 
+        sb.append(buildAcademyInfoSection(academy));
+
         List<Student> students = studentRepository.findByAcademyIdAndActiveTrue(academyId);
         List<Payment> monthPayments = paymentRepository.findByAcademyIdAndMonthAndYear(academyId, currentMonth, currentYear);
         java.util.Set<Long> paidIds = monthPayments.stream()
@@ -269,9 +271,7 @@ public class AcademyChatService {
 
         sb.append("\nRESUMEN DE PAGOS ").append(currentMonth).append("/").append(currentYear).append(":\n");
         sb.append("- Pagaron: ").append(paidIds.size()).append(" alumnos\n");
-        sb.append("- Deben: ").append(students.size() - paidIds.size()).append(" alumnos\n\n");
-
-        sb.append(buildAcademyInfoSection(academy));
+        sb.append("- Deben: ").append(students.size() - paidIds.size()).append(" alumnos\n");
 
         return sb.toString();
     }
