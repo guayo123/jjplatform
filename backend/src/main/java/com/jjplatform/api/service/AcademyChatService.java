@@ -289,6 +289,7 @@ public class AcademyChatService {
             sb.append(" al ").append(academy.getWhatsapp());
         sb.append(".\n");
         sb.append("- No inventes información que no esté aquí.\n");
+        sb.append("- Cuando pregunten por horarios, lista TODOS los horarios exactamente como aparecen, sin omitir ninguno aunque sea la misma clase en diferentes horarios del día.\n");
         sb.append("- Si saludan, saluda de vuelta presentándote como el asistente de ").append(academy.getName()).append(".\n");
         sb.append("- Recuerda el contexto de la conversación para responder de forma coherente.\n\n");
 
