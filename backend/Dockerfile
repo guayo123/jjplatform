@@ -9,10 +9,12 @@ COPY src ./src
 RUN mvn package -DskipTests -B
 
 # ---- Runtime stage ----
-FROM eclipse-temurin:17-jre-alpine
+# Non-Alpine (glibc) base: Railway injects a glibc-linked `catatonit` init
+# process when a volume is mounted, which fails to exec on musl/Alpine.
+FROM eclipse-temurin:17-jre
 WORKDIR /app
 
-RUN mkdir -p /app/uploads
+RUN mkdir -p /uploads
 
 COPY --from=build /app/target/jjplatform-api-*.jar app.jar
 
