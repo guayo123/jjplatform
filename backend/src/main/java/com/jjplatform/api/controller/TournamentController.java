@@ -53,6 +53,12 @@ public class TournamentController {
         return ResponseEntity.ok(tournamentService.generateBracket(id, academyId));
     }
 
+    @PostMapping("/{id}/repair-byes")
+    public ResponseEntity<TournamentDto> repairByes(@PathVariable Long id) {
+        Long academyId = securityHelper.getCurrentAcademyId();
+        return ResponseEntity.ok(tournamentService.repairByes(id, academyId));
+    }
+
     @PutMapping("/{id}/matches/{matchId}")
     public ResponseEntity<TournamentDto> recordResult(
             @PathVariable Long id,

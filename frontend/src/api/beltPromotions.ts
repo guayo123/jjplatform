@@ -5,6 +5,9 @@ export const beltPromotionsApi = {
   getByStudent: (studentId: number) =>
     client.get<BeltPromotion[]>('/belt-promotions', { params: { studentId } }).then((r) => r.data),
 
+  getByStudentDiscipline: (studentDisciplineId: number) =>
+    client.get<BeltPromotion[]>('/belt-promotions/by-discipline', { params: { studentDisciplineId } }).then((r) => r.data),
+
   getAll: () =>
     client.get<BeltPromotion[]>('/belt-promotions/all').then((r) => r.data),
 

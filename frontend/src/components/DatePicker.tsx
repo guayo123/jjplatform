@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface Props {
   value: string;
@@ -62,7 +63,10 @@ export default function DatePicker({ value, onChange, max, min, required, placeh
   const [cursorMonth, setCursorMonth] = useState(initMonth);
 
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
   const yearListRef = useRef<HTMLDivElement>(null);
+  const [popupPos, setPopupPos] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     const p = parseYMD(value);
@@ -73,7 +77,17 @@ export default function DatePicker({ value, onChange, max, min, required, placeh
     function outside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
-    if (open) document.addEventListener('mousedown', outside);
+    if (open) {
+      document.addEventListener('mousedown', outside);
+      if (triggerRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        const popupHeight = 340;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const top = spaceBelow >= popupHeight ? rect.bottom + 4 : rect.top - popupHeight - 4;
+        const left = Math.min(rect.left, window.innerWidth - 288 - 8);
+        setPopupPos({ top, left });
+      }
+    }
     return () => document.removeEventListener('mousedown', outside);
   }, [open]);
 
@@ -121,6 +135,7 @@ export default function DatePicker({ value, onChange, max, min, required, placeh
   return (
     <div ref={ref} className={`relative ${className ?? ''}`}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => { setOpen((o) => !o); setYearPicker(false); }}
         className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-all text-left
@@ -142,8 +157,13 @@ export default function DatePicker({ value, onChange, max, min, required, placeh
 
       {required && <input type="hidden" value={value} required />}
 
-      {open && (
-        <div className="absolute z-50 mt-1 w-72 bg-gray-950 border border-gray-700 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden">
+      {open && createPortal(
+        <div
+          ref={popupRef}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="fixed z-[9999] w-72 bg-gray-950 border border-gray-700 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden"
+          style={{ top: popupPos.top, left: popupPos.left }}
+        >
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
             <button
               type="button"
@@ -256,7 +276,8 @@ export default function DatePicker({ value, onChange, max, min, required, placeh
               )}
             </>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

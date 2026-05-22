@@ -5,33 +5,6 @@ import { useToast } from '../../components/ToastContext';
 import { useConfirm } from '../../components/ConfirmContext';
 import type { Professor } from '../../types';
 
-const BELT_COLORS: Record<string, string> = {
-  // BJJ / Jiu-Jitsu
-  Blanco:  'bg-gray-100 text-gray-700 border border-gray-300',
-  Azul:    'bg-blue-100 text-blue-800',
-  Morado:  'bg-purple-100 text-purple-800',
-  Café:    'bg-amber-100 text-amber-900',
-  Negro:   'bg-gray-900 text-white',
-  // Judo / Karate
-  Amarillo:'bg-yellow-100 text-yellow-800',
-  Naranja: 'bg-orange-100 text-orange-800',
-  Verde:   'bg-green-100 text-green-800',
-  Marrón:  'bg-amber-100 text-amber-900',
-  // Capoeira
-  'Corda Cru':    'bg-amber-50 text-amber-700 border border-amber-200',
-  'Corda Amarela':'bg-yellow-100 text-yellow-800',
-  'Corda Laranja':'bg-orange-100 text-orange-800',
-  'Corda Verde':  'bg-green-100 text-green-800',
-  'Corda Azul':   'bg-blue-100 text-blue-800',
-  'Corda Roxo':   'bg-purple-100 text-purple-800',
-  'Corda Café':   'bg-amber-100 text-amber-900',
-  'Corda Preto':  'bg-gray-900 text-white',
-  // Kickboxing / Muay Thai
-  'Nivel Principiante':   'bg-gray-100 text-gray-600',
-  'Nivel Amateur':        'bg-sky-100 text-sky-800',
-  'Nivel Semiprofesional':'bg-orange-100 text-orange-800',
-  'Nivel Profesional':    'bg-red-100 text-red-800',
-};
 
 export default function Professors() {
   const [professors, setProfessors] = useState<Professor[]>([]);
@@ -52,8 +25,9 @@ export default function Professors() {
         photoUrl: p.photoUrl,
         bio: p.bio,
         achievements: p.achievements,
-        belt: p.belt,
         displayOrder: p.displayOrder ?? 0,
+        studentId: p.studentId,
+        disciplineId: p.disciplineId,
         active: !p.active,
       });
       setProfessors((prev) => prev.map((x) => (x.id === p.id ? updated : x)));
@@ -140,13 +114,24 @@ export default function Professors() {
                       {p.active ? 'Activo' : 'Inactivo'}
                     </span>
                   </div>
-                  {p.belt && (
-                    <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded font-medium ${
-                      BELT_COLORS[p.belt] ?? 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {p.belt}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    {p.disciplineName && (
+                      <span className="text-xs px-2 py-0.5 rounded font-medium bg-primary-100 text-primary-700">
+                        {p.disciplineName}
+                      </span>
+                    )}
+                    {p.belt && (
+                      <span className="text-xs px-2 py-0.5 rounded font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                        {p.belt}
+                      </span>
+                    )}
+                    {p.studentId && (
+                      <span className="text-xs px-2 py-0.5 rounded font-medium bg-blue-100 text-blue-700 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                        También alumno
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -177,6 +162,15 @@ export default function Professors() {
                 >
                   Editar
                 </button>
+                {p.studentId && (
+                  <button
+                    onClick={() => navigate(`/admin/students/${p.studentId}`)}
+                    className="flex-1 text-center text-sm text-amber-600 hover:text-amber-700 font-medium py-1.5 rounded-lg hover:bg-amber-50 transition-colors"
+                    title="Ver historial de cinturones y promociones"
+                  >
+                    Historial
+                  </button>
+                )}
                 <button
                   onClick={() => handleToggleActive(p)}
                   className={`flex-1 text-center text-sm font-medium py-1.5 rounded-lg transition-colors ${

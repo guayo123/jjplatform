@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { studentsApi } from '../../api/students';
 import { beltPromotionsApi } from '../../api/beltPromotions';
+import { studentDisciplinesApi } from '../../api/studentDisciplines';
+import { academiesApi } from '../../api/academies';
 import { useToast } from '../../components/ToastContext';
+import { useConfirm } from '../../components/ConfirmContext';
 import BeltImage from '../../components/BeltImage';
 import DatePicker from '../../components/DatePicker';
-import type { Student, BeltPromotion, PromotionType } from '../../types';
+import type { Student, BeltPromotion, PromotionType, StudentDiscipline, CompetitionResultForm, Discipline, DisciplineBelt } from '../../types';
 
 const BELT_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   Blanco:  { bg: 'bg-gray-100',    text: 'text-gray-700',   border: 'border-gray-300' },
@@ -19,8 +22,7 @@ const BELT_COLORS: Record<string, { bg: string; text: string; border: string }> 
   Negro:   { bg: 'bg-gray-900',    text: 'text-white',      border: 'border-gray-700' },
 };
 
-const JUVENILE_BELTS = ['Blanco', 'Gris', 'Amarillo', 'Naranja', 'Verde'];
-const ADULT_BELTS    = ['Blanco', 'Azul', 'Morado', 'Café', 'Negro'];
+const ALL_BELTS = ['Blanco', 'Gris', 'Amarillo', 'Naranja', 'Verde', 'Azul', 'Morado', 'Café', 'Negro'];
 
 const TYPE_CONFIG: Record<PromotionType, { icon: string; label: string; color: string }> = {
   PROMOCION:   { icon: '🏆', label: 'Promoción',   color: 'text-green-600' },
@@ -28,30 +30,26 @@ const TYPE_CONFIG: Record<PromotionType, { icon: string; label: string; color: s
   GRADO:       { icon: '⭐', label: 'Grado',        color: 'text-amber-500' },
 };
 
-function getAvailableBelts(currentBelt: string | null, age: number | null): { juveniles: string[]; adultos: string[] } {
-  const jIdx = currentBelt ? JUVENILE_BELTS.indexOf(currentBelt) : -1;
-  const aIdx = currentBelt ? ADULT_BELTS.indexOf(currentBelt) : -1;
-
-  if (age !== null && age <= 15) {
-    const from = jIdx >= 0 ? jIdx + 1 : 0;
-    return { juveniles: JUVENILE_BELTS.slice(from), adultos: [] };
-  }
-  if (age !== null && age >= 16) {
-    if (aIdx > 0) return { juveniles: [], adultos: ADULT_BELTS.slice(aIdx + 1) };
-    if (aIdx === 0) return { juveniles: [], adultos: ADULT_BELTS.slice(1) };
-    return { juveniles: [], adultos: ADULT_BELTS };
-  }
-  if (!currentBelt) return { juveniles: JUVENILE_BELTS, adultos: ADULT_BELTS };
-  if (jIdx > 0) return { juveniles: JUVENILE_BELTS.slice(jIdx + 1), adultos: ADULT_BELTS.slice(1) };
-  if (aIdx > 0) return { juveniles: [], adultos: ADULT_BELTS.slice(aIdx + 1) };
-  return { juveniles: JUVENILE_BELTS.slice(1), adultos: ADULT_BELTS.slice(1) };
-}
 
 function maxStripes(belt: string | null) {
   return belt === 'Negro' ? 9 : 4;
 }
 
-function BeltBadge({ belt }: { belt: string }) {
+function BeltBadge({ belt, colorHex }: { belt: string; colorHex?: string | null }) {
+  if (colorHex) {
+    const r = parseInt(colorHex.slice(1, 3), 16);
+    const g = parseInt(colorHex.slice(3, 5), 16);
+    const b = parseInt(colorHex.slice(5, 7), 16);
+    const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return (
+      <span
+        className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border"
+        style={{ background: colorHex, color: lum < 0.45 ? '#FFF' : '#111827', borderColor: colorHex }}
+      >
+        {belt}
+      </span>
+    );
+  }
   const c = BELT_COLORS[belt] ?? { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-200' };
   return (
     <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border ${c.bg} ${c.text} ${c.border}`}>
@@ -72,144 +70,219 @@ function formatDate(iso: string) {
   return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-type ActiveForm = null | 'grado' | 'cinturon';
 
 export default function StudentDetail() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   const [student, setStudent] = useState<Student | null>(null);
-  const [promotions, setPromotions] = useState<BeltPromotion[]>([]);
+  const [disciplines, setDisciplines] = useState<StudentDiscipline[]>([]);
+  const [academyDisciplines, setAcademyDisciplines] = useState<Discipline[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [activeForm, setActiveForm] = useState<ActiveForm>(null);
-  const [anularTarget, setAnularTarget] = useState<BeltPromotion | null>(null);
-  const [anularReason, setAnularReason] = useState('');
 
-  const [gradeForm, setGradeForm] = useState({
-    promotionDate: todayYMD(),
-    notes: '',
-  });
-
-  const [beltForm, setBeltForm] = useState({
-    toBelt: '',
-    promotionDate: todayYMD(),
-    notes: '',
-  });
+  const [showDiscForm, setShowDiscForm] = useState(false);
+  const [discForm, setDiscForm] = useState({ disciplineId: '', ageCategoryId: '', belt: '', stripes: 0, joinDate: todayYMD() });
+  const [discSaving, setDiscSaving] = useState(false);
+  const [expandedDisc, setExpandedDisc] = useState<number | null>(null);
+  const [discPromotions, setDiscPromotions] = useState<Record<number, BeltPromotion[]>>({});
+  const [discActiveForm, setDiscActiveForm] = useState<Record<number, string | null>>({});
+  const [discFormSaving, setDiscFormSaving] = useState(false);
+  const [discGradeForm, setDiscGradeForm] = useState({ promotionDate: todayYMD(), notes: '' });
+  const [discBeltForm, setDiscBeltForm] = useState({ toBelt: '', promotionDate: todayYMD(), notes: '' });
+  const [discAnularTarget, setDiscAnularTarget] = useState<BeltPromotion | null>(null);
+  const [discAnularReason, setDiscAnularReason] = useState('');
+  const [discShowAnulados, setDiscShowAnulados] = useState<Record<number, boolean>>({});
+  const [editBeltFor, setEditBeltFor] = useState<number | null>(null);
+  const [editBeltForm, setEditBeltForm] = useState({ belt: '', stripes: 0 });
+  const [showResultFormFor, setShowResultFormFor] = useState<number | null>(null);
+  const [resultForm, setResultForm] = useState<CompetitionResultForm>({ tournamentName: '', date: todayYMD(), placement: '', category: '', notes: '' });
 
   useEffect(() => {
     if (!id) return;
     const numId = Number(id);
     Promise.all([
       studentsApi.get(numId),
-      beltPromotionsApi.getByStudent(numId),
-    ]).then(([s, p]) => {
+      studentDisciplinesApi.list(numId),
+      academiesApi.getDisciplines(),
+    ]).then(([s, d, ad]) => {
       setStudent(s);
-      setPromotions(p);
+      setDisciplines(d);
+      setAcademyDisciplines(ad);
     }).finally(() => setLoading(false));
   }, [id]);
 
-  const handleAddGrade = async () => {
-    if (!student || !gradeForm.promotionDate || !student.belt) return;
-    setSaving(true);
-    const currentStripes = student.stripes ?? 0;
+  const handleAddDiscipline = async () => {
+    if (!student || !discForm.disciplineId) return;
+    setDiscSaving(true);
     try {
-      const created = await beltPromotionsApi.create({
-        studentId: student.id,
-        fromBelt: student.belt,
-        fromStripes: currentStripes,
-        toBelt: student.belt,
-        toStripes: currentStripes + 1,
-        promotionDate: gradeForm.promotionDate,
-        notes: gradeForm.notes || null,
+      const created = await studentDisciplinesApi.add(student.id, {
+        disciplineId: Number(discForm.disciplineId),
+        ageCategoryId: discForm.ageCategoryId ? Number(discForm.ageCategoryId) : null,
+        belt: discForm.belt || null,
+        stripes: discForm.stripes,
+        joinDate: discForm.joinDate || null,
       });
-      setPromotions((prev) => [created, ...prev]);
-      setStudent((s) => s ? { ...s, stripes: currentStripes + 1 } : s);
-      setGradeForm((f) => ({ ...f, notes: '' }));
-      setActiveForm(null);
-      toast.success('Grado registrado');
+      setDisciplines((prev) => [...prev, created]);
+      setShowDiscForm(false);
+      setDiscForm({ disciplineId: '', ageCategoryId: '', belt: '', stripes: 0, joinDate: todayYMD() });
+      toast.success('Disciplina agregada');
     } catch {
-      toast.error('Error al registrar el grado');
+      toast.error('Error al agregar disciplina');
     } finally {
-      setSaving(false);
+      setDiscSaving(false);
     }
   };
 
-  const handleChangeBelt = async () => {
-    if (!student || !beltForm.toBelt || !beltForm.promotionDate) return;
-    setSaving(true);
+  const handleDeleteDiscipline = async (discId: number) => {
+    const ok = await confirm({ title: 'Eliminar disciplina', message: '¿Eliminar esta ficha técnica y todos sus resultados?', confirmLabel: 'Eliminar', danger: true });
+    if (!ok) return;
     try {
-      const created = await beltPromotionsApi.create({
-        studentId: student.id,
-        fromBelt: student.belt,
-        fromStripes: student.stripes ?? 0,
-        toBelt: beltForm.toBelt,
-        toStripes: 0,
-        promotionDate: beltForm.promotionDate,
-        notes: beltForm.notes || null,
-      });
-      setPromotions((prev) => [created, ...prev]);
-      setStudent((s) => s ? { ...s, belt: beltForm.toBelt, stripes: 0 } : s);
-      setBeltForm((f) => ({ ...f, toBelt: '', notes: '' }));
-      setActiveForm(null);
-      toast.success(created.type === 'DEGRADACION' ? 'Degradación registrada' : 'Graduación registrada');
+      await studentDisciplinesApi.remove(discId);
+      setDisciplines((prev) => prev.filter((d) => d.id !== discId));
+      toast.success('Disciplina eliminada');
     } catch {
-      toast.error('Error al registrar');
-    } finally {
-      setSaving(false);
+      toast.error('Error al eliminar');
     }
   };
 
-  const handleAnular = async () => {
-    if (!anularTarget || !student) return;
-    setSaving(true);
+  const handleSaveEditBelt = async (discId: number) => {
+    setDiscSaving(true);
     try {
-      await beltPromotionsApi.anular(anularTarget.id, anularReason);
-      const [updatedStudent, updatedPromotions] = await Promise.all([
-        studentsApi.get(student.id),
-        beltPromotionsApi.getByStudent(student.id),
+      await studentDisciplinesApi.updateBelt(discId, editBeltForm.belt || null, editBeltForm.stripes);
+      const updatedDiscs = await studentDisciplinesApi.list(student!.id);
+      setDisciplines(updatedDiscs);
+      setEditBeltFor(null);
+      toast.success('Cinturón actualizado');
+    } catch {
+      toast.error('Error al actualizar cinturón');
+    } finally {
+      setDiscSaving(false);
+    }
+  };
+
+  // ── Per-discipline promotion handlers ────────────────────────────────────
+
+  const loadDiscPromotions = async (discId: number) => {
+    const list = await beltPromotionsApi.getByStudentDiscipline(discId);
+    setDiscPromotions((prev) => ({ ...prev, [discId]: list }));
+  };
+
+  const setDiscActiveFormFor = (discId: number, form: string | null) =>
+    setDiscActiveForm((prev) => ({ ...prev, [discId]: form }));
+
+  const handleDiscAddGrade = async (disc: StudentDiscipline) => {
+    if (!student || !disc.belt) return;
+    setDiscFormSaving(true);
+    try {
+      const created = await beltPromotionsApi.create({
+        studentId: student.id,
+        studentDisciplineId: disc.id,
+        fromBelt: disc.belt,
+        fromStripes: disc.stripes,
+        toBelt: disc.belt,
+        toStripes: disc.stripes + 1,
+        promotionDate: discGradeForm.promotionDate,
+        notes: discGradeForm.notes || null,
+      });
+      const [updatedDiscs, updatedPromos] = await Promise.all([
+        studentDisciplinesApi.list(student.id),
+        beltPromotionsApi.getByStudentDiscipline(disc.id),
       ]);
-      setStudent(updatedStudent);
-      setPromotions(updatedPromotions);
-      setAnularTarget(null);
-      setAnularReason('');
+      setDisciplines(updatedDiscs);
+      setDiscPromotions((prev) => ({ ...prev, [disc.id]: updatedPromos }));
+      setDiscActiveFormFor(disc.id, null);
+      setDiscGradeForm({ promotionDate: todayYMD(), notes: '' });
+      toast.success(`Grado ${created.toStripes} registrado`);
+    } catch {
+      toast.error('Error al registrar grado');
+    } finally {
+      setDiscFormSaving(false);
+    }
+  };
+
+  const handleDiscChangeBelt = async (disc: StudentDiscipline) => {
+    if (!student || !discBeltForm.toBelt) return;
+    setDiscFormSaving(true);
+    try {
+      const created = await beltPromotionsApi.create({
+        studentId: student.id,
+        studentDisciplineId: disc.id,
+        fromBelt: disc.belt,
+        fromStripes: disc.stripes,
+        toBelt: discBeltForm.toBelt,
+        toStripes: 0,
+        promotionDate: discBeltForm.promotionDate,
+        notes: discBeltForm.notes || null,
+      });
+      const [updatedDiscs, updatedPromos] = await Promise.all([
+        studentDisciplinesApi.list(student.id),
+        beltPromotionsApi.getByStudentDiscipline(disc.id),
+      ]);
+      setDisciplines(updatedDiscs);
+      setDiscPromotions((prev) => ({ ...prev, [disc.id]: updatedPromos }));
+      setDiscActiveFormFor(disc.id, null);
+      setDiscBeltForm({ toBelt: '', promotionDate: todayYMD(), notes: '' });
+      const msg = created.type === 'DEGRADACION' ? 'Degradación registrada' : 'Cinturón actualizado';
+      toast.success(msg);
+    } catch {
+      toast.error('Error al actualizar cinturón');
+    } finally {
+      setDiscFormSaving(false);
+    }
+  };
+
+  const handleDiscAnular = async (disc: StudentDiscipline) => {
+    if (!discAnularTarget) return;
+    setDiscFormSaving(true);
+    try {
+      await beltPromotionsApi.anular(discAnularTarget.id, discAnularReason);
+      const updated = await beltPromotionsApi.getByStudentDiscipline(disc.id);
+      setDiscPromotions((prev) => ({ ...prev, [disc.id]: updated }));
+      // Reload discipline to get updated belt/stripes
+      const updatedDiscs = await studentDisciplinesApi.list(student!.id);
+      setDisciplines(updatedDiscs);
+      setDiscAnularTarget(null);
+      setDiscAnularReason('');
       toast.success('Registro anulado');
     } catch {
       toast.error('Error al anular');
     } finally {
-      setSaving(false);
+      setDiscFormSaving(false);
     }
   };
 
-  // Agrupación cronológica de cinturones con sus grados — debe ir antes de early returns
-  const beltPeriods = useMemo(() => {
-    type BeltPeriod = {
-      belt: string;
-      startDate: string;
-      grades: Array<{ stripes: number; date: string; notes: string | null }>;
-    };
-    const active = promotions
-      .filter((p) => !p.deleted)
-      .slice()
-      .sort((a, b) => a.promotionDate.localeCompare(b.promotionDate) || a.id - b.id);
-
-    const periods: BeltPeriod[] = [];
-    for (const p of active) {
-      if (p.type === 'PROMOCION' || p.type === 'DEGRADACION') {
-        periods.push({ belt: p.toBelt, startDate: p.promotionDate, grades: [] });
-      } else if (p.type === 'GRADO' && periods.length > 0) {
-        periods[periods.length - 1].grades.push({
-          stripes: p.toStripes,
-          date: p.promotionDate,
-          notes: p.notes,
-        });
-      }
+  const handleAddResult = async (studentDisciplineId: number) => {
+    if (!resultForm.tournamentName || !resultForm.date) return;
+    setDiscSaving(true);
+    try {
+      const created = await studentDisciplinesApi.addResult(studentDisciplineId, resultForm);
+      setDisciplines((prev) => prev.map((d) =>
+        d.id === studentDisciplineId ? { ...d, competitionResults: [...d.competitionResults, created] } : d
+      ));
+      setShowResultFormFor(null);
+      setResultForm({ tournamentName: '', date: todayYMD(), placement: '', category: '', notes: '', beltAtCompetition: null, stripesAtCompetition: 0 });
+      toast.success('Resultado agregado');
+    } catch {
+      toast.error('Error al agregar resultado');
+    } finally {
+      setDiscSaving(false);
     }
-    return periods;
-  }, [promotions]);
+  };
 
-  const toggleForm = (form: ActiveForm) =>
-    setActiveForm((prev) => prev === form ? null : form);
+  const handleDeleteResult = async (studentDisciplineId: number, resultId: number) => {
+    const ok = await confirm({ message: '¿Eliminar este resultado de competición?', danger: true });
+    if (!ok) return;
+    try {
+      await studentDisciplinesApi.deleteResult(resultId);
+      setDisciplines((prev) => prev.map((d) =>
+        d.id === studentDisciplineId ? { ...d, competitionResults: d.competitionResults.filter((r) => r.id !== resultId) } : d
+      ));
+      toast.success('Resultado eliminado');
+    } catch {
+      toast.error('Error al eliminar');
+    }
+  };
 
   if (loading) return (
     <div className="flex items-center justify-center py-16">
@@ -220,13 +293,6 @@ export default function StudentDetail() {
   if (!student) return (
     <div className="text-center py-12 text-gray-400">Alumno no encontrado</div>
   );
-
-  const canAddGrade = !!student.belt && (student.stripes ?? 0) < maxStripes(student.belt);
-  const hasActivePromotions = promotions.some((p) => !p.deleted);
-  const { juveniles, adultos } = hasActivePromotions
-    ? getAvailableBelts(student.belt, student.age)
-    : getAvailableBelts(null, student.age);
-  const hasBeltOptions = juveniles.length > 0 || adultos.length > 0;
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -255,9 +321,15 @@ export default function StudentDetail() {
               {student.weight && <span>{student.weight} kg</span>}
             </div>
             <div className="mt-3 space-y-2">
-              {student.belt && (
-                <BeltImage belt={student.belt} stripes={student.stripes ?? 0} className="max-w-[220px]" />
-              )}
+              {(disciplines.length > 0
+                ? disciplines.filter((d) => d.active && d.belt)
+                : (student.disciplineBelts ?? []).map((d) => ({ id: d.disciplineId, disciplineName: d.disciplineName, belt: d.belt, stripes: d.stripes, beltColorHex: d.beltColorHex, active: true }))
+              ).map((d) => (
+                <div key={d.id} className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400 w-16 flex-shrink-0 truncate">{d.disciplineName}</span>
+                  <BeltImage belt={d.belt!} stripes={d.stripes} colorHex={d.beltColorHex ?? undefined} className="max-w-[180px]" />
+                </div>
+              ))}
               {student.joinDate && (
                 <span className="text-xs text-gray-400">
                   📅 Ingresó el {formatDate(student.joinDate)}
@@ -309,302 +381,778 @@ export default function StudentDetail() {
         </div>
       )}
 
-      {/* Belt progression summary */}
-      {beltPeriods.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-5">
-          <h2 className="font-bold text-gray-900 mb-4">Progresión de Cinturones</h2>
-          <div className="relative">
-            {beltPeriods.map((period, idx) => {
-              const isCurrent = idx === beltPeriods.length - 1;
-              const c = BELT_COLORS[period.belt] ?? { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300' };
-              return (
-                <div key={idx} className="flex gap-4">
-                  {/* Línea vertical + punto */}
-                  <div className="flex flex-col items-center">
-                    <div className={`w-4 h-4 rounded-full border-2 border-white shadow-sm flex-shrink-0 mt-0.5 ${isCurrent ? 'bg-primary-600 ring-2 ring-primary-200' : 'bg-gray-300'}`} />
-                    {idx < beltPeriods.length - 1 && (
-                      <div className="w-0.5 bg-gray-200 flex-1 my-1 min-h-[1rem]" />
-                    )}
-                  </div>
-
-                  {/* Contenido del período */}
-                  <div className={`flex-1 pb-5 ${idx === beltPeriods.length - 1 ? 'pb-0' : ''}`}>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border ${c.bg} ${c.text} ${c.border}`}>
-                        {period.belt}
-                      </span>
-                      <span className="text-xs text-gray-400">{formatDate(period.startDate)}</span>
-                      {isCurrent && (
-                        <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">Actual</span>
-                      )}
-                    </div>
-
-                    {period.grades.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {period.grades.map((g, gi) => (
-                          <div key={gi} className="flex items-start gap-2 text-xs text-gray-500 pl-1">
-                            <span className="text-amber-400 mt-px">{'★'.repeat(g.stripes)}</span>
-                            <span>
-                              Grado {g.stripes} — <span className="text-gray-600">{formatDate(g.date)}</span>
-                              {g.notes && <span className="italic text-gray-400 ml-1">"{g.notes}"</span>}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Belt history */}
+      {/* Fichas Técnicas por Disciplina */}
       <div className="bg-white rounded-xl shadow-sm">
         <div className="p-5 border-b border-gray-100">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
-              <h2 className="font-bold text-gray-900">Historial de Graduaciones</h2>
-              <p className="text-xs text-gray-400 mt-0.5">{promotions.length} registro{promotions.length !== 1 ? 's' : ''}</p>
+              <h2 className="font-bold text-gray-900">Fichas Técnicas</h2>
+              <p className="text-xs text-gray-400 mt-0.5">{disciplines.length} disciplina{disciplines.length !== 1 ? 's' : ''}</p>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => toggleForm('grado')}
-                disabled={!canAddGrade}
-                title={!canAddGrade ? (student.belt ? 'Grados máximos alcanzados' : 'El alumno no tiene cinturón') : ''}
-                className={`text-sm font-medium px-3 py-2 rounded-lg border transition-colors ${
-                  activeForm === 'grado'
-                    ? 'bg-amber-50 border-amber-300 text-amber-700'
-                    : 'bg-white border-gray-200 text-gray-600 hover:border-amber-300 hover:text-amber-700 disabled:opacity-40 disabled:cursor-not-allowed'
-                }`}
-              >
-                ⭐ {activeForm === 'grado' ? 'Cancelar' : 'Agregar grado'}
-              </button>
-              <button
-                onClick={() => toggleForm('cinturon')}
-                disabled={!hasBeltOptions}
-                className={`text-sm font-medium px-3 py-2 rounded-lg border transition-colors ${
-                  activeForm === 'cinturon'
-                    ? 'bg-primary-50 border-primary-300 text-primary-700'
-                    : 'bg-white border-gray-200 text-gray-600 hover:border-primary-300 hover:text-primary-700 disabled:opacity-40 disabled:cursor-not-allowed'
-                }`}
-              >
-                🏆 {activeForm === 'cinturon' ? 'Cancelar' : 'Cambiar cinturón'}
-              </button>
-            </div>
+            <button
+              onClick={() => setShowDiscForm((v) => !v)}
+              className={`text-sm font-medium px-3 py-2 rounded-lg border transition-colors ${
+                showDiscForm
+                  ? 'bg-primary-50 border-primary-300 text-primary-700'
+                  : 'bg-white border-gray-200 text-gray-600 hover:border-primary-300 hover:text-primary-700'
+              }`}
+            >
+              {showDiscForm ? '✕ Cancelar' : '+ Agregar disciplina'}
+            </button>
           </div>
         </div>
 
-        {/* Grade form */}
-        {activeForm === 'grado' && (
-          <div className="p-5 border-b border-gray-100 bg-amber-50">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">⭐ Nuevo grado — {student.belt}</h3>
-            <div className="flex items-center gap-4 mb-4">
-              <div className="flex-1">
-                <p className="text-xs text-gray-400 mb-1">Actual</p>
-                <BeltImage belt={student.belt!} stripes={student.stripes ?? 0} />
-              </div>
-              <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
-              <div className="flex-1">
-                <p className="text-xs text-gray-400 mb-1">Nuevo grado</p>
-                <BeltImage belt={student.belt!} stripes={(student.stripes ?? 0) + 1} />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Fecha *</label>
-                <DatePicker
-                  value={gradeForm.promotionDate}
-                  max={todayYMD()}
-                  onChange={(v) => setGradeForm((f) => ({ ...f, promotionDate: v }))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Notas (opcional)</label>
-                <input
-                  type="text"
-                  value={gradeForm.notes}
-                  onChange={(e) => setGradeForm((f) => ({ ...f, notes: e.target.value }))}
-                  placeholder="ej: Examen técnico aprobado"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none"
-                />
-              </div>
-            </div>
-            <button
-              onClick={handleAddGrade}
-              disabled={!gradeForm.promotionDate || saving}
-              className="mt-4 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50"
-            >
-              {saving ? 'Guardando...' : 'Confirmar grado'}
-            </button>
-          </div>
-        )}
+        {/* Add discipline form */}
+        {showDiscForm && (() => {
+          const selectedDisc = academyDisciplines.find((d) => d.id === Number(discForm.disciplineId));
+          const hasCategories = (selectedDisc?.ageCategories?.length ?? 0) > 0;
+          const selectedCat = selectedDisc?.ageCategories?.find((c) => c.id === Number(discForm.ageCategoryId));
+          const availableBelts = selectedCat ? selectedCat.belts : [];
 
-        {/* Belt change form */}
-        {activeForm === 'cinturon' && (
+          return (
           <div className="p-5 border-b border-gray-100 bg-primary-50">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">🏆 Cambio de cinturón</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">Nueva disciplina</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Cinturón actual</label>
-                <div className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-500">
-                  {student.belt ?? 'Sin cinturón'}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Nuevo cinturón *</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Disciplina *</label>
                 <select
-                  value={beltForm.toBelt}
-                  onChange={(e) => setBeltForm((f) => ({ ...f, toBelt: e.target.value }))}
+                  value={discForm.disciplineId}
+                  onChange={(e) => setDiscForm((f) => ({ ...f, disciplineId: e.target.value, ageCategoryId: '', belt: student.belt ?? '', stripes: student.stripes ?? 0 }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none bg-white"
                 >
                   <option value="">Seleccionar...</option>
-                  {juveniles.length > 0 && (
-                    <optgroup label="Juveniles (≤ 15 años)">
-                      {juveniles.map((b) => <option key={b} value={b}>{b}</option>)}
-                    </optgroup>
-                  )}
-                  {adultos.length > 0 && (
-                    <optgroup label="Adultos (16+ años)">
-                      {adultos.map((b) => <option key={b} value={b}>{b}</option>)}
-                    </optgroup>
-                  )}
+                  {academyDisciplines
+                    .filter((d) => d.active && !disciplines.some((sd) => sd.disciplineId === d.id))
+                    .map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+
+              {/* Category selector — only when discipline has categories configured */}
+              {hasCategories && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Categoría de edad *</label>
+                  <select
+                    value={discForm.ageCategoryId}
+                    onChange={(e) => setDiscForm((f) => ({ ...f, ageCategoryId: e.target.value, belt: '', stripes: 0 }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none bg-white"
+                  >
+                    <option value="">Seleccionar categoría...</option>
+                    {selectedDisc!.ageCategories.map((c) => {
+                      const ageLabel = c.minAge != null || c.maxAge != null ? ` (${c.minAge ?? '0'}-${c.maxAge ?? '∞'} años)` : '';
+                      return <option key={c.id} value={c.id}>{c.name}{ageLabel}</option>;
+                    })}
+                  </select>
+                </div>
+              )}
+
+              {/* Belt selector — from category if configured, fallback to ALL_BELTS */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Cinturón inicial</label>
+                {hasCategories && availableBelts.length > 0 ? (
+                  <select
+                    value={discForm.belt}
+                    onChange={(e) => setDiscForm((f) => ({ ...f, belt: e.target.value, stripes: 0 }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none bg-white"
+                  >
+                    <option value="">Sin cinturón</option>
+                    {availableBelts.map((b) => (
+                      <option key={b.id} value={b.name}>{b.name}</option>
+                    ))}
+                  </select>
+                ) : hasCategories && !discForm.ageCategoryId ? (
+                  <p className="text-xs text-gray-400 italic py-2">Selecciona una categoría primero</p>
+                ) : (
+                  <select
+                    value={discForm.belt}
+                    onChange={(e) => setDiscForm((f) => ({ ...f, belt: e.target.value, stripes: 0 }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none bg-white"
+                  >
+                    <option value="">Sin cinturón</option>
+                    {ALL_BELTS.map((b) => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                )}
+                {/* Belt color preview */}
+                {discForm.belt && (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    {(() => {
+                      const beltDef = availableBelts.find((b) => b.name === discForm.belt);
+                      if (!beltDef) return null;
+                      const r = parseInt(beltDef.colorHex.slice(1, 3), 16);
+                      const g = parseInt(beltDef.colorHex.slice(3, 5), 16);
+                      const bv = parseInt(beltDef.colorHex.slice(5, 7), 16);
+                      const lum = (0.299 * r + 0.587 * g + 0.114 * bv) / 255;
+                      return (
+                        <span
+                          className="inline-block px-2 py-0.5 rounded-full text-xs font-medium border"
+                          style={{ background: beltDef.colorHex, color: lum < 0.45 ? '#FFF' : '#111', borderColor: beltDef.colorHex }}
+                        >
+                          {discForm.belt}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Grados</label>
+                <select
+                  value={discForm.stripes}
+                  onChange={(e) => setDiscForm((f) => ({ ...f, stripes: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none bg-white"
+                >
+                  {Array.from({ length: maxStripes(discForm.belt || null) + 1 }, (_, i) => (
+                    <option key={i} value={i}>{i === 0 ? 'Sin grados' : `${i} grado${i !== 1 ? 's' : ''}`}</option>
+                  ))}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Fecha *</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Fecha de ingreso</label>
                 <DatePicker
-                  value={beltForm.promotionDate}
+                  value={discForm.joinDate}
                   max={todayYMD()}
-                  onChange={(v) => setBeltForm((f) => ({ ...f, promotionDate: v }))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Notas (opcional)</label>
-                <input
-                  type="text"
-                  value={beltForm.notes}
-                  onChange={(e) => setBeltForm((f) => ({ ...f, notes: e.target.value }))}
-                  placeholder="ej: Aprobó examen técnico"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+                  onChange={(v) => setDiscForm((f) => ({ ...f, joinDate: v }))}
                 />
               </div>
             </div>
             <button
-              onClick={handleChangeBelt}
-              disabled={!beltForm.toBelt || !beltForm.promotionDate || saving}
+              onClick={handleAddDiscipline}
+              disabled={!discForm.disciplineId || (hasCategories && !discForm.ageCategoryId) || discSaving}
               className="mt-4 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50"
             >
-              {saving ? 'Guardando...' : 'Confirmar cambio'}
+              {discSaving ? 'Guardando...' : 'Agregar disciplina'}
             </button>
           </div>
-        )}
+          );
+        })()}
 
-        {/* Timeline */}
-        <div className="p-5">
-          {promotions.length === 0 ? (
-            <p className="text-center text-gray-400 text-sm py-8">Sin registros aún</p>
+        {/* Disciplines list */}
+        <div className="p-5 space-y-4">
+          {disciplines.length === 0 ? (
+            <p className="text-center text-gray-400 text-sm py-6">Sin disciplinas registradas</p>
           ) : (
-            <ol className="relative border-l-2 border-gray-200 space-y-6 ml-3">
-              {promotions.map((p) => {
-                const cfg = TYPE_CONFIG[p.type];
-                const isAnulado = p.deleted;
-                return (
-                  <li key={p.id} className={`ml-5 ${isAnulado ? 'opacity-40' : ''}`}>
-                    <span className="absolute -left-2 w-4 h-4 rounded-full border-2 border-white bg-primary-500 flex items-center justify-center">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                    </span>
-                    <div className={`rounded-xl p-4 border ${isAnulado ? 'bg-gray-100 border-gray-200' : p.type === 'DEGRADACION' ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
-                      <div className="flex items-start justify-between gap-3">
+            disciplines.map((disc) => {
+              const isExpanded = expandedDisc === disc.id;
+              const discDef = academyDisciplines.find((d) => d.id === disc.disciplineId);
+              const catBelts: DisciplineBelt[] = (() => {
+                if (disc.ageCategoryId) {
+                  return discDef?.ageCategories?.find((c) => c.id === disc.ageCategoryId)?.belts ?? [];
+                }
+                // No category assigned — collect all belts from all categories (deduped by name)
+                const all = discDef?.ageCategories?.flatMap(c => c.belts) ?? [];
+                const seen = new Set<string>();
+                return all.filter(b => { if (seen.has(b.name)) return false; seen.add(b.name); return true; });
+              })();
+              const beltList: string[] = catBelts.length > 0 ? catBelts.map((b) => b.name) : ALL_BELTS;
+              const canAddGradeDisc = !!disc.belt && disc.stripes < maxStripes(disc.belt);
+              const activeDiscForm = discActiveForm[disc.id] ?? null;
+              const discPromos = discPromotions[disc.id] ?? null;
+
+              const getBeltColorHex = (beltName: string): string | undefined =>
+                catBelts.find((b) => b.name === beltName)?.colorHex;
+
+              return (
+                <div key={disc.id} className="border border-gray-200 rounded-xl overflow-hidden">
+                  {/* Discipline header */}
+                  <div className="flex items-center gap-3 p-4 bg-white">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-gray-900 text-sm">{disc.disciplineName}</span>
+                        {disc.ageCategoryName && (
+                          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{disc.ageCategoryName}</span>
+                        )}
+                        {disc.belt && <BeltBadge belt={disc.belt} colorHex={disc.beltColorHex} />}
+                        {disc.stripes > 0 && (
+                          <span className="text-amber-400 text-xs">{'★'.repeat(disc.stripes)}</span>
+                        )}
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${disc.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {disc.active ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      {disc.joinDate && (
+                        <p className="text-xs text-gray-400 mt-1">Ingresó: {formatDate(disc.joinDate)}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {canAddGradeDisc && (
+                        <button
+                          onClick={() => {
+                            setDiscActiveFormFor(disc.id, activeDiscForm === 'grado' ? null : 'grado');
+                            setDiscGradeForm({ promotionDate: todayYMD(), notes: '' });
+                          }}
+                          className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${
+                            activeDiscForm === 'grado'
+                              ? 'bg-amber-50 border-amber-300 text-amber-700'
+                              : 'border-gray-200 text-gray-500 hover:border-amber-300 hover:text-amber-700'
+                          }`}
+                        >
+                          ⭐ Grado
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          setDiscActiveFormFor(disc.id, activeDiscForm === 'cinturon' ? null : 'cinturon');
+                          setDiscBeltForm({ toBelt: '', promotionDate: todayYMD(), notes: '' });
+                        }}
+                        className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${
+                          activeDiscForm === 'cinturon'
+                            ? 'bg-blue-50 border-blue-300 text-blue-700'
+                            : 'border-gray-200 text-gray-500 hover:border-blue-300 hover:text-blue-700'
+                        }`}
+                      >
+                        🏆 Cinturón
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowResultFormFor(showResultFormFor === disc.id ? null : disc.id);
+                          if (showResultFormFor !== disc.id) {
+                            setResultForm({
+                              tournamentName: '', date: todayYMD(), placement: '', category: '', notes: '',
+                              beltAtCompetition: disc.belt ?? null,
+                              stripesAtCompetition: disc.stripes,
+                            });
+                          }
+                        }}
+                        className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${
+                          showResultFormFor === disc.id
+                            ? 'bg-green-50 border-green-300 text-green-700'
+                            : 'border-gray-200 text-gray-500 hover:border-green-300 hover:text-green-700'
+                        }`}
+                      >
+                        🏅 Torneo
+                      </button>
+                      <button
+                        onClick={() => {
+                          const next = isExpanded ? null : disc.id;
+                          setExpandedDisc(next);
+                          if (next !== null && discPromos === null) {
+                            loadDiscPromotions(disc.id);
+                          }
+                        }}
+                        className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${
+                          isExpanded
+                            ? 'bg-primary-50 border-primary-300 text-primary-700'
+                            : 'border-gray-200 text-gray-500 hover:border-primary-300 hover:text-primary-700'
+                        }`}
+                      >
+                        📋 Historial
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (editBeltFor === disc.id) {
+                            setEditBeltFor(null);
+                          } else {
+                            setEditBeltFor(disc.id);
+                            setEditBeltForm({ belt: disc.belt ?? '', stripes: disc.stripes });
+                          }
+                        }}
+                        className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${
+                          editBeltFor === disc.id
+                            ? 'bg-orange-50 border-orange-300 text-orange-700'
+                            : 'border-gray-200 text-gray-500 hover:border-orange-300 hover:text-orange-600'
+                        }`}
+                        title="Corregir cinturón actual"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => handleDeleteDiscipline(disc.id)}
+                        className="text-gray-300 hover:text-red-400 transition-colors ml-1"
+                        title="Eliminar disciplina"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Edit belt form (direct correction, no promotion record) */}
+                  {editBeltFor === disc.id && (
+                    <div className="border-t border-orange-100 bg-orange-50 px-4 py-4 space-y-3">
+                      <div className="flex items-start gap-2">
+                        <span className="text-base mt-0.5">✏️</span>
+                        <div>
+                          <p className="text-sm font-semibold text-orange-800">Corregir cinturón actual</p>
+                          <p className="text-xs text-gray-500 mt-0.5">Modifica directamente el cinturón sin crear un registro de graduación. Úsalo para corregir errores de carga.</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Cinturón</label>
+                          <select
+                            value={editBeltForm.belt}
+                            onChange={(e) => setEditBeltForm((f) => ({ ...f, belt: e.target.value, stripes: 0 }))}
+                            className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 outline-none bg-white"
+                          >
+                            <option value="">Sin cinturón</option>
+                            {beltList.map((b) => <option key={b} value={b}>{b}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Grados</label>
+                          <select
+                            value={editBeltForm.stripes}
+                            onChange={(e) => setEditBeltForm((f) => ({ ...f, stripes: Number(e.target.value) }))}
+                            className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 outline-none bg-white"
+                          >
+                            {Array.from({ length: maxStripes(editBeltForm.belt || null) + 1 }, (_, i) => (
+                              <option key={i} value={i}>{i === 0 ? 'Sin grados' : `${i} grado${i !== 1 ? 's' : ''}`}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleSaveEditBelt(disc.id)}
+                          disabled={discSaving}
+                          className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          {discSaving ? 'Guardando...' : 'Guardar corrección'}
+                        </button>
+                        <button
+                          onClick={() => setEditBeltFor(null)}
+                          className="text-xs text-gray-500 hover:text-gray-700 border border-gray-200 bg-white px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Add Grade form */}
+                  {activeDiscForm === 'grado' && (
+                    <div className="border-t border-amber-100 bg-amber-50 px-4 py-4 space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <p className="text-sm font-semibold text-amber-800">⭐ Nuevo grado — {disc.belt}</p>
+                      </div>
+                      {/* Belt image preview */}
+                      <div className="flex items-center gap-4 flex-wrap">
                         <div className="flex-1 min-w-0">
-                          <span className={`text-xs font-bold uppercase tracking-wide ${isAnulado ? 'text-gray-400 line-through' : cfg.color}`}>
-                            {cfg.icon} {cfg.label}
-                          </span>
+                          <p className="text-xs text-gray-500 mb-2">Actual</p>
+                          <BeltImage belt={disc.belt!} stripes={disc.stripes} colorHex={disc.beltColorHex ?? getBeltColorHex(disc.belt!)} className="w-full max-w-[200px]" />
+                        </div>
+                        <span className="text-gray-400 text-xl flex-shrink-0">→</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-gray-500 mb-2">Nuevo grado</p>
+                          <BeltImage belt={disc.belt!} stripes={disc.stripes + 1} colorHex={disc.beltColorHex ?? getBeltColorHex(disc.belt!)} className="w-full max-w-[200px]" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Fecha *</label>
+                          <DatePicker
+                            value={discGradeForm.promotionDate}
+                            max={todayYMD()}
+                            onChange={(v) => setDiscGradeForm((f) => ({ ...f, promotionDate: v }))}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Notas (opcional)</label>
+                          <input
+                            type="text"
+                            value={discGradeForm.notes}
+                            onChange={(e) => setDiscGradeForm((f) => ({ ...f, notes: e.target.value }))}
+                            placeholder="ej: Examen técnico aprobado"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 outline-none bg-white"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleDiscAddGrade(disc)}
+                          disabled={!discGradeForm.promotionDate || discFormSaving}
+                          className="bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          {discFormSaving ? 'Guardando...' : 'Confirmar grado'}
+                        </button>
+                        <button
+                          onClick={() => setDiscActiveFormFor(disc.id, null)}
+                          className="text-xs text-gray-500 hover:text-gray-700 border border-gray-200 bg-white px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
-                          {p.type === 'GRADO' ? (
-                            <div className="flex items-center gap-3 mt-2">
-                              <BeltImage belt={p.toBelt} stripes={p.fromStripes ?? 0} className="max-w-[120px]" />
-                              <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                              </svg>
-                              <BeltImage belt={p.toBelt} stripes={p.toStripes} className="max-w-[120px]" />
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 mt-1 flex-wrap">
-                              {p.fromBelt ? <BeltBadge belt={p.fromBelt} /> : <span className="text-xs text-gray-400 italic">Sin cinturón</span>}
-                              <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                              </svg>
-                              <BeltBadge belt={p.toBelt} />
-                            </div>
-                          )}
+                  {/* Change Belt form */}
+                  {activeDiscForm === 'cinturon' && (() => {
+                    const currentIdx = disc.belt ? beltList.indexOf(disc.belt) : -1;
+                    const targetIdx = discBeltForm.toBelt ? beltList.indexOf(discBeltForm.toBelt) : -1;
+                    const isDemotion = targetIdx !== -1 && currentIdx !== -1 && targetIdx < currentIdx;
+                    const borderColor = isDemotion ? 'border-red-100' : 'border-blue-100';
+                    const bgColor = isDemotion ? 'bg-red-50' : 'bg-blue-50';
+                    const arrowColor = isDemotion ? 'text-red-400' : 'text-gray-400';
+                    return (
+                      <div className={`border-t ${borderColor} ${bgColor} px-4 py-4 space-y-4`}>
+                        <p className={`text-sm font-semibold ${isDemotion ? 'text-red-800' : 'text-blue-800'}`}>
+                          {isDemotion ? '⚠️ Degradación — ' : '🏆 Cambiar cinturón — '}{disc.disciplineName}
+                        </p>
 
-                          <p className="text-xs text-gray-500 mt-2">{formatDate(p.promotionDate)}</p>
-                          {p.notes && <p className="text-sm text-gray-600 mt-1 italic">"{p.notes}"</p>}
-
-                          {isAnulado && (
-                            <div className="mt-2 pt-2 border-t border-gray-200 space-y-0.5">
-                              <p className="text-xs font-semibold text-gray-500">Anulado por {p.deletedBy}{p.deletedAt ? ` · ${formatDate(p.deletedAt)}` : ''}</p>
-                              {p.deletedReason && <p className="text-xs text-gray-400 italic">"{p.deletedReason}"</p>}
-                            </div>
-                          )}
+                        {/* Belt image preview */}
+                        <div className="flex items-center gap-4 flex-wrap">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-gray-500 mb-2">Actual</p>
+                            {disc.belt
+                              ? <BeltImage belt={disc.belt} stripes={disc.stripes} colorHex={disc.beltColorHex ?? getBeltColorHex(disc.belt)} className="w-full max-w-[200px]" />
+                              : <p className="text-xs text-gray-400 italic">Sin cinturón</p>
+                            }
+                          </div>
+                          <span className={`text-xl flex-shrink-0 ${arrowColor}`}>{isDemotion ? '↓' : '→'}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-gray-500 mb-2">{isDemotion ? 'Degradación a' : 'Nuevo cinturón'}</p>
+                            {discBeltForm.toBelt
+                              ? <BeltImage belt={discBeltForm.toBelt} stripes={0} colorHex={getBeltColorHex(discBeltForm.toBelt)} className="w-full max-w-[200px]" />
+                              : <p className="text-xs text-gray-400 italic">Selecciona un cinturón</p>
+                            }
+                          </div>
                         </div>
 
-                        {!isAnulado && p.deletable && (
-                          <button
-                            onClick={() => { setAnularTarget(p); setAnularReason(''); }}
-                            className="flex-shrink-0 text-gray-300 hover:text-red-400 transition-colors"
-                            title="Anular registro"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                        {/* Demotion warning */}
+                        {isDemotion && (
+                          <div className="flex items-start gap-2 bg-red-100 border border-red-200 rounded-lg px-3 py-2.5">
+                            <span className="text-red-500 flex-shrink-0 mt-0.5">⚠️</span>
+                            <p className="text-xs text-red-700">
+                              Estás bajando de <strong>{disc.belt}</strong> a <strong>{discBeltForm.toBelt}</strong>. Esto quedará registrado como una <strong>degradación</strong> en el historial. Si fue un error de carga, usa <em>Anular</em> en el historial en vez de degradar.
+                            </p>
+                          </div>
                         )}
-                        {!isAnulado && !p.deletable && (
-                          <span className="flex-shrink-0 text-xs text-gray-300 italic" title="Registro permanente">🔒</span>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Nuevo cinturón *</label>
+                            <select
+                              value={discBeltForm.toBelt}
+                              onChange={(e) => setDiscBeltForm((f) => ({ ...f, toBelt: e.target.value }))}
+                              className={`w-full px-3 py-2 border rounded-lg text-sm outline-none bg-white ${isDemotion ? 'border-red-300 focus:ring-2 focus:ring-red-400' : 'border-gray-200 focus:ring-2 focus:ring-blue-400'}`}
+                            >
+                              <option value="">Seleccionar...</option>
+                              {beltList
+                                .filter((b) => b !== disc.belt)
+                                .map((b) => {
+                                  const idx = beltList.indexOf(b);
+                                  const isDown = currentIdx !== -1 && idx < currentIdx;
+                                  return <option key={b} value={b}>{isDown ? `↓ ${b} (degradación)` : b}</option>;
+                                })}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Fecha *</label>
+                            <DatePicker
+                              value={discBeltForm.promotionDate}
+                              max={todayYMD()}
+                              onChange={(v) => setDiscBeltForm((f) => ({ ...f, promotionDate: v }))}
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-xs text-gray-500 mb-1">
+                              {isDemotion ? 'Motivo de degradación *' : 'Notas (opcional)'}
+                            </label>
+                            <input
+                              type="text"
+                              value={discBeltForm.notes}
+                              onChange={(e) => setDiscBeltForm((f) => ({ ...f, notes: e.target.value }))}
+                              placeholder={isDemotion ? 'ej: Decisión del instructor por...' : 'ej: Aprobó examen de graduación'}
+                              className={`w-full px-3 py-2 border rounded-lg text-sm outline-none ${isDemotion ? 'border-red-300 focus:ring-2 focus:ring-red-400 bg-white' : 'border-gray-200 focus:ring-2 focus:ring-blue-400 bg-white'}`}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleDiscChangeBelt(disc)}
+                            disabled={!discBeltForm.toBelt || !discBeltForm.promotionDate || (isDemotion && !discBeltForm.notes.trim()) || discFormSaving}
+                            className={`text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50 ${isDemotion ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                          >
+                            {discFormSaving ? 'Guardando...' : isDemotion ? 'Confirmar degradación' : 'Confirmar cambio'}
+                          </button>
+                          <button
+                            onClick={() => setDiscActiveFormFor(disc.id, null)}
+                            className="text-xs text-gray-500 hover:text-gray-700 border border-gray-200 bg-white px-4 py-2 rounded-lg transition-colors"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* History + Results expanded panel */}
+                  {isExpanded && (
+                    <div className="border-t border-gray-100 bg-gray-50 p-4 space-y-5">
+
+                      {/* Belt promotion history */}
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Historial de graduaciones</h4>
+                          {discPromos !== null && discPromos.some((p) => p.deleted) && (
+                            <button
+                              type="button"
+                              onClick={() => setDiscShowAnulados((prev) => ({ ...prev, [disc.id]: !prev[disc.id] }))}
+                              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                              {discShowAnulados[disc.id]
+                                ? 'Ocultar anulados'
+                                : `Mostrar anulados (${discPromos.filter((p) => p.deleted).length})`}
+                            </button>
+                          )}
+                        </div>
+                        {discPromos === null ? (
+                          <p className="text-xs text-gray-400 text-center py-2">Cargando...</p>
+                        ) : discPromos.filter((p) => !p.deleted || discShowAnulados[disc.id]).length === 0 ? (
+                          <p className="text-xs text-gray-400 text-center py-2">Sin registros de graduación</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {discPromos.filter((p) => !p.deleted || discShowAnulados[disc.id]).map((promo) => {
+                              const tc = TYPE_CONFIG[promo.type];
+                              const fromHex = promo.fromBelt ? getBeltColorHex(promo.fromBelt) : undefined;
+                              const toHex = getBeltColorHex(promo.toBelt);
+                              return (
+                                <div key={promo.id} className={`flex items-start gap-3 bg-white rounded-lg p-3 border ${promo.deleted ? 'opacity-50 border-gray-100' : 'border-gray-100'}`}>
+                                  <span className="text-base mt-0.5 flex-shrink-0">{tc.icon}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className={`text-xs font-semibold ${tc.color}`}>{tc.label}</span>
+                                      {promo.fromBelt && (
+                                        <>
+                                          <BeltBadge belt={promo.fromBelt} colorHex={fromHex} />
+                                          {promo.fromStripes != null && promo.fromStripes > 0 && (
+                                            <span className="text-amber-400 text-xs">{'★'.repeat(promo.fromStripes)}</span>
+                                          )}
+                                          <span className="text-gray-300 text-xs">→</span>
+                                        </>
+                                      )}
+                                      <BeltBadge belt={promo.toBelt} colorHex={toHex} />
+                                      {promo.toStripes > 0 && (
+                                        <span className="text-amber-400 text-xs">{'★'.repeat(promo.toStripes)}</span>
+                                      )}
+                                    </div>
+                                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-400">
+                                      <span>{formatDate(promo.promotionDate)}</span>
+                                      {promo.performedBy && <span>por {promo.performedBy}</span>}
+                                      {promo.notes && <span className="italic">"{promo.notes}"</span>}
+                                    </div>
+                                    {promo.deleted && (
+                                      <p className="text-xs text-red-400 mt-1">
+                                        Anulado{promo.deletedBy ? ` por ${promo.deletedBy}` : ''}
+                                        {promo.deletedAt ? ` · ${formatDate(promo.deletedAt)}` : ''}
+                                        {promo.deletedReason ? ` — "${promo.deletedReason}"` : ''}
+                                      </p>
+                                    )}
+                                  </div>
+                                  {!promo.deleted && promo.deletable && discAnularTarget?.id !== promo.id && (
+                                    <button
+                                      onClick={() => { setDiscAnularTarget(promo); setDiscAnularReason(''); }}
+                                      className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0 text-xs"
+                                      title="Anular registro"
+                                    >
+                                      ✕
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Competition results list */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Resultados de competición</h4>
+                        {disc.competitionResults.length === 0 ? (
+                          <p className="text-xs text-gray-400 text-center py-2">Sin resultados registrados</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {disc.competitionResults.map((result) => {
+                              const resHex = result.beltAtCompetition ? getBeltColorHex(result.beltAtCompetition) : undefined;
+                              return (
+                                <div key={result.id} className="flex items-start gap-3 bg-white rounded-lg p-3 border border-gray-100">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-sm text-gray-900">{result.tournamentName}</p>
+                                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-gray-500">
+                                      <span>{formatDate(result.date)}</span>
+                                      {result.placement && <span>🏅 {result.placement}</span>}
+                                      {result.category && <span>⚖️ {result.category}</span>}
+                                    </div>
+                                    {result.beltAtCompetition && (
+                                      <div className="flex items-center gap-1.5 mt-1.5">
+                                        <span className="text-xs text-gray-400">Cinturón:</span>
+                                        <BeltBadge belt={result.beltAtCompetition} colorHex={resHex} />
+                                        {result.stripesAtCompetition > 0 && (
+                                          <span className="text-amber-400 text-xs">{'★'.repeat(result.stripesAtCompetition)}</span>
+                                        )}
+                                      </div>
+                                    )}
+                                    {result.notes && <p className="text-xs text-gray-400 italic mt-1">"{result.notes}"</p>}
+                                  </div>
+                                  <button
+                                    onClick={() => handleDeleteResult(disc.id, result.id)}
+                                    className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0"
+                                    title="Eliminar resultado"
+                                  >
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                     </div>
-                  </li>
-                );
-              })}
-            </ol>
+                  )}
+
+                  {/* Add tournament result form — triggered by 🏅 Torneo button */}
+                  {showResultFormFor === disc.id && (
+                    <div className="border-t border-green-100 bg-green-50 px-4 py-4 space-y-3">
+                      <p className="text-xs font-semibold text-gray-700">Agregar resultado de torneo — {disc.disciplineName}</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="sm:col-span-2">
+                          <label className="block text-xs text-gray-500 mb-1">Torneo *</label>
+                          <input
+                            type="text"
+                            value={resultForm.tournamentName}
+                            onChange={(e) => setResultForm((f) => ({ ...f, tournamentName: e.target.value }))}
+                            placeholder="ej: Campeonato Nacional 2025"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-400 outline-none bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Fecha *</label>
+                          <DatePicker
+                            value={resultForm.date}
+                            max={todayYMD()}
+                            onChange={(v) => setResultForm((f) => ({ ...f, date: v }))}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Posición</label>
+                          <input
+                            type="text"
+                            value={resultForm.placement}
+                            onChange={(e) => setResultForm((f) => ({ ...f, placement: e.target.value }))}
+                            placeholder="ej: 1er lugar"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-400 outline-none bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Categoría de peso/edad</label>
+                          <input
+                            type="text"
+                            value={resultForm.category}
+                            onChange={(e) => setResultForm((f) => ({ ...f, category: e.target.value }))}
+                            placeholder="ej: -70kg Adulto"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-400 outline-none bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Cinturón en el torneo</label>
+                          <div className="flex gap-2">
+                            <select
+                              value={resultForm.beltAtCompetition ?? ''}
+                              onChange={(e) => setResultForm((f) => ({ ...f, beltAtCompetition: e.target.value || null, stripesAtCompetition: 0 }))}
+                              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-400 outline-none bg-white"
+                            >
+                              <option value="">Sin cinturón</option>
+                              {beltList.map((b) => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                            <select
+                              value={resultForm.stripesAtCompetition ?? 0}
+                              onChange={(e) => setResultForm((f) => ({ ...f, stripesAtCompetition: Number(e.target.value) }))}
+                              className="w-20 px-2 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-400 outline-none bg-white"
+                            >
+                              {Array.from({ length: maxStripes(resultForm.beltAtCompetition ?? null) + 1 }, (_, i) => (
+                                <option key={i} value={i}>{i === 0 ? '0★' : `${i}★`}</option>
+                              ))}
+                            </select>
+                          </div>
+                          {resultForm.beltAtCompetition && (() => {
+                            const hex = getBeltColorHex(resultForm.beltAtCompetition);
+                            if (!hex) return null;
+                            const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), bv = parseInt(hex.slice(5,7),16);
+                            const lum = (0.299*r + 0.587*g + 0.114*bv)/255;
+                            return (
+                              <span className="mt-1.5 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border"
+                                style={{ background: hex, color: lum < 0.45 ? '#FFF' : '#111', borderColor: hex }}>
+                                {resultForm.beltAtCompetition}
+                                {(resultForm.stripesAtCompetition ?? 0) > 0 && <span>{'★'.repeat(resultForm.stripesAtCompetition!)}</span>}
+                              </span>
+                            );
+                          })()}
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Notas</label>
+                          <input
+                            type="text"
+                            value={resultForm.notes}
+                            onChange={(e) => setResultForm((f) => ({ ...f, notes: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-400 outline-none bg-white"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleAddResult(disc.id)}
+                          disabled={!resultForm.tournamentName || !resultForm.date || discSaving}
+                          className="bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          {discSaving ? 'Guardando...' : 'Guardar resultado'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowResultFormFor(null);
+                            setResultForm({ tournamentName: '', date: todayYMD(), placement: '', category: '', notes: '', beltAtCompetition: null, stripesAtCompetition: 0 });
+                          }}
+                          className="text-xs text-gray-500 hover:text-gray-700 border border-gray-200 bg-white px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
       </div>
 
-      {/* Modal anular */}
-      {anularTarget && (
+      {/* Anular per-discipline modal */}
+      {discAnularTarget && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-6 w-full max-w-sm space-y-4">
             <h2 className="font-bold text-white">Anular registro</h2>
             <p className="text-sm text-gray-400">
-              Este registro quedará visible en el historial pero marcado como anulado. La acción no se puede deshacer.
+              El registro quedará visible en el historial marcado como anulado. La acción no se puede deshacer.
             </p>
+            <div className="bg-gray-800 rounded-lg px-3 py-2.5 text-xs text-gray-300 space-y-0.5">
+              <p className="font-semibold">{TYPE_CONFIG[discAnularTarget.type as PromotionType]?.icon} {TYPE_CONFIG[discAnularTarget.type as PromotionType]?.label}</p>
+              <p>{discAnularTarget.toBelt}{discAnularTarget.toStripes > 0 ? ` · ${'★'.repeat(discAnularTarget.toStripes)}` : ''} — {formatDate(discAnularTarget.promotionDate)}</p>
+            </div>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Motivo (opcional)</label>
               <textarea
-                value={anularReason}
-                onChange={(e) => setAnularReason(e.target.value)}
+                value={discAnularReason}
+                onChange={(e) => setDiscAnularReason(e.target.value)}
                 rows={3}
-                placeholder="Ej: registro duplicado, error de fecha..."
-                className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 placeholder:text-gray-500 resize-none"
+                placeholder="ej: registro duplicado, error de fecha..."
+                className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500 placeholder:text-gray-500 resize-none"
               />
             </div>
             <div className="flex gap-3">
               <button
-                onClick={handleAnular}
-                disabled={saving}
+                onClick={() => {
+                  const disc = disciplines.find(d => d.id === discAnularTarget.studentDisciplineId);
+                  if (disc) handleDiscAnular(disc);
+                }}
+                disabled={discFormSaving}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
               >
-                {saving ? 'Anulando...' : 'Anular registro'}
+                {discFormSaving ? 'Anulando...' : 'Anular registro'}
               </button>
               <button
-                onClick={() => setAnularTarget(null)}
+                onClick={() => { setDiscAnularTarget(null); setDiscAnularReason(''); }}
                 className="border border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white px-4 py-2 rounded-lg text-sm transition-colors"
               >
                 Cancelar
@@ -613,6 +1161,7 @@ export default function StudentDetail() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

@@ -31,4 +31,8 @@ public class BeltPromotionDto {
     private String deletedReason;
     private String deletedAt;
     private String reason; // used only in PATCH /anular request
+
+    // Per-discipline promotion fields
+    private Long studentDisciplineId;
+    private String disciplineName;
 }

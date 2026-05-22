@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface BeltPromotionRepository extends JpaRepository<BeltPromotion, Long> {
     List<BeltPromotion> findByStudentIdAndAcademyIdOrderByPromotionDateDescIdDesc(Long studentId, Long academyId);
+    List<BeltPromotion> findByStudentDisciplineIdOrderByPromotionDateAscIdAsc(Long studentDisciplineId);
     List<BeltPromotion> findTop5ByAcademyIdOrderByPromotionDateDesc(Long academyId);
     List<BeltPromotion> findByAcademyIdOrderByStudentNameAscPromotionDateDesc(Long academyId);
 }

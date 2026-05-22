@@ -127,7 +127,7 @@ public class PublicController {
                     pd.setPhotoUrl(p.getPhotoUrl());
                     pd.setBio(p.getBio());
                     pd.setAchievements(p.getAchievements());
-                    pd.setBelt(p.getBelt());
+                    pd.setBelt(p.getStudent() != null ? p.getStudent().getBelt() : null);
                     pd.setDisplayOrder(p.getDisplayOrder());
                     // Disciplines and class names from plans where professor is the default
                     List<com.jjplatform.api.model.Plan> profPlans = a.getPlans().stream()

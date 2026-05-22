@@ -93,7 +93,6 @@ export default function StudentForm() {
     if (!form.joinDate) e.joinDate = 'La fecha de ingreso es obligatoria';
     if (form.age === null || form.age === undefined) e.age = 'La edad es obligatoria';
     else if (form.age < 1 || form.age > 150) e.age = 'La edad debe estar entre 1 y 150';
-    if (!isEdit && !form.belt) e.belt = 'El cinturón inicial es obligatorio';
     if (!form.address?.trim()) e.address = 'La dirección es obligatoria';
     if (!form.planIds || form.planIds.length === 0) e.planIds = 'Debe seleccionar al menos un plan';
     setErrors(e);
@@ -304,25 +303,8 @@ export default function StudentForm() {
             {errors.age && <p className={err}>{errors.age}</p>}
           </div>
           {!isEdit && (
-            <div>
-              <label className={lbl}>Cinturón inicial *</label>
-              <FormSelect
-                value={form.belt ?? ''}
-                onChange={(e) => {
-                  setForm({ ...form, belt: e.target.value || null });
-                  setErrors((er) => ({ ...er, belt: undefined }));
-                }}
-                error={errors.belt}
-              >
-                <option value="">Seleccionar cinturón...</option>
-                <optgroup label="Juveniles (≤ 15 años)">
-                  {['Blanco','Gris','Amarillo','Naranja','Verde'].map(b => <option key={b} value={b}>{b}</option>)}
-                </optgroup>
-                <optgroup label="Adultos (16+ años)">
-                  {['Blanco','Azul','Morado','Café','Negro'].map(b => <option key={b} value={b}>{b}</option>)}
-                </optgroup>
-              </FormSelect>
-              {errors.belt && <p className={err}>{errors.belt}</p>}
+            <div className="col-span-2 bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3 text-xs text-blue-300">
+              El cinturón y disciplina se asignan desde la ficha del alumno una vez creado.
             </div>
           )}
         </div>

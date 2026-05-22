@@ -52,6 +52,14 @@ export interface AcademySummary {
 }
 
 // ─── Student ───
+export interface StudentDisciplineBelt {
+  disciplineId: number;
+  disciplineName: string;
+  belt: string;
+  stripes: number;
+  beltColorHex: string | null;
+}
+
 export interface Student {
   id: number;
   name: string;
@@ -74,6 +82,7 @@ export interface Student {
   active: boolean;
   planIds?: number[];
   enrolledPlans?: Array<{ id: number; name: string; disciplineName: string | null; price: number | null; professorId: number | null; professorName: string | null }>;
+  disciplineBelts?: StudentDisciplineBelt[];
 }
 
 export type PromotionType = 'PROMOCION' | 'DEGRADACION' | 'GRADO';
@@ -96,6 +105,8 @@ export interface BeltPromotion {
   deletedBy: string | null;
   deletedReason: string | null;
   deletedAt: string | null;
+  studentDisciplineId: number | null;
+  disciplineName: string | null;
 }
 
 export interface BeltPromotionForm {
@@ -106,9 +117,74 @@ export interface BeltPromotionForm {
   toStripes: number;
   promotionDate: string;
   notes: string | null;
+  studentDisciplineId?: number | null;
 }
 
-export type StudentForm = Omit<Student, 'id' | 'stripes'>;
+export type StudentForm = Omit<Student, 'id' | 'belt' | 'stripes'>;
+
+// ─── Discipline belt configuration ───
+export interface DisciplineBelt {
+  id: number;
+  name: string;
+  colorHex: string;
+  displayOrder: number;
+}
+
+export interface DisciplineAgeCategory {
+  id: number;
+  disciplineId: number;
+  name: string;
+  minAge: number | null;
+  maxAge: number | null;
+  displayOrder: number;
+  belts: DisciplineBelt[];
+}
+
+// ─── StudentDiscipline ───
+export interface CompetitionResult {
+  id: number;
+  studentDisciplineId: number;
+  tournamentName: string;
+  date: string;
+  placement: string | null;
+  category: string | null;
+  beltAtCompetition: string | null;
+  stripesAtCompetition: number;
+  notes: string | null;
+}
+
+export interface CompetitionResultForm {
+  tournamentName: string;
+  date: string;
+  placement: string;
+  category: string;
+  notes: string;
+  beltAtCompetition?: string | null;
+  stripesAtCompetition?: number;
+}
+
+export interface StudentDiscipline {
+  id: number;
+  studentId: number;
+  disciplineId: number;
+  disciplineName: string;
+  ageCategoryId: number | null;
+  ageCategoryName: string | null;
+  belt: string | null;
+  beltColorHex: string | null;
+  stripes: number;
+  joinDate: string | null;
+  active: boolean;
+  competitionResults: CompetitionResult[];
+}
+
+export interface StudentDisciplineForm {
+  disciplineId: number;
+  ageCategoryId: number | null;
+  belt: string | null;
+  stripes: number;
+  joinDate: string | null;
+}
 
 // ─── Payment ───
 export interface Payment {
@@ -241,6 +317,7 @@ export interface Discipline {
   id: number;
   name: string;
   active: boolean;
+  ageCategories: DisciplineAgeCategory[];
 }
 
 export interface Professor {
@@ -252,6 +329,10 @@ export interface Professor {
   belt: string | null;
   displayOrder: number | null;
   active: boolean;
+  studentId: number | null;
+  studentName: string | null;
+  disciplineId: number | null;
+  disciplineName: string | null;
 }
 
 export interface ProfessorForm {
@@ -259,8 +340,9 @@ export interface ProfessorForm {
   photoUrl: string | null;
   bio: string | null;
   achievements: string | null;
-  belt: string | null;
   displayOrder: number;
+  studentId: number | null;
+  disciplineId: number | null;
 }
 
 export interface ProfessorPublic {

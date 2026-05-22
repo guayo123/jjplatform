@@ -21,7 +21,6 @@ const BELT_COLORS: Record<string, string> = {
   Negro:   'bg-gray-900 text-white',
 };
 
-const ALL_BELTS = ['Blanco', 'Gris', 'Amarillo', 'Naranja', 'Verde', 'Azul', 'Morado', 'Café', 'Negro'];
 
 type CompOp = '>=' | '<=' | '=';
 
@@ -52,11 +51,28 @@ function applyOp(value: number | null, op: CompOp, target: number): boolean {
   return value === target;
 }
 
-function BeltBadge({ belt }: { belt: string }) {
-  const cls = BELT_COLORS[belt] ?? 'bg-gray-100 text-gray-600';
+function BeltBadge({ belt, stripes, colorHex }: { belt: string; stripes?: number | null; colorHex?: string | null }) {
+  const style = colorHex
+    ? (() => {
+        const r = parseInt(colorHex.slice(1, 3), 16);
+        const g = parseInt(colorHex.slice(3, 5), 16);
+        const b = parseInt(colorHex.slice(5, 7), 16);
+        const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        return { background: colorHex, color: lum < 0.45 ? '#fff' : '#111827', borderColor: colorHex };
+      })()
+    : undefined;
+  const cls = colorHex ? '' : (BELT_COLORS[belt] ?? 'bg-gray-100 text-gray-700 border border-gray-300');
   return (
-    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${cls}`}>
-      {belt}
+    <span className="inline-flex items-center gap-1">
+      <span
+        className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${cls}`}
+        style={style}
+      >
+        {belt}
+      </span>
+      {stripes != null && stripes > 0 && (
+        <span className="text-amber-400 text-xs leading-none">{'★'.repeat(stripes)}</span>
+      )}
     </span>
   );
 }
@@ -94,10 +110,27 @@ export default function Students() {
     filters.age !== '' ||
     filters.weight !== '';
 
+  const availableBelts = useMemo(() => {
+    const seen = new Set<string>();
+    students.forEach((s) => {
+      if (s.disciplineBelts && s.disciplineBelts.length > 0) {
+        s.disciplineBelts.forEach((db) => seen.add(db.belt));
+      } else if (s.belt) {
+        seen.add(s.belt);
+      }
+    });
+    return Array.from(seen).sort();
+  }, [students]);
+
   const filtered = useMemo(() => {
     return students.filter((s) => {
       if (filters.name && !s.name.toLowerCase().includes(filters.name.toLowerCase())) return false;
-      if (filters.belt && s.belt !== filters.belt) return false;
+      if (filters.belt) {
+        const hasBelt = s.disciplineBelts && s.disciplineBelts.length > 0
+          ? s.disciplineBelts.some((db) => db.belt === filters.belt)
+          : s.belt === filters.belt;
+        if (!hasBelt) return false;
+      }
       if (filters.status === 'active' && !s.active) return false;
       if (filters.status === 'inactive' && s.active) return false;
       if (filters.age !== '') {
@@ -135,7 +168,6 @@ export default function Students() {
       joinDate: student.joinDate,
       age: student.age,
       weight: student.weight,
-      belt: student.belt,
       photoUrl: student.photoUrl,
       address: student.address,
       medicalNotes: student.medicalNotes,
@@ -202,7 +234,7 @@ export default function Students() {
               onChange={(e) => set('belt', e.target.value)}
             >
               <option value="">Todos los cinturones</option>
-              {ALL_BELTS.map((b) => (
+              {availableBelts.map((b) => (
                 <option key={b} value={b}>{b}</option>
               ))}
             </FormSelect>
@@ -311,7 +343,12 @@ export default function Students() {
                     <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
                       {student.age && <span>{student.age} años</span>}
                       {student.weight && <span>{student.weight} kg</span>}
-                      {student.belt && <BeltBadge belt={student.belt} />}
+                      {student.disciplineBelts && student.disciplineBelts.length > 0
+                        ? student.disciplineBelts.map((d) => (
+                            <BeltBadge key={d.disciplineId} belt={d.belt} stripes={d.stripes} colorHex={d.beltColorHex} />
+                          ))
+                        : student.belt && <BeltBadge belt={student.belt} stripes={student.stripes} />
+                      }
                     </div>
                   </div>
                 </div>
@@ -376,7 +413,16 @@ export default function Students() {
                       {student.weight != null ? `${student.weight} kg` : '—'}
                     </td>
                     <td className="px-6 py-4">
-                      {student.belt ? <BeltBadge belt={student.belt} /> : <span className="text-gray-400 text-sm">—</span>}
+                      {student.disciplineBelts && student.disciplineBelts.length > 0
+                        ? <div className="flex flex-wrap gap-1">
+                            {student.disciplineBelts.map((d) => (
+                              <BeltBadge key={d.disciplineId} belt={d.belt} stripes={d.stripes} colorHex={d.beltColorHex} />
+                            ))}
+                          </div>
+                        : student.belt
+                          ? <BeltBadge belt={student.belt} stripes={student.stripes} />
+                          : <span className="text-gray-400 text-sm">—</span>
+                      }
                     </td>
                     <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                       {canEdit ? (

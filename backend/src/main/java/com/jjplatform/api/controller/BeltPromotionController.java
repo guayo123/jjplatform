@@ -24,6 +24,11 @@ public class BeltPromotionController {
         return ResponseEntity.ok(beltPromotionService.getByStudent(studentId, academyId));
     }
 
+    @GetMapping("/by-discipline")
+    public ResponseEntity<List<BeltPromotionDto>> getByStudentDiscipline(@RequestParam Long studentDisciplineId) {
+        return ResponseEntity.ok(beltPromotionService.getByStudentDiscipline(studentDisciplineId));
+    }
+
     @GetMapping("/all")
     public ResponseEntity<List<BeltPromotionDto>> getAll() {
         Long academyId = securityHelper.getCurrentAcademyId();

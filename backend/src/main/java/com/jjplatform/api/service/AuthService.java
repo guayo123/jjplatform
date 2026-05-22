@@ -21,6 +21,7 @@ public class AuthService {
     private final AcademyRepository academyRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final DefaultDisciplineService defaultDisciplineService;
 
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail().toLowerCase())
@@ -76,6 +77,9 @@ public class AuthService {
                 .build();
 
         academy = academyRepository.save(academy);
+
+        defaultDisciplineService.createJiuJitsuIfAbsent(academy);
+        defaultDisciplineService.createKickboxingIfAbsent(academy);
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getId());
 

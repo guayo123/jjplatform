@@ -121,6 +121,17 @@ public class BracketService {
                     match.setParticipant2(prev2.getWinner());
                 }
 
+                // Auto-advance when this match is itself a BYE: only one of the
+                // two previous matches produced a real participant (the other
+                // had no participants at all — double-BYE).
+                boolean prev1Resolved = prev1.getParticipant1() == null && prev1.getParticipant2() == null;
+                boolean prev2Resolved = prev2.getParticipant1() == null && prev2.getParticipant2() == null;
+                if (match.getParticipant1() != null && match.getParticipant2() == null && prev2Resolved) {
+                    match.setWinner(match.getParticipant1());
+                } else if (match.getParticipant2() != null && match.getParticipant1() == null && prev1Resolved) {
+                    match.setWinner(match.getParticipant2());
+                }
+
                 match = matchRepository.save(match);
                 nextRound.add(match);
             }
@@ -178,7 +189,89 @@ public class BracketService {
                         nextMatch.setParticipant2(winner);
                     }
                     matchRepository.save(nextMatch);
+
+                    // If the sibling slot is permanently empty (its source match
+                    // had no participants at all), auto-advance this winner.
+                    int siblingMatchNumber = match.getMatchNumber() % 2 == 1
+                            ? match.getMatchNumber() + 1
+                            : match.getMatchNumber() - 1;
+                    boolean siblingIsDoubleBye = allMatches.stream()
+                            .filter(m -> m.getRound() == match.getRound()
+                                    && m.getMatchNumber() == siblingMatchNumber
+                                    && Objects.equals(m.getCategoryGroup(), categoryGroup))
+                            .findFirst()
+                            .map(s -> s.getParticipant1() == null && s.getParticipant2() == null)
+                            .orElse(false);
+
+                    if (siblingIsDoubleBye && nextMatch.getWinner() == null) {
+                        nextMatch.setWinner(winner);
+                        matchRepository.save(nextMatch);
+                        advanceWinner(tournament, nextMatch, winner);
+                    }
                 });
+    }
+
+    /**
+     * Idempotent repair pass for brackets generated before the BYE-cascade fix.
+     * Scans all matches in order and, when a match has exactly one real
+     * participant and its sibling-source match is empty (double-BYE), assigns
+     * the winner and propagates forward.
+     */
+    @Transactional
+    public void repairByeAdvances(Tournament tournament) {
+        List<BracketMatch> all = matchRepository
+                .findByTournamentIdOrderByRoundAscMatchNumberAsc(tournament.getId());
+        if (all.isEmpty()) return;
+
+        int maxRound = all.stream().mapToInt(BracketMatch::getRound).max().orElse(1);
+
+        for (int round = 1; round <= maxRound; round++) {
+            for (BracketMatch m : all) {
+                if (m.getRound() != round || m.getWinner() != null) continue;
+
+                TournamentParticipant onlyOne = null;
+                if (m.getParticipant1() != null && m.getParticipant2() == null) onlyOne = m.getParticipant1();
+                else if (m.getParticipant2() != null && m.getParticipant1() == null) onlyOne = m.getParticipant2();
+                if (onlyOne == null) continue;
+
+                // For round 1 this is always a real BYE; for later rounds confirm
+                // the empty slot's source is a double-BYE (no participants).
+                boolean isBye = true;
+                if (round > 1) {
+                    int srcMatchNumber = m.getParticipant1() == null
+                            ? (m.getMatchNumber() * 2) - 1   // missing slot 1 comes from odd source
+                            : (m.getMatchNumber() * 2);      // missing slot 2 comes from even source
+                    final int srcMN = srcMatchNumber;
+                    isBye = all.stream()
+                            .filter(x -> x.getRound() == round - 1
+                                    && x.getMatchNumber() == srcMN
+                                    && Objects.equals(x.getCategoryGroup(), m.getCategoryGroup()))
+                            .findFirst()
+                            .map(x -> x.getParticipant1() == null && x.getParticipant2() == null)
+                            .orElse(false);
+                }
+                if (!isBye) continue;
+
+                m.setWinner(onlyOne);
+                matchRepository.save(m);
+
+                // Place winner in next round so the subsequent iteration can continue the chain.
+                int nextRound = round + 1;
+                int nextMN    = (m.getMatchNumber() + 1) / 2;
+                String cg     = m.getCategoryGroup();
+                final TournamentParticipant w = onlyOne;
+                all.stream()
+                        .filter(n -> n.getRound() == nextRound
+                                && n.getMatchNumber() == nextMN
+                                && Objects.equals(n.getCategoryGroup(), cg))
+                        .findFirst()
+                        .ifPresent(n -> {
+                            if (m.getMatchNumber() % 2 == 1) n.setParticipant1(w);
+                            else n.setParticipant2(w);
+                            matchRepository.save(n);
+                        });
+            }
+        }
     }
 
     private int nextPowerOf2(int n) {

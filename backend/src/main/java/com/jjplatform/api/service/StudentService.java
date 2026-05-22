@@ -3,12 +3,12 @@ package com.jjplatform.api.service;
 import com.jjplatform.api.dto.StudentDto;
 import com.jjplatform.api.exception.ResourceNotFoundException;
 import com.jjplatform.api.model.Academy;
-import com.jjplatform.api.model.BeltPromotion;
 import com.jjplatform.api.model.Plan;
 import com.jjplatform.api.model.Student;
+import com.jjplatform.api.model.StudentDiscipline;
 import com.jjplatform.api.repository.AcademyRepository;
-import com.jjplatform.api.repository.BeltPromotionRepository;
 import com.jjplatform.api.repository.PlanRepository;
+import com.jjplatform.api.repository.StudentDisciplineRepository;
 import com.jjplatform.api.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,20 +26,88 @@ public class StudentService {
     private final StudentRepository studentRepository;
     private final AcademyRepository academyRepository;
     private final PlanRepository planRepository;
-    private final BeltPromotionRepository beltPromotionRepository;
+    private final StudentDisciplineRepository studentDisciplineRepository;
     private final SecurityHelper securityHelper;
 
     @Transactional(readOnly = true)
     public List<StudentDto> getStudentsByAcademy(Long academyId) {
-        return studentRepository.findByAcademyIdOrderByNameAsc(academyId).stream()
-                .map(this::toDto)
+        // Exclude "shell" students created solely to back a Professor's belt history
+        // (heuristic: inactive AND no plans assigned).
+        List<Student> students = studentRepository.findByAcademyIdOrderByNameAsc(academyId).stream()
+                .filter(s -> Boolean.TRUE.equals(s.getActive()) || (s.getPlans() != null && !s.getPlans().isEmpty()))
                 .toList();
+
+        // Batch-load all active disciplines for every student (single query)
+        List<Long> allIds = students.stream().map(Student::getId).toList();
+        Map<Long, List<StudentDiscipline>> discsByStudent = allIds.isEmpty()
+                ? Map.of()
+                : studentDisciplineRepository.findByStudentIdInAndActiveTrue(allIds)
+                        .stream()
+                        .collect(Collectors.groupingBy(sd -> sd.getStudent().getId()));
+
+        return students.stream().map(s -> {
+            StudentDto dto = toDto(s);
+            List<StudentDiscipline> discs = discsByStudent.getOrDefault(s.getId(), List.of());
+
+            // disciplineBelts list — one entry per active discipline that has a belt
+            List<StudentDto.DisciplineBeltInfo> beltInfos = discs.stream()
+                    .filter(sd -> sd.getBelt() != null)
+                    .map(sd -> {
+                        StudentDto.DisciplineBeltInfo info = new StudentDto.DisciplineBeltInfo();
+                        info.setDisciplineId(sd.getDiscipline().getId());
+                        info.setDisciplineName(sd.getDiscipline().getName());
+                        info.setBelt(sd.getBelt());
+                        info.setStripes(sd.getStripes());
+                        String hex = sd.getAgeCategory() == null ? null :
+                                sd.getAgeCategory().getBelts().stream()
+                                        .filter(b -> b.getName().equals(sd.getBelt()))
+                                        .map(b -> b.getColorHex())
+                                        .findFirst().orElse(null);
+                        info.setBeltColorHex(hex);
+                        return info;
+                    }).toList();
+            dto.setDisciplineBelts(beltInfos);
+
+            // Keep student.belt in sync: prefer discipline data over legacy global field
+            if (!beltInfos.isEmpty()) {
+                dto.setBelt(beltInfos.get(0).getBelt());
+                dto.setStripes(beltInfos.get(0).getStripes());
+            }
+            return dto;
+        }).toList();
     }
 
     @Transactional(readOnly = true)
     public StudentDto getStudent(Long id, Long academyId) {
         Student student = findStudentByIdAndAcademy(id, academyId);
-        return toDto(student);
+        StudentDto dto = toDto(student);
+
+        List<StudentDiscipline> discs = studentDisciplineRepository
+                .findByStudentIdInAndActiveTrue(List.of(id));
+
+        List<StudentDto.DisciplineBeltInfo> beltInfos = discs.stream()
+                .filter(sd -> sd.getBelt() != null)
+                .map(sd -> {
+                    StudentDto.DisciplineBeltInfo info = new StudentDto.DisciplineBeltInfo();
+                    info.setDisciplineId(sd.getDiscipline().getId());
+                    info.setDisciplineName(sd.getDiscipline().getName());
+                    info.setBelt(sd.getBelt());
+                    info.setStripes(sd.getStripes());
+                    String hex = sd.getAgeCategory() == null ? null :
+                            sd.getAgeCategory().getBelts().stream()
+                                    .filter(b -> b.getName().equals(sd.getBelt()))
+                                    .map(b -> b.getColorHex())
+                                    .findFirst().orElse(null);
+                    info.setBeltColorHex(hex);
+                    return info;
+                }).toList();
+
+        dto.setDisciplineBelts(beltInfos);
+        if (!beltInfos.isEmpty()) {
+            dto.setBelt(beltInfos.get(0).getBelt());
+            dto.setStripes(beltInfos.get(0).getStripes());
+        }
+        return dto;
     }
 
     @Transactional
@@ -54,7 +124,6 @@ public class StudentService {
                 .joinDate(dto.getJoinDate() != null ? LocalDate.parse(dto.getJoinDate()) : null)
                 .age(dto.getAge())
                 .weight(dto.getWeight())
-                .belt(dto.getBelt())
                 .photoUrl(dto.getPhotoUrl())
                 .address(dto.getAddress())
                 .medicalNotes(dto.getMedicalNotes())
@@ -72,25 +141,6 @@ public class StudentService {
         }
 
         student = studentRepository.save(student);
-
-        if (dto.getBelt() != null) {
-            LocalDate promotionDate = student.getJoinDate() != null ? student.getJoinDate() : LocalDate.now();
-            String performedBy = securityHelper.getCurrentUser().getEmail();
-            BeltPromotion initial = BeltPromotion.builder()
-                    .student(student)
-                    .academy(academy)
-                    .type(BeltPromotion.PromotionType.PROMOCION)
-                    .fromBelt(null)
-                    .fromStripes(0)
-                    .toBelt(dto.getBelt())
-                    .toStripes(0)
-                    .promotionDate(promotionDate)
-                    .performedBy(performedBy)
-                    .deletable(true)
-                    .build();
-            beltPromotionRepository.save(initial);
-        }
-
         return toDto(student);
     }
 

@@ -41,6 +41,7 @@ public class StudentDto {
 
     private List<Long> planIds;
     private List<PlanInfo> enrolledPlans;
+    private List<DisciplineBeltInfo> disciplineBelts;
 
     @Data
     public static class PlanInfo {
@@ -50,5 +51,14 @@ public class StudentDto {
         private Integer price;
         private Long professorId;
         private String professorName;
+    }
+
+    @Data
+    public static class DisciplineBeltInfo {
+        private Long disciplineId;
+        private String disciplineName;
+        private String belt;
+        private Integer stripes;
+        private String beltColorHex;
     }
 }

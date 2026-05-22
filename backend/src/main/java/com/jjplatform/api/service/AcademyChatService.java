@@ -340,7 +340,8 @@ public class AcademyChatService {
             sb.append("PROFESORES:\n");
             for (Professor p : professors) {
                 sb.append("- ").append(p.getName());
-                if (p.getBelt() != null) sb.append(", cinturón ").append(p.getBelt());
+                String belt = p.getStudent() != null ? p.getStudent().getBelt() : null;
+                if (belt != null) sb.append(", cinturón ").append(belt);
                 if (p.getBio() != null && !p.getBio().isBlank())
                     sb.append(". ").append(p.getBio());
                 sb.append("\n");

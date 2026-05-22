@@ -62,4 +62,8 @@ public class BeltPromotion {
     private String deletedReason;
 
     private LocalDate deletedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "student_discipline_id")
+    private StudentDiscipline studentDiscipline;
 }

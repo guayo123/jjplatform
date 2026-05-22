@@ -37,6 +37,13 @@ public class TournamentService {
     }
 
     @Transactional
+    public TournamentDto repairByes(Long id, Long academyId) {
+        Tournament tournament = findByIdAndAcademy(id, academyId);
+        bracketService.repairByeAdvances(tournament);
+        return toDto(findByIdAndAcademy(id, academyId));
+    }
+
+    @Transactional
     public TournamentDto createTournament(TournamentDto dto, Long academyId) {
         Academy academy = academyRepository.findById(academyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Academy not found"));

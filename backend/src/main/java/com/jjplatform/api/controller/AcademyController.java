@@ -1,5 +1,6 @@
 package com.jjplatform.api.controller;
 
+import com.jjplatform.api.dto.DisciplineAgeCategoryDto;
 import com.jjplatform.api.dto.UpdateAcademyRequest;
 import com.jjplatform.api.model.Academy;
 import com.jjplatform.api.model.ClassSchedule;
@@ -8,10 +9,12 @@ import com.jjplatform.api.model.Plan;
 import com.jjplatform.api.model.Professor;
 import com.jjplatform.api.repository.AcademyRepository;
 import com.jjplatform.api.repository.ClassScheduleRepository;
+import com.jjplatform.api.repository.DisciplineAgeCategoryRepository;
 import com.jjplatform.api.repository.DisciplineRepository;
 import com.jjplatform.api.repository.PlanRepository;
 import com.jjplatform.api.repository.ProfessorRepository;
 import com.jjplatform.api.service.AcademyChatService;
+import com.jjplatform.api.service.DisciplineBeltService;
 import com.jjplatform.api.service.SecurityHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -31,9 +34,11 @@ public class AcademyController {
     private final PlanRepository planRepository;
     private final ClassScheduleRepository classScheduleRepository;
     private final DisciplineRepository disciplineRepository;
+    private final DisciplineAgeCategoryRepository disciplineAgeCategoryRepository;
     private final ProfessorRepository professorRepository;
     private final SecurityHelper securityHelper;
     private final AcademyChatService academyChatService;
+    private final DisciplineBeltService disciplineBeltService;
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> getMyAcademy() {
@@ -312,6 +317,8 @@ public class AcademyController {
         m.put("id", d.getId());
         m.put("name", d.getName());
         m.put("active", d.getActive());
+        List<DisciplineAgeCategoryDto> categories = disciplineBeltService.getCategories(d.getId());
+        m.put("ageCategories", categories);
         return m;
     }
 

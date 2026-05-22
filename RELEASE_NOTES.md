@@ -5,6 +5,49 @@
 
 ## Actualización — Mayo 2026
 
+### Disciplinas — Categorías de edad y cinturones configurables
+- Cada disciplina ahora se organiza en **categorías de edad** (ej: Niños, Adultos, General), cada una con su propio rango de edad (mínima/máxima)
+- Cada categoría tiene su **progresión de cinturones** independiente, con nombre, color (hex) y orden de visualización
+- Desde el panel **Disciplinas** se pueden crear, editar, eliminar y reordenar categorías y cinturones
+- Nuevas tablas: `discipline_age_categories` y `discipline_belts`
+- Endpoints nuevos en `DisciplineBeltController` (`/api/disciplines/{id}/categories`, `/categories/{id}/belts`, etc.)
+
+### Jiu Jitsu predefinido — Categorías y cinturones IBJJF
+- Al registrar una academia se siembra **Jiu Jitsu** con dos categorías:
+  - **Niños (4–15 años):** Blanco, Gris, Amarillo, Naranja, Verde
+  - **Adultos (16+ años):** Blanco, Azul, Morado, Café, Negro, Rojo y Negro, Rojo y Blanco, Rojo
+- Edades mínimas alineadas a IBJJF
+- Sembrado idempotente vía `DefaultDisciplineService.createJiuJitsuIfAbsent`
+
+### Disciplinas predefinidas — Kickboxing
+- Al registrar una academia, además de **Jiu Jitsu** ahora se siembra automáticamente la disciplina **Kickboxing**
+- Cinturones configurados en una categoría **General** (sin restricción de edad): Blanco, Amarillo, Naranja, Verde, Azul, Café y Negro
+- Sembrado idempotente: en cada arranque del backend se aplica a las academias existentes sin duplicar datos
+- La carga se realiza vía `DefaultDisciplineService.createKickboxingIfAbsent` invocada desde `DataSeeder` (academias existentes) y desde `AuthService.register` (academias nuevas)
+
+### Alumnos — Inscripción por disciplina
+- Un alumno puede inscribirse en **varias disciplinas**, cada una con su propio cinturón, rayas (stripes), categoría de edad y fecha de ingreso
+- Nueva tabla `student_disciplines` con restricción única por alumno + disciplina
+- El detalle del alumno (`StudentDetail`) se rediseñó para mostrar y gestionar las disciplinas inscritas
+- El listado de alumnos muestra el cinturón por disciplina (`disciplineBelts` en `StudentDto`)
+- Endpoints nuevos en `StudentDisciplineController` (`/api/students/{id}/disciplines`)
+
+### Cinturones — Historial de promoción por disciplina
+- Las promociones de cinturón ahora se asocian a una **disciplina específica del alumno** (`StudentDiscipline`), no solo al alumno global
+- El orden de cinturones para detectar promoción/grado/degradación se resuelve desde la categoría de edad de la disciplina (con un orden por defecto como respaldo)
+- La anulación en cascada y el recálculo del cinturón vigente operan por disciplina
+- Se mantiene la compatibilidad con las promociones globales antiguas (`studentDiscipline = null`)
+
+### Resultados de competencias
+- Se pueden registrar **resultados de torneos** por disciplina del alumno: nombre del torneo, fecha, puesto, categoría y notas
+- Cada resultado guarda un **snapshot del cinturón y rayas** del alumno al momento de competir
+- Nueva tabla `competition_results`
+
+### Profesores — Vínculo con alumno y disciplina
+- El profesor puede vincularse a un registro de **alumno** (para reutilizar su historial de cinturón) y a una **disciplina**
+- Se eliminó el campo de texto libre `belt` del profesor en favor del historial real
+- El listado de alumnos excluye los "alumnos sombra" creados solo para respaldar el historial de un profesor
+
 ### Diseño "Dojo" — Componentes de formulario unificados
 - Se crearon componentes reutilizables con estilo oscuro consistente: `FormInput`, `FormSelect`, `FormTextarea`
 - Todos los formularios del panel admin (Alumnos, Profesores, Planes, Horarios, Pagos, Torneos, Usuarios, Disciplinas, Configuración) actualizados al nuevo estilo
