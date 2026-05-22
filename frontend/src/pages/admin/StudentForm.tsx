@@ -66,7 +66,7 @@ export default function StudentForm() {
   const [form, setForm] = useState<StudentFormType>({
     name: '', nickname: null, rut: null, email: null, phone: null,
     emergencyPhone: null, joinDate: null, age: null, weight: null,
-    belt: null, photoUrl: null, address: null, medicalNotes: null,
+    photoUrl: null, address: null, medicalNotes: null,
     bloodType: null, healthInsuranceType: null, healthInsuranceCompany: null,
     active: true, planIds: [],
   });
@@ -76,7 +76,7 @@ export default function StudentForm() {
   const [errors, setErrors] = useState<{
     name?: string; rut?: string; email?: string; phone?: string;
     emergencyPhone?: string; joinDate?: string; age?: string;
-    belt?: string; address?: string; planIds?: string;
+    address?: string; planIds?: string;
   }>({});
   const { toast } = useToast();
 
@@ -107,7 +107,7 @@ export default function StudentForm() {
         setForm({
           name: s.name, nickname: s.nickname, rut: s.rut, email: s.email,
           phone: s.phone, emergencyPhone: s.emergencyPhone, joinDate: s.joinDate,
-          age: s.age, weight: s.weight, belt: s.belt, photoUrl: s.photoUrl,
+          age: s.age, weight: s.weight, photoUrl: s.photoUrl,
           address: s.address, medicalNotes: s.medicalNotes, bloodType: s.bloodType,
           healthInsuranceType: s.healthInsuranceType, healthInsuranceCompany: s.healthInsuranceCompany,
           active: s.active, planIds: s.enrolledPlans?.map(p => p.id) || [],
