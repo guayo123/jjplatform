@@ -242,8 +242,9 @@ public class BracketService {
                             ? (m.getMatchNumber() * 2) - 1   // missing slot 1 comes from odd source
                             : (m.getMatchNumber() * 2);      // missing slot 2 comes from even source
                     final int srcMN = srcMatchNumber;
+                    final int prevRound = round - 1;
                     isBye = all.stream()
-                            .filter(x -> x.getRound() == round - 1
+                            .filter(x -> x.getRound() == prevRound
                                     && x.getMatchNumber() == srcMN
                                     && Objects.equals(x.getCategoryGroup(), m.getCategoryGroup()))
                             .findFirst()
