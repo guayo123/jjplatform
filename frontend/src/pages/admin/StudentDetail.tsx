@@ -93,8 +93,6 @@ export default function StudentDetail() {
   const [discAnularTarget, setDiscAnularTarget] = useState<BeltPromotion | null>(null);
   const [discAnularReason, setDiscAnularReason] = useState('');
   const [discShowAnulados, setDiscShowAnulados] = useState<Record<number, boolean>>({});
-  const [editBeltFor, setEditBeltFor] = useState<number | null>(null);
-  const [editBeltForm, setEditBeltForm] = useState({ belt: '', stripes: 0 });
   const [showResultFormFor, setShowResultFormFor] = useState<number | null>(null);
   const [resultForm, setResultForm] = useState<CompetitionResultForm>({ tournamentName: '', date: todayYMD(), placement: '', category: '', notes: '' });
 
@@ -143,21 +141,6 @@ export default function StudentDetail() {
       toast.success('Disciplina eliminada');
     } catch {
       toast.error('Error al eliminar');
-    }
-  };
-
-  const handleSaveEditBelt = async (discId: number) => {
-    setDiscSaving(true);
-    try {
-      await studentDisciplinesApi.updateBelt(discId, editBeltForm.belt || null, editBeltForm.stripes);
-      const updatedDiscs = await studentDisciplinesApi.list(student!.id);
-      setDisciplines(updatedDiscs);
-      setEditBeltFor(null);
-      toast.success('Cinturón actualizado');
-    } catch {
-      toast.error('Error al actualizar cinturón');
-    } finally {
-      setDiscSaving(false);
     }
   };
 
@@ -638,24 +621,6 @@ export default function StudentDetail() {
                         📋 Historial
                       </button>
                       <button
-                        onClick={() => {
-                          if (editBeltFor === disc.id) {
-                            setEditBeltFor(null);
-                          } else {
-                            setEditBeltFor(disc.id);
-                            setEditBeltForm({ belt: disc.belt ?? '', stripes: disc.stripes });
-                          }
-                        }}
-                        className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${
-                          editBeltFor === disc.id
-                            ? 'bg-orange-50 border-orange-300 text-orange-700'
-                            : 'border-gray-200 text-gray-500 hover:border-orange-300 hover:text-orange-600'
-                        }`}
-                        title="Corregir cinturón actual"
-                      >
-                        ✏️
-                      </button>
-                      <button
                         onClick={() => handleDeleteDiscipline(disc.id)}
                         className="text-gray-300 hover:text-red-400 transition-colors ml-1"
                         title="Eliminar disciplina"
@@ -666,59 +631,6 @@ export default function StudentDetail() {
                       </button>
                     </div>
                   </div>
-
-                  {/* Edit belt form (direct correction, no promotion record) */}
-                  {editBeltFor === disc.id && (
-                    <div className="border-t border-orange-100 bg-orange-50 px-4 py-4 space-y-3">
-                      <div className="flex items-start gap-2">
-                        <span className="text-base mt-0.5">✏️</span>
-                        <div>
-                          <p className="text-sm font-semibold text-orange-800">Corregir cinturón actual</p>
-                          <p className="text-xs text-gray-500 mt-0.5">Modifica directamente el cinturón sin crear un registro de graduación. Úsalo para corregir errores de carga.</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Cinturón</label>
-                          <select
-                            value={editBeltForm.belt}
-                            onChange={(e) => setEditBeltForm((f) => ({ ...f, belt: e.target.value, stripes: 0 }))}
-                            className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 outline-none bg-white"
-                          >
-                            <option value="">Sin cinturón</option>
-                            {beltList.map((b) => <option key={b} value={b}>{b}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Grados</label>
-                          <select
-                            value={editBeltForm.stripes}
-                            onChange={(e) => setEditBeltForm((f) => ({ ...f, stripes: Number(e.target.value) }))}
-                            className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 outline-none bg-white"
-                          >
-                            {Array.from({ length: maxStripes(editBeltForm.belt || null) + 1 }, (_, i) => (
-                              <option key={i} value={i}>{i === 0 ? 'Sin grados' : `${i} grado${i !== 1 ? 's' : ''}`}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleSaveEditBelt(disc.id)}
-                          disabled={discSaving}
-                          className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50"
-                        >
-                          {discSaving ? 'Guardando...' : 'Guardar corrección'}
-                        </button>
-                        <button
-                          onClick={() => setEditBeltFor(null)}
-                          className="text-xs text-gray-500 hover:text-gray-700 border border-gray-200 bg-white px-4 py-2 rounded-lg transition-colors"
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Add Grade form */}
                   {activeDiscForm === 'grado' && (
