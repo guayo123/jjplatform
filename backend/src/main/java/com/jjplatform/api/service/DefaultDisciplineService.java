@@ -157,12 +157,12 @@ public class DefaultDisciplineService {
     }
 
     /**
-     * One-time backfill: for every student that still carries a legacy global
-     * belt (Student.belt) but has no StudentDiscipline yet, creates a
-     * StudentDiscipline under the academy's "Jiu Jitsu" discipline carrying
-     * that belt and stripes. The age category is resolved from the belt name
-     * first (the belt must belong to that category) and from the student's
-     * age as a fallback.
+     * One-time backfill: ensures every student has a StudentDiscipline under
+     * the academy's "Jiu Jitsu" discipline, carrying their legacy global belt
+     * and stripes. Students with no legacy belt recorded get an enrollment
+     * with a null belt. The age category is resolved from the belt name first
+     * (the belt must belong to that category) and from the student's age as a
+     * fallback.
      *
      * Idempotent — skips students that already have a Jiu Jitsu StudentDiscipline.
      * Safe to call on every startup.
@@ -182,10 +182,13 @@ public class DefaultDisciplineService {
 
         int migrated = 0;
         for (Student student : studentRepository.findByAcademyIdOrderByNameAsc(academy.getId())) {
-            String belt = student.getBelt();
-            if (belt == null || belt.isBlank()) continue;
             if (studentDisciplineRepository.existsByStudentIdAndDisciplineId(student.getId(), jj.getId()))
                 continue;
+
+            // Every student gets a Jiu Jitsu enrollment; belt stays null for
+            // students with no legacy belt recorded.
+            String belt = student.getBelt();
+            if (belt != null && belt.isBlank()) belt = null;
 
             studentDisciplineRepository.save(
                     StudentDiscipline.builder()
