@@ -36,6 +36,8 @@ export const IMAGE_BANNERS: BannerOption[] = [
 
 export const isImageBanner = (key: string) => IMAGE_BANNERS.some((b) => b.key === key);
 
+export const bannerImageSrc = (key: string) => IMAGE_BANNERS.find((b) => b.key === key)?.src;
+
 /** Base background for a cover: a photo for image banners, a gradient for scenic ones. */
 export function bannerStyle(key: string): CSSProperties {
   const img = IMAGE_BANNERS.find((b) => b.key === key);

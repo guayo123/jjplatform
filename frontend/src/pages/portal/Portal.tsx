@@ -11,6 +11,7 @@ import {
   BELT_BAR,
   bannerStyle,
   isImageBanner,
+  bannerImageSrc,
   BannerArt,
   BannerThumb,
 } from './portalBanners';
@@ -169,14 +170,28 @@ export default function Portal() {
     <div className="min-h-screen bg-gray-100">
       <header
         className="relative overflow-hidden bg-gray-900 text-white"
-        style={banner ? bannerStyle(banner) : undefined}
+        style={banner && !isImageBanner(banner) ? bannerStyle(banner) : undefined}
         data-tour="portada"
       >
         {/* Vector scenery for the CSS banners */}
         {banner && !isImageBanner(banner) && <BannerArt banner={banner} />}
+        {/* Photographic covers: blurred fill (any aspect ratio) + the full poster shown whole */}
+        {banner && isImageBanner(banner) && (
+          <>
+            <div
+              className="absolute inset-0 bg-cover bg-center blur-2xl scale-110 opacity-60"
+              style={{ backgroundImage: `url(${bannerImageSrc(banner)})` }}
+            />
+            <img
+              src={bannerImageSrc(banner)}
+              alt=""
+              className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 h-full w-auto object-contain"
+            />
+          </>
+        )}
         {/* Legibility scrim so the name/email read over any cover */}
         {banner && (
-          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/65 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/70 to-transparent" />
         )}
         {banner === 'jiujitsu' && <div className="absolute inset-x-0 bottom-0 h-1.5" style={BELT_BAR} />}
         <div className="relative max-w-3xl mx-auto px-4 min-h-[200px] flex flex-col">
