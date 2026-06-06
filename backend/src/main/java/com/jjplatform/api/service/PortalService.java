@@ -31,7 +31,7 @@ public class PortalService {
     // Keep in sync with frontend portalBanners.tsx.
     private static final Set<String> ALLOWED_BANNERS = Set.of(
             "japones", "olas", "torii", "jiujitsu", "minimal",
-            "samurai", "dojo", "sakura");
+            "samuraiwarrior", "mujer", "mujer2", "tiburon", "tortugasninjas");
 
     private final StudentRepository studentRepository;
     private final UserRepository userRepository;

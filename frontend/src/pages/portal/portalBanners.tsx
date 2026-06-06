@@ -27,9 +27,11 @@ export const SCENIC_BANNERS: BannerOption[] = [
 
 /** Photographic covers. Drop a matching file in frontend/public/portadas/ to enable one. */
 export const IMAGE_BANNERS: BannerOption[] = [
-  { key: 'samurai', label: 'Samurái', kind: 'image', src: '/portadas/samurai.jpg' },
-  { key: 'dojo', label: 'Dojo', kind: 'image', src: '/portadas/dojo.jpg' },
-  { key: 'sakura', label: 'Sakura', kind: 'image', src: '/portadas/sakura.jpg' },
+  { key: 'samuraiwarrior', label: 'Samurái', kind: 'image', src: '/portadas/samuraiwarrior.png' },
+  { key: 'mujer', label: 'Guerrera', kind: 'image', src: '/portadas/mujer.png' },
+  { key: 'mujer2', label: 'Guerrera 2', kind: 'image', src: '/portadas/mujer2.png' },
+  { key: 'tiburon', label: 'Tiburón', kind: 'image', src: '/portadas/tiburon.png' },
+  { key: 'tortugasninjas', label: 'Tortugas Ninja', kind: 'image', src: '/portadas/tortugasninjas.png' },
 ];
 
 export const isImageBanner = (key: string) => IMAGE_BANNERS.some((b) => b.key === key);

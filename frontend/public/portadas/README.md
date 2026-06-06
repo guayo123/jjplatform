@@ -5,11 +5,13 @@ Vite las sirve desde la raíz del sitio, así que `samurai.jpg` queda en `/porta
 
 Archivos esperados (ver `src/pages/portal/portalBanners.tsx` → `IMAGE_BANNERS`):
 
-| Archivo                 | Aparece como |
-| ----------------------- | ------------ |
-| `portadas/samurai.jpg`  | Samurái      |
-| `portadas/dojo.jpg`     | Dojo         |
-| `portadas/sakura.jpg`   | Sakura       |
+| Archivo                       | Aparece como   |
+| ----------------------------- | -------------- |
+| `portadas/samuraiwarrior.png` | Samurái        |
+| `portadas/mujer.png`          | Guerrera       |
+| `portadas/mujer2.png`         | Guerrera 2     |
+| `portadas/tiburon.png`        | Tiburón        |
+| `portadas/tortugasninjas.png` | Tortugas Ninja |
 
 Si un archivo no existe, esa opción simplemente no se muestra en el selector (no rompe nada).
 
