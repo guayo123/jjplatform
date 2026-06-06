@@ -27,7 +27,11 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class PortalService {
 
-    private static final Set<String> ALLOWED_BANNERS = Set.of("japones", "jiujitsu", "minimal");
+    // Scenic (CSS/SVG) + photographic (served from the frontend /public/portadas) cover options.
+    // Keep in sync with frontend portalBanners.tsx.
+    private static final Set<String> ALLOWED_BANNERS = Set.of(
+            "japones", "olas", "torii", "jiujitsu", "minimal",
+            "samurai", "dojo", "sakura");
 
     private final StudentRepository studentRepository;
     private final UserRepository userRepository;

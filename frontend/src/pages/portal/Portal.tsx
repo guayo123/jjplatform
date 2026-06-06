@@ -5,7 +5,15 @@ import { useAuthStore } from '../../stores/authStore';
 import BeltImage from '../../components/BeltImage';
 import ImageUpload from '../../components/ImageUpload';
 import { startPortalTour } from './portalTour';
-import { BANNER_KEYS, BANNER_LABELS, BELT_BAR, bannerStyle, type BannerKey } from './portalBanners';
+import {
+  SCENIC_BANNERS,
+  IMAGE_BANNERS,
+  BELT_BAR,
+  bannerStyle,
+  isImageBanner,
+  BannerArt,
+  BannerThumb,
+} from './portalBanners';
 import type { Student, StudentDiscipline, BeltPromotion, Payment, PromotionType } from '../../types';
 
 // localStorage value 'dismissed' = the student ticked "don't show again". Any other value (incl. absent)
@@ -72,7 +80,7 @@ export default function Portal() {
   const [uploadProgress, setUploadProgress] = useState(0);
 
   // Portal cover/banner (per account)
-  const [banner, setBanner] = useState<BannerKey | null>(null);
+  const [banner, setBanner] = useState<string | null>(null);
   const [showBannerPicker, setShowBannerPicker] = useState(false);
 
   // Guided tour. Auto-runs once the data is loaded unless the student ticked "don't show again".
@@ -83,13 +91,13 @@ export default function Portal() {
       .then(([list, b]) => {
         setProfiles(list);
         setSelectedId(list[0]?.id ?? null);
-        setBanner((b as BannerKey | null) ?? null);
+        setBanner((b as string | null) ?? null);
       })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'No se pudo cargar tu información.'))
       .finally(() => setLoading(false));
   }, []);
 
-  const chooseBanner = async (key: BannerKey | null) => {
+  const chooseBanner = async (key: string | null) => {
     setBanner(key);
     setShowBannerPicker(false);
     try {
@@ -164,18 +172,20 @@ export default function Portal() {
         style={banner ? bannerStyle(banner) : undefined}
         data-tour="portada"
       >
+        {/* Vector scenery for the CSS banners */}
+        {banner && !isImageBanner(banner) && <BannerArt banner={banner} />}
+        {/* Legibility scrim so the name/email read over any cover */}
+        {banner && (
+          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/65 to-transparent" />
+        )}
         {banner === 'jiujitsu' && <div className="absolute inset-x-0 bottom-0 h-1.5" style={BELT_BAR} />}
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between gap-3 relative">
-          <div className="min-w-0">
-            <p className="text-xs text-white/70">Portal del alumno</p>
-            <p className="font-semibold truncate">{email}</p>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="relative max-w-3xl mx-auto px-4 min-h-[200px] flex flex-col">
+          <div className="flex items-center justify-end gap-2 pt-4">
             <button
               onClick={() => setShowBannerPicker((v) => !v)}
               title="Personalizar portada"
               aria-label="Personalizar portada"
-              className="w-9 h-9 flex items-center justify-center text-white/80 hover:text-white border border-white/30 hover:border-white/60 rounded-lg transition-colors"
+              className="w-9 h-9 flex items-center justify-center text-white/90 hover:text-white bg-black/20 border border-white/30 hover:border-white/60 rounded-lg transition-colors"
             >
               🎨
             </button>
@@ -183,16 +193,20 @@ export default function Portal() {
               onClick={runTour}
               title="Ayuda"
               aria-label="Ayuda"
-              className="w-9 h-9 flex items-center justify-center text-white/80 hover:text-white border border-white/30 hover:border-white/60 rounded-lg transition-colors font-bold"
+              className="w-9 h-9 flex items-center justify-center text-white/90 hover:text-white bg-black/20 border border-white/30 hover:border-white/60 rounded-lg transition-colors font-bold"
             >
               ?
             </button>
             <button
               onClick={handleLogout}
-              className="text-sm text-white/80 hover:text-white border border-white/30 hover:border-white/60 px-3 py-1.5 rounded-lg transition-colors"
+              className="text-sm text-white/90 hover:text-white bg-black/20 border border-white/30 hover:border-white/60 px-3 py-1.5 rounded-lg transition-colors"
             >
               Cerrar sesión
             </button>
+          </div>
+          <div className="mt-auto pb-5 pt-10 min-w-0">
+            <p className="text-xs text-white/80 [text-shadow:_0_1px_4px_rgb(0_0_0_/_60%)]">Portal del alumno</p>
+            <p className="font-semibold text-lg truncate [text-shadow:_0_1px_4px_rgb(0_0_0_/_60%)]">{email}</p>
           </div>
         </div>
       </header>
@@ -209,19 +223,15 @@ export default function Portal() {
             {/* Cover/banner picker — toggled from the 🎨 button in the header */}
             {showBannerPicker && (
               <div className="bg-white rounded-xl shadow-sm p-3">
-                <p className="text-xs text-gray-400 mb-2">Elige el diseño de tu portada (la barra superior)</p>
+                <p className="text-xs text-gray-400 mb-2">Elige el diseño de tu portada</p>
                 <div className="flex flex-wrap gap-2 items-center">
-                  {BANNER_KEYS.map((k) => (
-                    <button
-                      key={k}
-                      onClick={() => chooseBanner(k)}
-                      title={BANNER_LABELS[k]}
-                      className={`relative w-28 h-14 rounded-lg overflow-hidden border-2 transition-colors ${banner === k ? 'border-primary-500' : 'border-transparent hover:border-gray-300'}`}
-                      style={bannerStyle(k)}
-                    >
-                      {k === 'jiujitsu' && <div className="absolute inset-x-0 bottom-0 h-1.5" style={BELT_BAR} />}
-                      <span className="absolute inset-x-0 bottom-0 text-[10px] text-white bg-black/40 text-center py-0.5">{BANNER_LABELS[k]}</span>
-                    </button>
+                  {[...SCENIC_BANNERS, ...IMAGE_BANNERS].map((opt) => (
+                    <BannerThumb
+                      key={opt.key}
+                      option={opt}
+                      selected={banner === opt.key}
+                      onPick={() => chooseBanner(opt.key)}
+                    />
                   ))}
                   <button
                     onClick={() => chooseBanner(null)}

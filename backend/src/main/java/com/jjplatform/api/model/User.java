@@ -36,7 +36,7 @@ public class User {
     @Builder.Default
     private Boolean mustChangePassword = false;
 
-    /** Student portal cover/banner preference (one of: japones, jiujitsu, minimal). Null = no banner. */
+    /** Student portal cover/banner preference (see PortalService.ALLOWED_BANNERS). Null = no banner. */
     @Column(name = "portal_banner")
     private String portalBanner;
 
