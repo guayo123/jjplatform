@@ -115,7 +115,7 @@ export default function Portal() {
 
   const handleLogout = () => {
     logout();
-    navigate('/login', { replace: true });
+    navigate('/portal/login', { replace: true });
   };
 
   const handlePhotoUpload = async (file: File) => {

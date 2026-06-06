@@ -7,6 +7,7 @@ import StudentRoute from './components/StudentRoute';
 import Home from './pages/public/Home';
 import AcademyProfile from './pages/public/AcademyProfile';
 import Login from './pages/admin/Login';
+import StudentLogin from './pages/portal/StudentLogin';
 import StudentRegister from './pages/portal/StudentRegister';
 
 const Dashboard      = lazy(() => import('./pages/admin/Dashboard'));
@@ -37,6 +38,7 @@ export default function App() {
       <Route path="/" element={<Home />} />
       <Route path="/academies/:id" element={<AcademyProfile />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/portal/login" element={<StudentLogin />} />
       <Route path="/portal/registro" element={<StudentRegister />} />
 
       {/* Student portal — STUDENT role only */}

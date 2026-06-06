@@ -10,7 +10,7 @@ export default function StudentRoute() {
   const location = useLocation();
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/portal/login" replace />;
   }
   if (role !== 'STUDENT') {
     return <Navigate to="/admin" replace />;

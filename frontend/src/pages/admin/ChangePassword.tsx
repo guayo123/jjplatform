@@ -112,7 +112,7 @@ export default function ChangePassword() {
 
         {mustChangePassword && (
           <button
-            onClick={() => { logout(); navigate('/login'); }}
+            onClick={() => { const dest = role === 'STUDENT' ? '/portal/login' : '/login'; logout(); navigate(dest); }}
             className="mt-4 w-full text-sm text-gray-500 hover:text-gray-700"
           >
             Cerrar sesión

@@ -39,7 +39,7 @@ export default function StudentRegister() {
               sesión con ella y luego cámbiala por una propia.
             </p>
             <Link
-              to="/login"
+              to="/portal/login"
               className="inline-block w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2.5 rounded-lg transition-colors"
             >
               Ir a iniciar sesión
@@ -94,7 +94,7 @@ export default function StudentRegister() {
             </form>
 
             <div className="mt-6 text-center">
-              <Link to="/login" className="text-primary-600 hover:text-primary-700 text-sm font-medium">
+              <Link to="/portal/login" className="text-primary-600 hover:text-primary-700 text-sm font-medium">
                 ¿Ya tienes cuenta? Inicia sesión
               </Link>
             </div>

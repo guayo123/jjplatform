@@ -65,5 +65,5 @@ app:
     from-name: ${MAIL_FROM_NAME:JJPlatform}
     # Frontend URL embedded in invitation emails so the user can click straight to login
     login-url: ${MAIL_LOGIN_URL:http://localhost:5173/login}
-    # Where students click to sign in after self-registering (defaults to the same login page)
-    student-login-url: ${MAIL_STUDENT_LOGIN_URL:http://localhost:5173/login}
+    # Where students click to sign in after self-registering (dedicated student portal login)
+    student-login-url: ${MAIL_STUDENT_LOGIN_URL:http://localhost:5173/portal/login}

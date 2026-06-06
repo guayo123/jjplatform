@@ -81,5 +81,5 @@ app:
     from: ${MAIL_FROM:no-reply@jjplatform.app}
     from-name: ${MAIL_FROM_NAME:JJPlatform}
     login-url: ${MAIL_LOGIN_URL:https://jjplatform.vercel.app/login}
-    # Where students click to sign in after self-registering (defaults to the same login page)
-    student-login-url: ${MAIL_STUDENT_LOGIN_URL:https://jjplatform.vercel.app/login}
+    # Where students click to sign in after self-registering (dedicated student portal login)
+    student-login-url: ${MAIL_STUDENT_LOGIN_URL:https://jjplatform.vercel.app/portal/login}
