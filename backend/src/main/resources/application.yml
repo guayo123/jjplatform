@@ -59,6 +59,8 @@ app:
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:5174}
   mail:
+    # Brevo HTTP API key (v3). Used to send transactional email over HTTPS, since Railway blocks SMTP ports.
+    brevo-api-key: ${BREVO_API_KEY:}
     from: ${MAIL_FROM:no-reply@jjplatform.local}
     from-name: ${MAIL_FROM_NAME:JJPlatform}
     # Frontend URL embedded in invitation emails so the user can click straight to login

@@ -1,25 +1,33 @@
 package com.jjplatform.api.service;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.InternetAddress;
-import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 
+/**
+ * Sends transactional emails through Brevo's HTTP API (https://api.brevo.com/v3/smtp/email).
+ *
+ * <p>We use the HTTP API instead of SMTP on purpose: Railway blocks outbound SMTP ports
+ * (587, 2525, ...) to curb spam, so a JavaMail/SMTP send just times out. The HTTP API goes
+ * over HTTPS (443), which is never blocked.
+ *
+ * <p>When the Brevo API key is not configured (local dev), the temp password is logged instead
+ * so the flow keeps working without sending real email. Sends are synchronous so a failure
+ * surfaces to the caller and the user is told to retry, rather than seeing a false success.
+ */
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class EmailService {
 
-    private final JavaMailSender mailSender;
+    private static final String SEND_PATH = "/smtp/email";
+
+    private final RestClient brevoClient;
+    private final boolean enabled;
 
     @Value("${app.mail.from:no-reply@jjplatform.local}")
     private String fromAddress;
@@ -33,62 +41,57 @@ public class EmailService {
     @Value("${app.mail.student-login-url:http://localhost:5173/login}")
     private String studentLoginUrl;
 
-    @Value("${spring.mail.username:}")
-    private String smtpUser;
+    public EmailService(@Value("${app.mail.brevo-api-key:}") String apiKey) {
+        this.enabled = apiKey != null && !apiKey.isBlank();
+        this.brevoClient = RestClient.builder()
+                .baseUrl("https://api.brevo.com/v3")
+                .defaultHeader("api-key", apiKey)
+                .defaultHeader("accept", "application/json")
+                .build();
+    }
 
     /**
      * Sends a welcome email to a newly-created staff user with their temporary password.
-     * When SMTP credentials are not configured, logs the temp password instead so local dev keeps working.
-     * Runs asynchronously so a slow/unreachable SMTP relay never blocks the HTTP request thread.
      */
-    @Async
     public void sendStaffWelcomeEmail(String toEmail, String tempPassword, String role, String academyName) {
-        if (smtpUser == null || smtpUser.isBlank() || mailSender == null) {
-            log.warn("[EMAIL DISABLED] SMTP not configured. Temp password for {} ({}): {}",
-                    toEmail, role, tempPassword);
-            return;
-        }
-
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
-            helper.setFrom(new InternetAddress(fromAddress, fromName, StandardCharsets.UTF_8.name()));
-            helper.setTo(toEmail);
-            helper.setSubject("Bienvenido a " + (academyName != null ? academyName : "JJPlatform"));
-            helper.setText(buildBody(toEmail, tempPassword, role, academyName), true);
-            mailSender.send(message);
-            log.info("Welcome email sent to {}", toEmail);
-        } catch (MessagingException | UnsupportedEncodingException e) {
-            log.error("Failed to send welcome email to {}: {}", toEmail, e.getMessage());
-            throw new IllegalStateException("No se pudo enviar el correo de bienvenida. Intenta de nuevo más tarde.");
-        }
+        String subject = "Bienvenido a " + (academyName != null ? academyName : "JJPlatform");
+        String html = buildBody(toEmail, tempPassword, role, academyName);
+        send(toEmail, subject, html, tempPassword);
     }
 
     /**
      * Sends a welcome email to a student who self-registered for the portal, with their temporary password.
-     * When SMTP credentials are not configured, logs the temp password instead so local dev keeps working.
-     * Runs asynchronously so a slow/unreachable SMTP relay never blocks the HTTP request thread.
      */
-    @Async
     public void sendStudentWelcomeEmail(String toEmail, String tempPassword, String studentName, String academyName) {
-        if (smtpUser == null || smtpUser.isBlank() || mailSender == null) {
-            log.warn("[EMAIL DISABLED] SMTP not configured. Temp password for student {} ({}): {}",
-                    studentName, toEmail, tempPassword);
+        String subject = "Tu acceso a " + (academyName != null ? academyName : "JJPlatform");
+        String html = buildStudentBody(toEmail, tempPassword, studentName, academyName);
+        send(toEmail, subject, html, tempPassword);
+    }
+
+    private void send(String toEmail, String subject, String htmlContent, String tempPassword) {
+        if (!enabled) {
+            log.warn("[EMAIL DISABLED] Brevo API key not configured. Temp password for {}: {}",
+                    toEmail, tempPassword);
             return;
         }
 
+        Map<String, Object> payload = Map.of(
+                "sender", Map.of("name", fromName, "email", fromAddress),
+                "to", List.of(Map.of("email", toEmail)),
+                "subject", subject,
+                "htmlContent", htmlContent);
+
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
-            helper.setFrom(new InternetAddress(fromAddress, fromName, StandardCharsets.UTF_8.name()));
-            helper.setTo(toEmail);
-            helper.setSubject("Tu acceso a " + (academyName != null ? academyName : "JJPlatform"));
-            helper.setText(buildStudentBody(toEmail, tempPassword, studentName, academyName), true);
-            mailSender.send(message);
-            log.info("Student welcome email sent to {}", toEmail);
-        } catch (MessagingException | UnsupportedEncodingException e) {
-            log.error("Failed to send student welcome email to {}: {}", toEmail, e.getMessage());
-            throw new IllegalStateException("No se pudo enviar el correo con tu clave temporal. Intenta de nuevo más tarde.");
+            brevoClient.post()
+                    .uri(SEND_PATH)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("Email sent to {} via Brevo API", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send email to {} via Brevo API: {}", toEmail, e.getMessage());
+            throw new IllegalStateException("No se pudo enviar el correo. Intenta de nuevo más tarde.");
         }
     }
 
