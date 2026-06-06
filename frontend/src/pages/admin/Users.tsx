@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { usersApi } from '../../api/users';
 import { useConfirm } from '../../components/ConfirmContext';
+import { useGuidedTour } from '../../utils/useGuidedTour';
 import type { AppUser, CreateUserRequest } from '../../types';
 import FormInput from '../../components/FormInput';
 import FormSelect from '../../components/FormSelect';
@@ -24,8 +25,7 @@ export default function Users() {
   const [success, setSuccess] = useState<string | null>(null);
   const [form, setForm] = useState<CreateUserRequest>({
     email: '',
-    password: '',
-    role: 'PROFESOR',
+    role: 'ENCARGADO',
   });
   const [submitting, setSubmitting] = useState(false);
   const confirm = useConfirm();
@@ -41,16 +41,33 @@ export default function Users() {
 
   useEffect(() => { load(); }, []);
 
+  const startTour = useGuidedTour({
+    storageKey: 'jjp_users_tour',
+    welcomeTitle: '👋 Usuarios',
+    welcomeBody: '<p>Aquí gestionas quién tiene acceso a tu academia. Te muestro las opciones.</p>',
+    loading,
+    buildSteps: () => [
+      {
+        element: '[data-tour="nuevo-usuario"]',
+        popover: { title: '➕ Nuevo usuario', description: 'Crea un encargado con acceso al sistema. Recibirá una clave temporal por correo.', side: 'bottom', align: 'end' },
+      },
+      {
+        element: '[data-tour="lista-usuarios"]',
+        popover: { title: '👥 Usuarios con acceso', description: 'Aquí ves los usuarios y puedes activar o desactivar su acceso.', side: 'top', align: 'start' },
+      },
+    ],
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
     try {
       await usersApi.create(form);
-      setForm({ email: '', password: '', role: 'PROFESOR' });
+      setForm({ email: '', role: 'ENCARGADO' });
       setShowForm(false);
-      setSuccess('Usuario creado exitosamente');
-      setTimeout(() => setSuccess(null), 3000);
+      setSuccess(`Usuario creado. Se envió un correo a ${form.email} con la contraseña temporal.`);
+      setTimeout(() => setSuccess(null), 5000);
       load();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al crear usuario';
@@ -86,12 +103,23 @@ export default function Users() {
           <h1 className="text-2xl font-bold">Usuarios</h1>
           <p className="text-sm text-gray-500 mt-0.5">Gestiona el acceso a tu academia</p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          + Nuevo usuario
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={startTour}
+            title="Ayuda"
+            aria-label="Ayuda"
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-500 hover:text-gray-700 hover:border-gray-400 text-sm font-bold transition-colors"
+          >
+            ?
+          </button>
+          <button
+            data-tour="nuevo-usuario"
+            onClick={() => setShowForm(!showForm)}
+            className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            + Nuevo usuario
+          </button>
+        </div>
       </div>
 
       {/* Feedback */}
@@ -110,7 +138,11 @@ export default function Users() {
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
           <h2 className="font-bold text-white">Crear nuevo usuario</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <p className="text-xs text-gray-400">
+            Se generará una contraseña temporal y se enviará al correo del usuario.
+            Al iniciar sesión por primera vez deberá cambiarla.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Email</label>
               <FormInput
@@ -122,26 +154,18 @@ export default function Users() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Contraseña inicial</label>
-              <FormInput
-                type="password"
-                required
-                minLength={6}
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                placeholder="Mínimo 6 caracteres"
-              />
-            </div>
-            <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Rol</label>
               <FormSelect
                 value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value as 'PROFESOR' | 'ENCARGADO' })}
+                onChange={(e) => setForm({ ...form, role: e.target.value as 'ENCARGADO' })}
               >
-                <option value="PROFESOR">Profesor (solo lectura)</option>
                 <option value="ENCARGADO">Encargado (pagos + alumnos)</option>
               </FormSelect>
               <p className="text-xs text-gray-500 mt-1">{ROLE_DESCRIPTIONS[form.role]}</p>
+              <p className="text-xs text-amber-400 mt-1">
+                Los <strong>profesores</strong> se gestionan desde la pantalla{' '}
+                <span className="font-medium">Profesores</span>, donde podrás darles acceso al sistema.
+              </p>
             </div>
           </div>
           <div className="flex gap-3">
@@ -180,7 +204,7 @@ export default function Users() {
       </div>
 
       {/* Users table */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden" data-tour="lista-usuarios">
         <div className="px-6 py-4 border-b border-gray-100">
           <h2 className="font-semibold text-gray-800">Usuarios con acceso</h2>
         </div>

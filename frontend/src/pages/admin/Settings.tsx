@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { academiesApi } from '../../api/academies';
 import { useToast } from '../../components/ToastContext';
+import { useGuidedTour } from '../../utils/useGuidedTour';
 import FormInput from '../../components/FormInput';
 import FormTextarea from '../../components/FormTextarea';
 import ImageUpload from '../../components/ImageUpload';
@@ -16,6 +17,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoProgress, setLogoProgress] = useState(0);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [botQuestion, setBotQuestion] = useState('');
@@ -64,16 +66,33 @@ export default function Settings() {
   const handleLogoUpload = async (file: File) => {
     if (!form) return;
     setUploadingLogo(true);
+    setLogoProgress(0);
     try {
-      const { url } = await academiesApi.uploadLogo(file);
+      const { url } = await academiesApi.uploadLogo(file, setLogoProgress);
       setForm((f) => f ? { ...f, logoUrl: url } : f);
       toast.success('Logo actualizado correctamente');
-    } catch {
-      toast.error('Error al subir el logo');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al subir el logo';
+      toast.error(msg);
+      throw err;
     } finally {
       setUploadingLogo(false);
+      setLogoProgress(0);
     }
   };
+
+  const startTour = useGuidedTour({
+    storageKey: 'jjp_settings_tour',
+    welcomeTitle: '👋 Configuración',
+    welcomeBody: '<p>Aquí defines los datos de tu academia que se muestran en el perfil público.</p>',
+    loading,
+    buildSteps: () => [
+      { element: '[data-tour="set-logo"]', popover: { title: '🏷️ Logo', description: 'Sube el logo de tu academia.', side: 'bottom', align: 'start' } },
+      { element: '[data-tour="set-info"]', popover: { title: '📝 Información básica', description: 'Edita el nombre, descripción y dirección de la academia.', side: 'bottom', align: 'start' } },
+      { element: '[data-tour="set-bot"]', popover: { title: '🤖 Bot de WhatsApp', description: 'Configura (opcional) el bot que responde consultas por WhatsApp.', side: 'bottom', align: 'start' } },
+      { element: '[data-tour="set-guardar"]', popover: { title: '💾 Guardar', description: 'Guarda los cambios de la configuración.', side: 'top', align: 'start' } },
+    ],
+  });
 
   if (loading)
     return (
@@ -86,9 +105,19 @@ export default function Settings() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-2xl font-bold">Configuración de la Academia</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Estos datos se muestran en tu perfil público.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Configuración de la Academia</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Estos datos se muestran en tu perfil público.</p>
+        </div>
+        <button
+          onClick={startTour}
+          title="Ayuda"
+          aria-label="Ayuda"
+          className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-500 hover:text-gray-700 hover:border-gray-400 text-sm font-bold transition-colors"
+        >
+          ?
+        </button>
       </div>
 
       {success && (
@@ -103,7 +132,7 @@ export default function Settings() {
       )}
 
       <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-5">
-        <h2 className={sectionTitle}>Logo de la academia</h2>
+        <h2 className={sectionTitle} data-tour="set-logo">Logo de la academia</h2>
 
         <div className="flex items-center gap-5">
           <ImageUpload
@@ -111,13 +140,15 @@ export default function Settings() {
             onFile={handleLogoUpload}
             onRemove={() => setForm((f) => f ? { ...f, logoUrl: '' } : f)}
             uploading={uploadingLogo}
+            progress={logoProgress}
+            profile="logo"
             label="logo"
             aspect="square"
           />
           <p className="text-xs text-gray-500">JPG, PNG o WebP.<br />Se muestra en tu perfil público.</p>
         </div>
 
-        <h2 className={sectionTitle}>Información básica</h2>
+        <h2 className={sectionTitle} data-tour="set-info">Información básica</h2>
 
         <div>
           <label className={lbl}>Nombre de la academia</label>
@@ -213,7 +244,7 @@ export default function Settings() {
           </div>
         )}
 
-        <h2 className={sectionTitle}>Bot de WhatsApp</h2>
+        <h2 className={sectionTitle} data-tour="set-bot">Bot de WhatsApp</h2>
         <p className="text-xs text-gray-500 -mt-3">
           Configura las credenciales de la API de WhatsApp Business (Meta) para activar el asistente virtual.
           El bot responderá automáticamente preguntas frecuentes de potenciales alumnos.
@@ -303,7 +334,7 @@ export default function Settings() {
           </div>
         )}
 
-        <div className="flex gap-3 pt-2 border-t border-gray-800">
+        <div className="flex gap-3 pt-2 border-t border-gray-800" data-tour="set-guardar">
           <button
             type="submit"
             disabled={saving || !hasChanges}

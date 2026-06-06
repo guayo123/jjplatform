@@ -71,6 +71,7 @@ export default function StudentForm() {
     active: true, planIds: [],
   });
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [saving, setSaving] = useState(false);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [errors, setErrors] = useState<{
@@ -118,13 +119,21 @@ export default function StudentForm() {
 
   const handlePhotoUpload = async (file: File) => {
     setUploading(true);
+    setUploadProgress(0);
     try {
-      const { url } = await filesApi.upload(file, false);
+      const { url } = await filesApi.upload(file, {
+        gallery: false,
+        purpose: 'profile',
+        onProgress: setUploadProgress,
+      });
       setForm((f) => ({ ...f, photoUrl: url }));
-    } catch {
-      toast.error('Error al subir la foto');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al subir la foto';
+      toast.error(msg);
+      throw err;
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -161,6 +170,8 @@ export default function StudentForm() {
             onFile={handlePhotoUpload}
             onRemove={() => setForm((f) => ({ ...f, photoUrl: null }))}
             uploading={uploading}
+            progress={uploadProgress}
+            profile="profile"
             label="foto del alumno"
             aspect="portrait"
           />

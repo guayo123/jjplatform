@@ -1,7 +1,10 @@
 package com.jjplatform.api.exception;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -15,6 +18,8 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNotFound(ResourceNotFoundException ex) {
@@ -49,12 +54,28 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, Object>> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
-        return buildResponse(HttpStatus.BAD_REQUEST, "File size exceeds maximum allowed (5MB)");
+        return buildResponse(HttpStatus.BAD_REQUEST, "El archivo supera el peso máximo permitido (5 MB).");
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
         return buildResponse(HttpStatus.CONFLICT, "Data integrity violation: " + ex.getMostSpecificCause().getMessage());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
+        return buildResponse(HttpStatus.FORBIDDEN, "No autorizado");
+    }
+
+    /**
+     * Catch-all: turns any unhandled exception into a clean JSON 500 within the
+     * original request. Without this, the exception escapes to the /error
+     * dispatch where the security chain re-runs and masks it as a 403.
+     */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleUnexpected(Exception ex) {
+        log.error("Unhandled exception", ex);
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno del servidor");
     }
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {

@@ -57,12 +57,17 @@ export const academiesApi = {
   testBot: (message: string) =>
     client.post<{ response: string }>('/academy/chat/test', { message }).then((r) => r.data),
 
-  uploadLogo: (file: File) => {
+  uploadLogo: (file: File, onProgress?: (pct: number) => void) => {
     const formData = new FormData();
     formData.append('file', file);
     return client
       .post<{ url: string }>('/files/logo', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => {
+          if (onProgress && e.total) {
+            onProgress(Math.round((e.loaded / e.total) * 100));
+          }
+        },
       })
       .then((r) => r.data);
   },

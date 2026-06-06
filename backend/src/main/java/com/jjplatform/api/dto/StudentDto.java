@@ -9,6 +9,10 @@ import java.util.List;
 public class StudentDto {
     private Long id;
 
+    /** Owning academy — used by the student portal selector when a person belongs to several academies. */
+    private Long academyId;
+    private String academyName;
+
     @NotBlank(message = "Name is required")
     private String name;
 

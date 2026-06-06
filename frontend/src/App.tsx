@@ -3,9 +3,11 @@ import { Routes, Route } from 'react-router-dom';
 
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
+import StudentRoute from './components/StudentRoute';
 import Home from './pages/public/Home';
 import AcademyProfile from './pages/public/AcademyProfile';
 import Login from './pages/admin/Login';
+import StudentRegister from './pages/portal/StudentRegister';
 
 const Dashboard      = lazy(() => import('./pages/admin/Dashboard'));
 const Students       = lazy(() => import('./pages/admin/Students'));
@@ -17,6 +19,7 @@ const Tournaments    = lazy(() => import('./pages/admin/Tournaments'));
 const TournamentDetail = lazy(() => import('./pages/admin/TournamentDetail'));
 const Photos         = lazy(() => import('./pages/admin/Photos'));
 const Users          = lazy(() => import('./pages/admin/Users'));
+const ChangePassword = lazy(() => import('./pages/admin/ChangePassword'));
 const Settings       = lazy(() => import('./pages/admin/Settings'));
 const Plans          = lazy(() => import('./pages/admin/Plans'));
 const Schedules      = lazy(() => import('./pages/admin/Schedules'));
@@ -24,6 +27,8 @@ const Disciplines    = lazy(() => import('./pages/admin/Disciplines'));
 const Professors     = lazy(() => import('./pages/admin/Professors'));
 const ProfessorForm  = lazy(() => import('./pages/admin/ProfessorForm'));
 const SuperAcademies = lazy(() => import('./pages/super/Academies'));
+const Portal          = lazy(() => import('./pages/portal/Portal'));
+const PortalChangePassword = lazy(() => import('./pages/admin/ChangePassword'));
 
 export default function App() {
   return (
@@ -32,6 +37,13 @@ export default function App() {
       <Route path="/" element={<Home />} />
       <Route path="/academies/:id" element={<AcademyProfile />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/portal/registro" element={<StudentRegister />} />
+
+      {/* Student portal — STUDENT role only */}
+      <Route element={<StudentRoute />}>
+        <Route path="/portal" element={<Suspense><Portal /></Suspense>} />
+        <Route path="/portal/cambiar-clave" element={<Suspense><PortalChangePassword /></Suspense>} />
+      </Route>
 
       {/* Private routes — loaded lazily */}
       <Route element={<PrivateRoute />}>
@@ -47,6 +59,7 @@ export default function App() {
           <Route path="/admin/tournaments/:id" element={<Suspense><TournamentDetail /></Suspense>} />
           <Route path="/admin/photos" element={<Suspense><Photos /></Suspense>} />
           <Route path="/admin/users" element={<Suspense><Users /></Suspense>} />
+          <Route path="/admin/change-password" element={<Suspense><ChangePassword /></Suspense>} />
           <Route path="/admin/settings" element={<Suspense><Settings /></Suspense>} />
           <Route path="/admin/professors" element={<Suspense><Professors /></Suspense>} />
           <Route path="/admin/professors/new" element={<Suspense><ProfessorForm /></Suspense>} />

@@ -3,6 +3,7 @@ import { academiesApi } from '../../api/academies';
 import { professorsApi } from '../../api/professors';
 import { useToast } from '../../components/ToastContext';
 import { useConfirm } from '../../components/ConfirmContext';
+import { useGuidedTour } from '../../utils/useGuidedTour';
 import SchedulePosterModal from './SchedulePosterModal';
 import FormInput from '../../components/FormInput';
 import FormSelect from '../../components/FormSelect';
@@ -192,6 +193,23 @@ export default function Schedules() {
 
   const isEdit = modal?.mode === 'edit';
 
+  const startTour = useGuidedTour({
+    storageKey: 'jjp_schedules_tour',
+    welcomeTitle: '👋 Horarios de clases',
+    welcomeBody: '<p>Aquí defines el horario de clases que se muestra en tu perfil público.</p>',
+    loading,
+    buildSteps: () => [
+      {
+        element: '[data-tour="agregar-clase"]',
+        popover: { title: '➕ Agregar clase', description: 'Agrega una clase al horario: día(s), hora, nombre de la clase y profesor.', side: 'bottom', align: 'end' },
+      },
+      {
+        element: '[data-tour="generar-imagen"]',
+        popover: { title: '🖼️ Generar imagen', description: 'Crea un afiche con el horario para compartir en redes.', side: 'bottom', align: 'end' },
+      },
+    ],
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -203,6 +221,15 @@ export default function Schedules() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={startTour}
+            title="Ayuda"
+            aria-label="Ayuda"
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-500 hover:text-gray-700 hover:border-gray-400 text-sm font-bold transition-colors"
+          >
+            ?
+          </button>
+          <button
+            data-tour="generar-imagen"
             onClick={() => setShowPoster(true)}
             disabled={!academy}
             className="border border-gray-300 hover:border-primary-400 text-gray-600 hover:text-primary-600 disabled:opacity-40 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
@@ -213,6 +240,7 @@ export default function Schedules() {
             Generar imagen
           </button>
           <button
+            data-tour="agregar-clase"
             onClick={openAdd}
             className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
           >

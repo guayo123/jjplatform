@@ -20,8 +20,14 @@ export default function Login() {
       } else {
         await login({ email, password });
       }
-      const currentRole = useAuthStore.getState().role;
-      navigate(currentRole === 'SUPER_ADMIN' ? '/super/academies' : '/admin');
+      const state = useAuthStore.getState();
+      if (state.role === 'STUDENT') {
+        navigate(state.mustChangePassword ? '/portal/cambiar-clave' : '/portal');
+      } else if (state.mustChangePassword) {
+        navigate('/admin/change-password');
+      } else {
+        navigate(state.role === 'SUPER_ADMIN' ? '/super/academies' : '/admin');
+      }
     } catch {
       setError(isRegister ? 'Error al registrar' : 'Credenciales inválidas');
     }
@@ -104,6 +110,18 @@ export default function Login() {
             {isRegister ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
           </button>
         </div>
+
+        {!isRegister && (
+          <div className="mt-3 text-center border-t border-gray-100 pt-4">
+            <p className="text-xs text-gray-400 mb-1">¿Eres alumno de una academia?</p>
+            <button
+              onClick={() => navigate('/portal/registro')}
+              className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+            >
+              Crea tu cuenta de alumno
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

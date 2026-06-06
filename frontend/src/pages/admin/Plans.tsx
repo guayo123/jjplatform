@@ -6,6 +6,7 @@ import type { Discipline, Plan, PlanForm, Professor } from '../../types';
 import FormInput from '../../components/FormInput';
 import FormSelect from '../../components/FormSelect';
 import FormTextarea from '../../components/FormTextarea';
+import { useGuidedTour } from '../../utils/useGuidedTour';
 
 const lbl = 'block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5';
 
@@ -93,6 +94,23 @@ export default function Plans() {
     setPlans((prev) => prev.map((p) => (p.id === id ? updated : p)));
   };
 
+  const startTour = useGuidedTour({
+    storageKey: 'jjp_plans_tour',
+    welcomeTitle: '👋 Planes y tarifas',
+    welcomeBody: '<p>Aquí defines los planes que se muestran en tu perfil público y se usan para los pagos.</p>',
+    loading,
+    buildSteps: () => [
+      {
+        element: '[data-tour="nuevo-plan"]',
+        popover: { title: '➕ Nuevo plan', description: 'Crea un plan con su precio, disciplina y profesor.', side: 'bottom', align: 'end' },
+      },
+      {
+        element: '[data-tour="filtro-planes"]',
+        popover: { title: '🔎 Filtro', description: 'Filtra los planes por estado: todos, activos o inactivos.', side: 'bottom', align: 'start' },
+      },
+    ],
+  });
+
   if (loading)
     return (
       <div className="flex items-center justify-center py-20">
@@ -115,16 +133,27 @@ export default function Plans() {
             Estos planes se muestran en tu perfil público.
           </p>
         </div>
-        <button
-          onClick={openNew}
-          className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          + Nuevo plan
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={startTour}
+            title="Ayuda"
+            aria-label="Ayuda"
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-500 hover:text-gray-700 hover:border-gray-400 text-sm font-bold transition-colors"
+          >
+            ?
+          </button>
+          <button
+            data-tour="nuevo-plan"
+            onClick={openNew}
+            className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            + Nuevo plan
+          </button>
+        </div>
       </div>
 
       {/* Filtro */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit" data-tour="filtro-planes">
         {(['all', 'active', 'inactive'] as const).map((f) => (
           <button
             key={f}

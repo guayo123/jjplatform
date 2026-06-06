@@ -80,10 +80,29 @@ public class StudentService {
     @Transactional(readOnly = true)
     public StudentDto getStudent(Long id, Long academyId) {
         Student student = findStudentByIdAndAcademy(id, academyId);
-        StudentDto dto = toDto(student);
+        return enrichWithDisciplineBelts(toDto(student), student.getId());
+    }
 
+    /**
+     * Returns every student record linked to the given login user (portal "my info" view).
+     * A person enrolled in several academies has one record per academy, all linked to the same
+     * login user; the portal lets them switch between these. STUDENT can see exclusively its own data.
+     */
+    @Transactional(readOnly = true)
+    public List<StudentDto> getMyStudents(Long userId) {
+        List<Student> students = studentRepository.findByUser_Id(userId);
+        if (students.isEmpty()) {
+            throw new ResourceNotFoundException("No se encontró el alumno asociado a tu cuenta.");
+        }
+        return students.stream()
+                .map(s -> enrichWithDisciplineBelts(toDto(s), s.getId()))
+                .toList();
+    }
+
+    /** Adds the per-discipline belt list to a DTO and syncs the legacy belt/stripes fields from it. */
+    private StudentDto enrichWithDisciplineBelts(StudentDto dto, Long studentId) {
         List<StudentDiscipline> discs = studentDisciplineRepository
-                .findByStudentIdInAndActiveTrue(List.of(id));
+                .findByStudentIdInAndActiveTrue(List.of(studentId));
 
         List<StudentDto.DisciplineBeltInfo> beltInfos = discs.stream()
                 .filter(sd -> sd.getBelt() != null)
@@ -196,6 +215,10 @@ public class StudentService {
     private StudentDto toDto(Student student) {
         StudentDto dto = new StudentDto();
         dto.setId(student.getId());
+        if (student.getAcademy() != null) {
+            dto.setAcademyId(student.getAcademy().getId());
+            dto.setAcademyName(student.getAcademy().getName());
+        }
         dto.setName(student.getName());
         dto.setRut(student.getRut());
         dto.setEmail(student.getEmail());

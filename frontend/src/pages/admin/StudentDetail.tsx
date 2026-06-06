@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { startStudentDetailTour } from './studentDetailTour';
 import { studentsApi } from '../../api/students';
 import { beltPromotionsApi } from '../../api/beltPromotions';
 import { studentDisciplinesApi } from '../../api/studentDisciplines';
@@ -30,6 +31,8 @@ const TYPE_CONFIG: Record<PromotionType, { icon: string; label: string; color: s
   GRADO:       { icon: '⭐', label: 'Grado',        color: 'text-amber-500' },
 };
 
+
+const TOUR_KEY = 'jjp_student_detail_tour';
 
 function maxStripes(belt: string | null) {
   return belt === 'Negro' ? 9 : 4;
@@ -109,6 +112,30 @@ export default function StudentDetail() {
       setAcademyDisciplines(ad);
     }).finally(() => setLoading(false));
   }, [id]);
+
+  const tourStartedRef = useRef(false);
+
+  const runTour = () => {
+    const first = disciplines[0];
+    const firstCanGrade = !!first?.belt && first.stripes < maxStripes(first.belt);
+    startStudentDetailTour({
+      hasDisciplines: disciplines.length > 0,
+      firstCanGrade,
+      initialDismiss: localStorage.getItem(TOUR_KEY) === 'dismissed',
+      onFinish: (dismissForever) => {
+        if (dismissForever) localStorage.setItem(TOUR_KEY, 'dismissed');
+        else localStorage.removeItem(TOUR_KEY);
+      },
+    });
+  };
+
+  // Auto-run the tour once the detail finishes loading, unless dismissed forever.
+  useEffect(() => {
+    if (loading || tourStartedRef.current) return;
+    if (localStorage.getItem(TOUR_KEY) === 'dismissed') return;
+    tourStartedRef.current = true;
+    runTour();
+  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddDiscipline = async () => {
     if (!student || !discForm.disciplineId) return;
@@ -320,12 +347,23 @@ export default function StudentDetail() {
               )}
             </div>
           </div>
-          <Link
-            to={`/admin/students/${student.id}/edit`}
-            className="flex-shrink-0 text-sm text-primary-600 hover:text-primary-800 border border-primary-200 hover:border-primary-400 px-3 py-1.5 rounded-lg transition-colors"
-          >
-            Editar
-          </Link>
+          <div className="flex-shrink-0 flex items-center gap-2">
+            <button
+              onClick={runTour}
+              title="Ayuda"
+              aria-label="Ayuda"
+              className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-500 hover:text-gray-700 hover:border-gray-400 text-sm font-bold transition-colors"
+            >
+              ?
+            </button>
+            <Link
+              data-tour="editar"
+              to={`/admin/students/${student.id}/edit`}
+              className="text-sm text-primary-600 hover:text-primary-800 border border-primary-200 hover:border-primary-400 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Editar
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -373,6 +411,7 @@ export default function StudentDetail() {
               <p className="text-xs text-gray-400 mt-0.5">{disciplines.length} disciplina{disciplines.length !== 1 ? 's' : ''}</p>
             </div>
             <button
+              data-tour="agregar-disciplina"
               onClick={() => setShowDiscForm((v) => !v)}
               className={`text-sm font-medium px-3 py-2 rounded-lg border transition-colors ${
                 showDiscForm
@@ -514,7 +553,7 @@ export default function StudentDetail() {
           {disciplines.length === 0 ? (
             <p className="text-center text-gray-400 text-sm py-6">Sin disciplinas registradas</p>
           ) : (
-            disciplines.map((disc) => {
+            disciplines.map((disc, idx) => {
               const isExpanded = expandedDisc === disc.id;
               const discDef = academyDisciplines.find((d) => d.id === disc.disciplineId);
               const catBelts: DisciplineBelt[] = (() => {
@@ -559,6 +598,7 @@ export default function StudentDetail() {
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       {canAddGradeDisc && (
                         <button
+                          data-tour={idx === 0 ? 'grado' : undefined}
                           onClick={() => {
                             setDiscActiveFormFor(disc.id, activeDiscForm === 'grado' ? null : 'grado');
                             setDiscGradeForm({ promotionDate: todayYMD(), notes: '' });
@@ -573,6 +613,7 @@ export default function StudentDetail() {
                         </button>
                       )}
                       <button
+                        data-tour={idx === 0 ? 'cinturon' : undefined}
                         onClick={() => {
                           setDiscActiveFormFor(disc.id, activeDiscForm === 'cinturon' ? null : 'cinturon');
                           setDiscBeltForm({ toBelt: '', promotionDate: todayYMD(), notes: '' });
@@ -586,6 +627,7 @@ export default function StudentDetail() {
                         🏆 Cinturón
                       </button>
                       <button
+                        data-tour={idx === 0 ? 'torneo' : undefined}
                         onClick={() => {
                           setShowResultFormFor(showResultFormFor === disc.id ? null : disc.id);
                           if (showResultFormFor !== disc.id) {
@@ -605,6 +647,7 @@ export default function StudentDetail() {
                         🏅 Torneo
                       </button>
                       <button
+                        data-tour={idx === 0 ? 'historial' : undefined}
                         onClick={() => {
                           const next = isExpanded ? null : disc.id;
                           setExpandedDisc(next);

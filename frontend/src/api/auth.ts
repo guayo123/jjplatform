@@ -1,5 +1,11 @@
 import client from './client';
-import type { LoginRequest, LoginResponse, RegisterRequest } from '../types';
+import type {
+  ChangePasswordRequest,
+  LoginRequest,
+  LoginResponse,
+  RegisterRequest,
+  StudentRegisterRequest,
+} from '../types';
 
 export const authApi = {
   login: (data: LoginRequest) =>
@@ -7,4 +13,10 @@ export const authApi = {
 
   register: (data: RegisterRequest) =>
     client.post<LoginResponse>('/auth/register', data).then((r) => r.data),
+
+  studentRegister: (data: StudentRegisterRequest) =>
+    client.post<void>('/auth/student-register', data).then((r) => r.data),
+
+  changePassword: (data: ChangePasswordRequest) =>
+    client.post<void>('/auth/change-password', data).then((r) => r.data),
 };

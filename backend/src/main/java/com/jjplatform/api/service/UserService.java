@@ -2,8 +2,10 @@ package com.jjplatform.api.service;
 
 import com.jjplatform.api.dto.CreateUserRequest;
 import com.jjplatform.api.dto.UserDto;
+import com.jjplatform.api.model.Academy;
 import com.jjplatform.api.model.AcademyStaff;
 import com.jjplatform.api.model.User;
+import com.jjplatform.api.repository.AcademyRepository;
 import com.jjplatform.api.repository.AcademyStaffRepository;
 import com.jjplatform.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -11,15 +13,23 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
+    private static final SecureRandom RNG = new SecureRandom();
+    // Avoids ambiguous chars (0/O, 1/l/I) so users can read the temp password from their email.
+    private static final String TEMP_PASSWORD_ALPHABET =
+            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+
     private final UserRepository userRepository;
     private final AcademyStaffRepository academyStaffRepository;
+    private final AcademyRepository academyRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     public List<UserDto> getUsersByAcademy(Long academyId) {
         return academyStaffRepository.findByAcademyId(academyId).stream()
@@ -34,39 +44,38 @@ public class UserService {
 
     @Transactional
     public UserDto createStaffUser(CreateUserRequest request, Long academyId) {
-        User user;
+        String email = request.getEmail().toLowerCase().trim();
 
-        if (userRepository.existsByEmail(request.getEmail())) {
-            user = userRepository.findByEmail(request.getEmail()).get();
+        if (userRepository.existsByEmail(email)) {
+            User existing = userRepository.findByEmail(email).get();
 
-            // ADMIN / SUPER_ADMIN cannot be added as staff
-            if (user.getRole() == User.Role.ADMIN || user.getRole() == User.Role.SUPER_ADMIN) {
+            if (existing.getRole() == User.Role.ADMIN || existing.getRole() == User.Role.SUPER_ADMIN) {
                 throw new IllegalArgumentException(
-                        "El correo '" + request.getEmail() + "' pertenece a un administrador y no puede asignarse como staff.");
+                        "El correo '" + email + "' pertenece a un administrador y no puede asignarse como staff.");
             }
 
-            // Already linked to this academy
-            if (academyStaffRepository.existsByAcademyIdAndUserId(academyId, user.getId())) {
+            if (academyStaffRepository.existsByAcademyIdAndUserId(academyId, existing.getId())) {
                 throw new IllegalArgumentException(
-                        "El correo '" + request.getEmail() + "' ya está registrado en esta academia.");
+                        "El correo '" + email + "' ya está registrado en esta academia.");
             }
 
-            // Link existing user to this academy (multi-academy staff)
             AcademyStaff staff = AcademyStaff.builder()
                     .academyId(academyId)
-                    .userId(user.getId())
+                    .userId(existing.getId())
                     .active(true)
                     .build();
             academyStaffRepository.save(staff);
-            return new UserDto(user.getId(), user.getEmail(), user.getRole().name(), true, user.getCreatedAt());
+            return new UserDto(existing.getId(), existing.getEmail(), existing.getRole().name(), true, existing.getCreatedAt());
         }
 
-        // New user: create account and link to academy
-        user = User.builder()
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
+        String tempPassword = generateTempPassword(12);
+
+        User user = User.builder()
+                .email(email)
+                .password(passwordEncoder.encode(tempPassword))
                 .role(User.Role.valueOf(request.getRole()))
                 .academyId(academyId)
+                .mustChangePassword(true)
                 .build();
         user = userRepository.save(user);
 
@@ -76,6 +85,9 @@ public class UserService {
                 .active(true)
                 .build();
         academyStaffRepository.save(staff);
+
+        String academyName = academyRepository.findById(academyId).map(Academy::getName).orElse(null);
+        emailService.sendStaffWelcomeEmail(email, tempPassword, request.getRole(), academyName);
 
         return new UserDto(user.getId(), user.getEmail(), user.getRole().name(), true, user.getCreatedAt());
     }
@@ -91,5 +103,12 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado."));
         return new UserDto(user.getId(), user.getEmail(), user.getRole().name(), staff.getActive(), user.getCreatedAt());
     }
-}
 
+    private static String generateTempPassword(int length) {
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append(TEMP_PASSWORD_ALPHABET.charAt(RNG.nextInt(TEMP_PASSWORD_ALPHABET.length())));
+        }
+        return sb.toString();
+    }
+}

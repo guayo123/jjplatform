@@ -13,16 +13,27 @@ export interface RegisterRequest {
   phone?: string;
 }
 
+export interface StudentRegisterRequest {
+  rut: string;
+  email: string;
+}
+
 export interface LoginResponse {
   token: string;
   email: string;
   academyId: number;
   academyName: string;
   role: string;
+  mustChangePassword: boolean;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
 }
 
 // ─── User (staff) ───
-export type UserRole = 'ADMIN' | 'SUPER_ADMIN' | 'ENCARGADO' | 'PROFESOR';
+export type UserRole = 'ADMIN' | 'SUPER_ADMIN' | 'ENCARGADO' | 'PROFESOR' | 'STUDENT';
 
 export interface AppUser {
   id: number;
@@ -34,8 +45,7 @@ export interface AppUser {
 
 export interface CreateUserRequest {
   email: string;
-  password: string;
-  role: 'PROFESOR' | 'ENCARGADO';
+  role: 'ENCARGADO';
 }
 
 // ─── Super Admin ───
@@ -62,6 +72,8 @@ export interface StudentDisciplineBelt {
 
 export interface Student {
   id: number;
+  academyId?: number;
+  academyName?: string;
   name: string;
   nickname: string | null;
   rut: string | null;
@@ -333,6 +345,9 @@ export interface Professor {
   studentName: string | null;
   disciplineId: number | null;
   disciplineName: string | null;
+  email: string | null;
+  effectiveEmail: string | null;
+  hasAccount: boolean;
 }
 
 export interface ProfessorForm {
@@ -343,6 +358,7 @@ export interface ProfessorForm {
   displayOrder: number;
   studentId: number | null;
   disciplineId: number | null;
+  email: string | null;
 }
 
 export interface ProfessorPublic {

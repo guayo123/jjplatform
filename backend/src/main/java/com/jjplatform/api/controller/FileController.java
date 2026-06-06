@@ -5,6 +5,7 @@ import com.jjplatform.api.model.Photo;
 import com.jjplatform.api.repository.AcademyRepository;
 import com.jjplatform.api.repository.PhotoRepository;
 import com.jjplatform.api.service.FileStorageService;
+import com.jjplatform.api.service.ImageValidator;
 import com.jjplatform.api.service.SecurityHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,11 +36,13 @@ public class FileController {
     public ResponseEntity<Map<String, String>> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "caption", required = false) String caption,
-            @RequestParam(value = "gallery", defaultValue = "true") boolean gallery) throws IOException {
+            @RequestParam(value = "gallery", defaultValue = "true") boolean gallery,
+            @RequestParam(value = "purpose", required = false) String purpose) throws IOException {
 
         Long academyId = securityHelper.getCurrentAcademyId();
 
-        String filename = fileStorageService.store(file);
+        ImageValidator.Profile profile = resolveProfile(purpose, gallery);
+        String filename = fileStorageService.store(file, profile);
         String fileUrl = baseUrl + "/api/files/" + filename;
 
         if (gallery) {
@@ -57,8 +60,10 @@ public class FileController {
     @GetMapping("/{filename}")
     public ResponseEntity<Resource> download(@PathVariable String filename) {
         Resource resource = fileStorageService.load(filename);
+        MediaType contentType = MediaType.parseMediaType(fileStorageService.contentTypeFor(filename));
         return ResponseEntity.ok()
-                .contentType(MediaType.IMAGE_JPEG)
+                .contentType(contentType)
+                .header(HttpHeaders.CACHE_CONTROL, "public, max-age=2592000, immutable")
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         "inline; filename=\"" + resource.getFilename() + "\"")
                 .body(resource);
@@ -72,7 +77,6 @@ public class FileController {
         if (photo == null || !photo.getAcademy().getId().equals(academyId)) {
             return ResponseEntity.notFound().build();
         }
-        // Extract filename from URL (/api/files/{filename})
         String url = photo.getUrl();
         String filename = url.substring(url.lastIndexOf('/') + 1);
         fileStorageService.delete(filename);
@@ -86,17 +90,27 @@ public class FileController {
         Long academyId = securityHelper.getCurrentAcademyId();
         Academy academy = academyRepository.findById(academyId).orElseThrow();
 
-        // Delete old logo file if present
         if (academy.getLogoUrl() != null) {
             String oldFilename = academy.getLogoUrl().substring(academy.getLogoUrl().lastIndexOf('/') + 1);
             try { fileStorageService.delete(oldFilename); } catch (IOException ignored) { }
         }
 
-        String filename = fileStorageService.store(file);
+        String filename = fileStorageService.store(file, ImageValidator.Profile.LOGO);
         String fileUrl = baseUrl + "/api/files/" + filename;
         academy.setLogoUrl(fileUrl);
         academyRepository.save(academy);
 
         return ResponseEntity.ok(Map.of("url", fileUrl));
+    }
+
+    private ImageValidator.Profile resolveProfile(String purpose, boolean gallery) {
+        if (purpose != null) {
+            switch (purpose.toLowerCase()) {
+                case "profile": return ImageValidator.Profile.PROFILE;
+                case "gallery": return ImageValidator.Profile.GALLERY;
+                case "logo":    return ImageValidator.Profile.LOGO;
+            }
+        }
+        return gallery ? ImageValidator.Profile.GALLERY : ImageValidator.Profile.PROFILE;
     }
 }

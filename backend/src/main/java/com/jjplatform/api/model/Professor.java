@@ -43,4 +43,13 @@ public class Professor {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "discipline_id")
     private Discipline discipline;
+
+    /** Optional contact email; when null, the linked student's email is used (if any). */
+    @Column(name = "email")
+    private String email;
+
+    /** Linked login user (created via grant-access). Null when the professor has no system account. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 }

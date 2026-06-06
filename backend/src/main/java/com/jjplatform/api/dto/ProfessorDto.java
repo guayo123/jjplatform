@@ -23,4 +23,13 @@ public class ProfessorDto {
     @NotNull(message = "Discipline is required")
     private Long disciplineId;
     private String disciplineName;
+
+    /** Editable: contact email for this professor. */
+    private String email;
+
+    /** Read-only: email actually used (own email or linked student's email). */
+    private String effectiveEmail;
+
+    /** Read-only: true when the professor has a system login account linked. */
+    private Boolean hasAccount;
 }

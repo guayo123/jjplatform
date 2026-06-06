@@ -7,3 +7,29 @@
     @apply min-h-screen;
   }
 }
+
+/* Student-portal guided tour (Driver.js): match the app's standard button styling. */
+@layer components {
+  .driver-popover.jjp-tour .driver-popover-footer button {
+    @apply text-sm font-semibold rounded-lg px-4 py-1.5 border-0 shadow-none transition-colors;
+    text-shadow: none;
+  }
+  .driver-popover.jjp-tour .driver-popover-footer button.driver-popover-next-btn {
+    @apply bg-primary-600 text-white;
+  }
+  .driver-popover.jjp-tour .driver-popover-footer button.driver-popover-next-btn:hover {
+    @apply bg-primary-700 text-white;
+  }
+  .driver-popover.jjp-tour .driver-popover-footer button.driver-popover-prev-btn {
+    @apply bg-white text-gray-600 border border-gray-300;
+  }
+  .driver-popover.jjp-tour .driver-popover-footer button.driver-popover-prev-btn:hover {
+    @apply bg-gray-50 text-gray-800;
+  }
+  .driver-popover.jjp-tour .driver-popover-progress-text {
+    @apply text-xs text-gray-400;
+  }
+  .driver-popover.jjp-tour .driver-popover-title {
+    @apply text-base font-bold text-gray-900;
+  }
+}

@@ -14,4 +14,10 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     @Query("SELECT s FROM Student s LEFT JOIN FETCH s.plans WHERE s.id = :id")
     Optional<Student> findByIdWithPlans(@Param("id") Long id);
+
+    /** Used during student self-registration; RUT is matched in-memory after normalization (format-insensitive). */
+    List<Student> findByEmailIgnoreCase(String email);
+
+    /** Resolves the student records backing a logged-in portal user (one per academy they belong to). */
+    List<Student> findByUser_Id(Long userId);
 }

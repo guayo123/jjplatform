@@ -24,6 +24,15 @@ public class Student {
     @JoinColumn(name = "academy_id", nullable = false)
     private Academy academy;
 
+    /**
+     * Linked login user (created when the student self-registers for the portal). Null when the student
+     * has no account. ManyToOne (not OneToOne) on purpose: a person enrolled in several academies has one
+     * record per academy, all sharing the same login user, so user_id must NOT be unique.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
     @Column(nullable = false)
     private String name;
 

@@ -9,12 +9,14 @@ interface AuthState {
   academyName: string | null;
   role: string | null;
   isAuthenticated: boolean;
+  mustChangePassword: boolean;
   loading: boolean;
   error: string | null;
   login: (data: LoginRequest) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => void;
   hydrate: () => void;
+  markPasswordChanged: () => void;
 }
 
 function loadFromStorage(): Partial<AuthState> {
@@ -28,6 +30,7 @@ function loadFromStorage(): Partial<AuthState> {
         academyId: res.academyId,
         academyName: res.academyName,
         role: res.role ?? null,
+        mustChangePassword: !!res.mustChangePassword,
         isAuthenticated: true,
       };
     }
@@ -45,6 +48,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   academyName: null,
   role: null,
   isAuthenticated: false,
+  mustChangePassword: false,
   loading: false,
   error: null,
   ...loadFromStorage(),
@@ -61,6 +65,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         academyId: res.academyId,
         academyName: res.academyName,
         role: res.role,
+        mustChangePassword: !!res.mustChangePassword,
         isAuthenticated: true,
         loading: false,
       });
@@ -84,6 +89,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         academyId: res.academyId,
         academyName: res.academyName,
         role: res.role,
+        mustChangePassword: !!res.mustChangePassword,
         isAuthenticated: true,
         loading: false,
       });
@@ -105,6 +111,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       academyName: null,
       role: null,
       isAuthenticated: false,
+      mustChangePassword: false,
     });
   },
 
@@ -119,6 +126,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           academyId: res.academyId,
           academyName: res.academyName,
           role: res.role ?? null,
+          mustChangePassword: !!res.mustChangePassword,
           isAuthenticated: true,
         });
       } catch {
@@ -126,5 +134,19 @@ export const useAuthStore = create<AuthState>((set) => ({
         localStorage.removeItem('token');
       }
     }
+  },
+
+  markPasswordChanged: () => {
+    const stored = localStorage.getItem('auth');
+    if (stored) {
+      try {
+        const res = JSON.parse(stored);
+        res.mustChangePassword = false;
+        localStorage.setItem('auth', JSON.stringify(res));
+      } catch {
+        // ignore: localStorage state will be refreshed on next login
+      }
+    }
+    set({ mustChangePassword: false });
   },
 }));

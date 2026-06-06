@@ -1,5 +1,95 @@
 # Notas de Versión — JJPlatform
-## Última actualización: Mayo 2026
+## Última actualización: Junio 2026
+
+---
+
+## Actualización — Junio 2026
+
+### Portal del Alumno — Cuenta y autogestión
+- Los alumnos pueden **crear su propia cuenta** desde el login ("¿Eres alumno? Crea tu cuenta de alumno" → `/portal/registro`)
+- Se identifican con **RUT + email**: el sistema busca su ficha de alumno y, si coincide, crea una cuenta con rol `STUDENT` y le envía una **clave temporal por correo** (mismo flujo que el staff; en desarrollo la clave se imprime en la consola del backend)
+- El primer ingreso obliga a **cambiar la clave** antes de entrar al portal
+- **Portal de solo lectura** (`/portal`) donde el alumno ve su ficha completa: foto, datos personales, cinturones por disciplina, historial de graduaciones, resultados de torneos, planes/profesores y pagos
+- El alumno puede **editar su foto de perfil** (único campo editable desde el portal)
+- **Multi-academia**: si la misma persona (mismo RUT+correo) es alumno en varias academias, una sola cuenta agrupa todas sus fichas y un **selector** permite cambiar entre ellas
+- Nuevo rol `STUDENT` y vínculo `students.user_id` (ManyToOne: varias fichas → un login)
+- Endpoints nuevos bajo `/api/portal/**` (solo rol `STUDENT`) que resuelven la ficha **desde el usuario logueado** y verifican que le pertenece, nunca por id del cliente
+- Re-registrarse con el mismo RUT+correo actúa como **recuperación de acceso**: reenvía una clave temporal y vincula las academias nuevas
+- **Nota de base de datos**: el rol `STUDENT` requiere ampliar el CHECK constraint de `users.role` (`ALTER TABLE users DROP CONSTRAINT users_role_check; ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('ADMIN','SUPER_ADMIN','PROFESOR','ENCARGADO','STUDENT'))`). Aplicar una vez por entorno.
+
+### RUT — Formateo y comparación tolerante a formato
+- El campo de RUT en el registro se **formatea en vivo** (`12.345.678-9`) pero se envía **limpio** a la API (sin puntos ni guion, con la K en mayúscula). Utilidad reutilizable `cleanRut` / `formatRut`
+- La validación del RUT al registrarse **normaliza ambos lados** (lo ingresado y lo guardado en BD), por lo que coincide sin importar el formato con que esté cargado
+
+### Ayuda guiada — Tours interactivos
+- Tours paso a paso con **Driver.js** que oscurecen la pantalla, resaltan el elemento real y explican **dónde hacer clic**
+- Aparecen **automáticamente la primera vez** que se entra a cada pantalla; botón **?** en el encabezado para reabrirlos cuando se quiera; checkbox **"No volver a mostrar"**
+- **Cada funcionalidad tiene su propia clave** en `localStorage` (ej: `jjp_payments_tour`, `jjp_students_tour`), así desactivar el tour de una pantalla no afecta a las demás
+- Cubre el **portal del alumno** y todas las pantallas de administración:
+  - **Dashboard** (navegación), **Alumnos** (crear, exportar Excel/PDF, filtros, ver detalle, editar)
+  - **Ficha del alumno** (editar, agregar disciplina, cinturón, grados, torneos, historial)
+  - **Pagos**, **Torneos**, **Profesores**, **Usuarios**, **Planes**, **Disciplinas**, **Horarios**, **Fotos** y **Configuración**
+- Estilo de botones del tour alineado al de la app (clase `jjp-tour`)
+- Implementación reutilizable: helper `runGuidedTour` + hook `useGuidedTour` (auto-inicio robusto en el flanco de carga, compatible con React StrictMode)
+
+### Correcciones
+- **Cambio de contraseña**: el endpoint `POST /api/auth/change-password` resolvía mal al usuario autenticado (usaba `auth.getName()`, que devolvía el `toString()` del objeto `User` en vez del email) y respondía "Usuario no encontrado". Ahora lee el email directamente del principal `User`. Afectaba a **todos los roles**.
+- **Layout del portal**: la foto de perfil se desbordaba sobre el nombre/academia; se corrigió el ancho del contenedor.
+
+---
+
+## Actualización — Mayo 2026 (segunda parte)
+
+### Cuentas de staff con clave temporal por correo
+- Al crear un **Encargado** desde la pantalla *Usuarios*, ya no se ingresa la contraseña manualmente: el sistema genera una clave temporal aleatoria de 12 caracteres y la envía por correo al usuario
+- Si el SMTP no está configurado (entorno de desarrollo), la clave se imprime en la consola del backend con un log claro
+- El alfabeto excluye caracteres ambiguos (`0/O`, `1/l/I`) para que la clave sea legible desde el correo
+- Integración con **Brevo (ex-Sendinblue)** como proveedor SMTP gratis hasta 300 correos/día; se cambia de proveedor solo editando variables de entorno
+
+### Cambio de contraseña obligatorio en primer login
+- Las cuentas creadas con clave temporal quedan marcadas con `must_change_password`
+- Al iniciar sesión, el frontend bloquea toda la app y redirige a `/admin/change-password` hasta que el usuario defina su clave definitiva
+- Nuevo endpoint `POST /api/auth/change-password` y nueva pantalla del mismo nombre con validación de complementarios (clave actual + nueva + confirmación)
+
+### Profesores — Acceso al sistema desde la ficha
+- Nuevo campo **Email de contacto** en el formulario de profesor (con fallback al email del alumno vinculado si el profesor no tiene uno propio)
+- Nuevos botones en cada tarjeta de profesor:
+  - **Dar acceso** — Crea la cuenta de login con clave temporal y la envía al correo del profesor. Deshabilitado si no hay email disponible.
+  - **Reenviar clave** — Regenera la clave temporal cuando el profesor la pierde (la anterior queda inválida)
+- Badge **"Acceso al sistema"** en las tarjetas para identificar rápido qué profesores tienen cuenta
+- La cuenta queda enlazada al profesor vía `professors.user_id`
+- Ambas acciones solo pueden ejecutarlas usuarios con rol `ADMIN`
+- La pantalla *Usuarios* ya **no** permite crear profesores (queda limitada a Encargados) para evitar duplicar caminos
+
+### Validación de imágenes con perfiles por contexto
+- Cada uso de imagen aplica un perfil específico con restricciones de peso y dimensiones:
+
+  | Perfil | Uso | Peso máx | Dimensiones |
+  |---|---|---|---|
+  | Logo | Logo de academia | 1 MB | 100×100 a 1024×1024 px |
+  | Perfil | Foto de alumno o profesor | 2 MB | 200×200 a 3000×3000 px |
+  | Galería | Foto de galería pública | 5 MB | 600×400 a 4000×4000 px |
+
+- **Magic-byte sniffing**: el backend lee los primeros bytes del archivo y verifica que sea realmente JPEG/PNG/GIF/WebP, sin confiar en el `Content-Type` que envía el navegador
+- **Validación previa en el frontend**: el navegador decodifica la imagen y verifica peso/formato/dimensiones *antes* de subir, mostrando un mensaje claro con la regla incumplida ("La imagen supera el peso máximo (2 MB)", "Imagen demasiado pequeña: 150×150. Mínimo 200×200 px", etc.)
+- **Restricciones visibles**: bajo cada zona de upload se muestra el detalle del perfil (formatos, peso y dimensiones aceptados)
+- Barra de progreso real durante la subida en logo, fotos de alumnos/profesores y galería
+- **Fix**: el endpoint de descarga ahora devuelve el `Content-Type` real (JPEG/PNG/GIF/WebP) en lugar de fijarlo a `image/jpeg`; los PNG con transparencia y los WebP se muestran correctamente. Se agregó `Cache-Control` de 30 días.
+
+---
+
+## Refinamientos de cierre — Mayo 2026 (21–22)
+
+### Tarjeta de disciplina del alumno — Edición de cinturón
+- Se eliminó el botón directo de "lápiz" en la tarjeta de disciplina para corregir el cinturón
+- La corrección ahora se hace vía el flujo formal de **promoción de cinturón**, manteniendo el historial auditable
+
+### Backfill de Jiu Jitsu para todos los alumnos
+- El proceso de inscripción automática en Jiu Jitsu ahora cubre a **todos los alumnos**, no solo a los que ya tenían un cinturón asignado
+- Garantiza que cada alumno tenga una ficha de disciplina aunque su cinturón inicial esté sin asignar
+
+### Corrección — Bracket de torneos
+- Solucionado un caso donde el avance automático por *bye* fallaba al participante en un slot duplicado
 
 ---
 
@@ -70,6 +160,45 @@
 
 ---
 
+## WhatsApp Chatbot, Exportaciones y Auditoría — Mayo 2026 (10–11)
+
+### Chatbot por WhatsApp — Modo público
+- Las academias pueden conectar su número de WhatsApp para que los **alumnos y prospectos** consulten información de la academia
+- El bot responde sobre **horarios, planes, profesores, disciplinas, fotos de la galería** y datos generales de la academia
+- Configuración por academia: `wpPhoneNumberId`, `wpAccessToken`, `wpVerifyToken` desde la pantalla de *Configuración*
+
+### Chatbot por WhatsApp — Modo administrador
+- Los administradores autorizados (`wpAdminPhones`) pueden hacer **consultas internas** desde su WhatsApp
+- Preguntar por estado de un alumno: cinturón actual, peso, edad, pagos pendientes/al día, plan inscrito
+- El prompt fue refinado iterativamente para garantizar que el bot tenga acceso a horarios, planes, profesores y alumnos, en el orden correcto, y use los datos correctos según la consulta (ej: cinturón se busca en alumnos, no en profesores)
+
+### Exportaciones PDF / Excel
+- Nuevo botón **Exportar** en el reporte de pagos y en el listado de alumnos
+- Genera PDF o Excel con la información formateada para presentar o archivar
+
+### Historial completo de promociones de cinturón con auditoría
+- Cada promoción registra **quién la realizó** (`performedBy`)
+- Las anulaciones quedan registradas con motivo, fecha y autor (**soft-delete con audit trail**, no se borra físicamente)
+- La anulación de una promoción dispara un **recálculo en cascada**: las promociones posteriores se reajustan y el cinturón vigente del alumno se reasigna automáticamente
+- Si el alumno no tiene promociones activas, se permite reasignar el cinturón inicial
+
+### DatePicker — Selector rápido de año
+- Click en el año del calendario abre un selector de año
+- Útil para registrar fecha de nacimiento de alumnos adultos sin tener que avanzar mes a mes
+
+### Optimización del bot (Groq)
+- Cambio a **llama-3.1-8b-instant** (500K tokens diarios gratis en plan free)
+- `max_tokens` ajustado a 768–1024 según el caso para responder completo sin cortar
+
+### Correcciones varias
+- Promoción inicial de cinturón se crea al registrar al alumno
+- Validaciones obligatorias en el formulario de alumno
+- Fix de desfase de zona horaria en fechas (la fecha guardada coincide con la elegida)
+- Fix de ancho del `FormSelect` cuando se anidaba con clases conflictivas
+- Fix del campo de descuento en el registro de pagos
+
+---
+
 ## Nuevas funcionalidades — Tercera entrega (Abril 2026)
 
 ### Horarios — Profesor por horario
@@ -82,6 +211,39 @@
 ### Corrección — Perfil público: 404 al refrescar
 - Configurado el rewrite en Vercel para que al refrescar cualquier ruta (ej: `/admin/students`) no devuelva 404
 - React Router ahora maneja correctamente todas las rutas desde `index.html`
+
+---
+
+## Cinturones, galería y refinamientos visuales — Abril 2026 (22–24)
+
+### Promociones de cinturón con rayas (stripes)
+- Cada promoción registra cinturón **y** rayas (0 a 4)
+- El sistema detecta automáticamente si la operación es **promoción**, **degradación** o **asignación de rayas (grado)** comparando con el cinturón anterior
+- Las rayas se asignan vía `BeltPromotionService` (no se editan manualmente en el formulario de alumno)
+
+### Detalle de alumno rediseñado
+- Vista dedicada con foto grande, datos personales, planes inscritos, historial de pagos e historial de cinturones
+- Acciones rápidas para registrar pago, abonar, promocionar cinturón y editar datos
+
+### Filtros de búsqueda en alumnos
+- Búsqueda por nombre, RUT o nickname
+- Filtros adicionales por estado (activo/inactivo) y otros criterios
+
+### Galería del perfil público — Carrusel de fotos
+- Las fotos de la galería se muestran como **carrusel deslizable** en lugar de una grilla estática
+- En móvil: gestos táctiles; en escritorio: flechas y autoplay opcional
+
+### Anclas de scroll en el perfil público
+- Los accesos rápidos (Clases, Planes, Torneos, Fotos) saltan a la sección correspondiente con scroll suave
+
+### Horarios — Vista por chip de día e íconos
+- Se reemplazó la grilla semanal por una fila de **chips por día**
+- Cada clase muestra un ícono representativo del tipo de actividad
+
+### Correcciones
+- **Login case-insensitive**: el email se normaliza en minúsculas al loguearse y registrarse
+- **Navegación**: links de la barra superior con scroll horizontal en móvil y secundarios agrupados bajo un menú "Gestión" para evitar overflow
+- **Perfil dev**: nuevo `application-dev.yml` para diferenciar entornos de desarrollo
 
 ---
 

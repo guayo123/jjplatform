@@ -6,6 +6,7 @@ import com.jjplatform.api.service.SecurityHelper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -42,5 +43,17 @@ public class ProfessorController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         professorService.delete(id, securityHelper.getCurrentAcademyId());
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/grant-access")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ProfessorDto> grantAccess(@PathVariable Long id) {
+        return ResponseEntity.ok(professorService.grantAccess(id, securityHelper.getCurrentAcademyId()));
+    }
+
+    @PostMapping("/{id}/resend-credentials")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ProfessorDto> resendCredentials(@PathVariable Long id) {
+        return ResponseEntity.ok(professorService.resendCredentials(id, securityHelper.getCurrentAcademyId()));
     }
 }

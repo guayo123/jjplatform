@@ -2,6 +2,7 @@ package com.jjplatform.api.service;
 
 import com.jjplatform.api.exception.ResourceNotFoundException;
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -14,63 +15,48 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.Set;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class FileStorageService {
 
-    private static final Set<String> ALLOWED_TYPES = Set.of(
-            "image/jpeg", "image/png", "image/gif", "image/webp");
+    private final ImageValidator imageValidator;
+    private Path uploadDir;
 
-    private final Path uploadDir;
-
-    public FileStorageService(@Value("${app.file.upload-dir}") String uploadDir) {
-        this.uploadDir = Paths.get(uploadDir).toAbsolutePath().normalize();
-    }
+    @Value("${app.file.upload-dir}")
+    private String uploadDirRaw;
 
     @PostConstruct
     public void init() throws IOException {
+        this.uploadDir = Paths.get(uploadDirRaw).toAbsolutePath().normalize();
         Files.createDirectories(uploadDir);
     }
 
-    public String store(MultipartFile file) throws IOException {
-        if (file.isEmpty()) {
-            throw new IllegalArgumentException("File is empty");
-        }
+    public String store(MultipartFile file, ImageValidator.Profile profile) throws IOException {
+        ImageValidator.DetectedFormat format = imageValidator.validate(file, profile);
 
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_TYPES.contains(contentType)) {
-            throw new IllegalArgumentException(
-                    "Invalid file type. Allowed: JPEG, PNG, GIF, WebP");
-        }
-
-        // Generate a safe unique filename
-        String extension = getExtension(file.getOriginalFilename());
-        String filename = UUID.randomUUID() + extension;
-
+        // Use the detected format's extension, not the client-supplied filename — the latter can lie.
+        String filename = UUID.randomUUID() + format.extension;
         Path targetLocation = uploadDir.resolve(filename).normalize();
 
-        // Prevent path traversal
+        // Defense-in-depth: even with a UUID filename, refuse anything outside uploadDir.
         if (!targetLocation.startsWith(uploadDir)) {
             throw new IllegalArgumentException("Invalid file path");
         }
 
         Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
-
         return filename;
     }
 
     public Resource load(String filename) {
         try {
-            // Sanitize filename — only allow alphanumeric, hyphens, dots
             if (!filename.matches("[a-zA-Z0-9._-]+")) {
                 throw new ResourceNotFoundException("File not found");
             }
 
             Path filePath = uploadDir.resolve(filename).normalize();
 
-            // Prevent path traversal
             if (!filePath.startsWith(uploadDir)) {
                 throw new ResourceNotFoundException("File not found");
             }
@@ -96,9 +82,12 @@ public class FileStorageService {
         Files.deleteIfExists(filePath);
     }
 
-    private String getExtension(String filename) {
-        if (filename == null) return ".jpg";
-        int lastDot = filename.lastIndexOf('.');
-        return lastDot > 0 ? filename.substring(lastDot) : ".jpg";
+    /** Maps a stored filename to its MIME type using the extension we assigned at upload time. */
+    public String contentTypeFor(String filename) {
+        String lower = filename.toLowerCase();
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".gif")) return "image/gif";
+        if (lower.endsWith(".webp")) return "image/webp";
+        return "image/jpeg";
     }
 }

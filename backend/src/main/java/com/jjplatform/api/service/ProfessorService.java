@@ -3,19 +3,25 @@ package com.jjplatform.api.service;
 import com.jjplatform.api.dto.ProfessorDto;
 import com.jjplatform.api.exception.ResourceNotFoundException;
 import com.jjplatform.api.model.Academy;
+import com.jjplatform.api.model.AcademyStaff;
 import com.jjplatform.api.model.Discipline;
 import com.jjplatform.api.model.Professor;
 import com.jjplatform.api.model.Student;
 import com.jjplatform.api.model.StudentDiscipline;
+import com.jjplatform.api.model.User;
 import com.jjplatform.api.repository.AcademyRepository;
+import com.jjplatform.api.repository.AcademyStaffRepository;
 import com.jjplatform.api.repository.DisciplineRepository;
 import com.jjplatform.api.repository.ProfessorRepository;
 import com.jjplatform.api.repository.StudentDisciplineRepository;
 import com.jjplatform.api.repository.StudentRepository;
+import com.jjplatform.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -23,11 +29,19 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProfessorService {
 
+    private static final SecureRandom RNG = new SecureRandom();
+    private static final String TEMP_PASSWORD_ALPHABET =
+            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+
     private final ProfessorRepository professorRepository;
     private final AcademyRepository academyRepository;
     private final StudentRepository studentRepository;
     private final DisciplineRepository disciplineRepository;
     private final StudentDisciplineRepository studentDisciplineRepository;
+    private final UserRepository userRepository;
+    private final AcademyStaffRepository academyStaffRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     public List<ProfessorDto> getByAcademy(Long academyId) {
         return professorRepository.findByAcademyIdOrderByDisplayOrderAscNameAsc(academyId)
@@ -57,6 +71,7 @@ public class ProfessorService {
                 .active(true)
                 .student(student)
                 .discipline(discipline)
+                .email(normalizeEmail(dto.getEmail()))
                 .build();
 
         return toDto(professorRepository.save(p));
@@ -79,8 +94,96 @@ public class ProfessorService {
         if (dto.getActive() != null) p.setActive(dto.getActive());
         p.setStudent(student);
         p.setDiscipline(discipline);
+        p.setEmail(normalizeEmail(dto.getEmail()));
 
         return toDto(professorRepository.save(p));
+    }
+
+    /**
+     * Creates a system login account for this professor with a temporary password and emails the credentials.
+     * The professor's own email is used; if absent, falls back to the linked student's email.
+     */
+    @Transactional
+    public ProfessorDto grantAccess(Long professorId, Long academyId) {
+        Professor p = findAndVerify(professorId, academyId);
+
+        if (p.getUser() != null) {
+            throw new IllegalArgumentException("Este profesor ya tiene una cuenta de acceso. Usa 'Reenviar clave' si necesita una nueva.");
+        }
+
+        String email = resolveEmail(p);
+        if (email == null) {
+            throw new IllegalArgumentException("El profesor no tiene email. Agrega uno antes de crear la cuenta.");
+        }
+
+        if (userRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("Ya existe un usuario con el correo '" + email + "'.");
+        }
+
+        String tempPassword = generateTempPassword(12);
+        User user = User.builder()
+                .email(email)
+                .password(passwordEncoder.encode(tempPassword))
+                .role(User.Role.PROFESOR)
+                .academyId(academyId)
+                .mustChangePassword(true)
+                .build();
+        user = userRepository.save(user);
+
+        academyStaffRepository.save(AcademyStaff.builder()
+                .academyId(academyId)
+                .userId(user.getId())
+                .active(true)
+                .build());
+
+        p.setUser(user);
+        professorRepository.save(p);
+
+        emailService.sendStaffWelcomeEmail(email, tempPassword, "PROFESOR", p.getAcademy().getName());
+        return toDto(p);
+    }
+
+    /**
+     * Regenerates a fresh temporary password for an existing professor account and re-sends the welcome email.
+     */
+    @Transactional
+    public ProfessorDto resendCredentials(Long professorId, Long academyId) {
+        Professor p = findAndVerify(professorId, academyId);
+        User user = p.getUser();
+        if (user == null) {
+            throw new IllegalArgumentException("Este profesor todavía no tiene una cuenta. Crea el acceso primero.");
+        }
+
+        String tempPassword = generateTempPassword(12);
+        user.setPassword(passwordEncoder.encode(tempPassword));
+        user.setMustChangePassword(true);
+        userRepository.save(user);
+
+        emailService.sendStaffWelcomeEmail(user.getEmail(), tempPassword, "PROFESOR", p.getAcademy().getName());
+        return toDto(p);
+    }
+
+    private String resolveEmail(Professor p) {
+        String own = normalizeEmail(p.getEmail());
+        if (own != null) return own;
+        if (p.getStudent() != null) {
+            return normalizeEmail(p.getStudent().getEmail());
+        }
+        return null;
+    }
+
+    private static String normalizeEmail(String raw) {
+        if (raw == null) return null;
+        String trimmed = raw.trim().toLowerCase();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static String generateTempPassword(int length) {
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append(TEMP_PASSWORD_ALPHABET.charAt(RNG.nextInt(TEMP_PASSWORD_ALPHABET.length())));
+        }
+        return sb.toString();
     }
 
     @Transactional
@@ -155,6 +258,9 @@ public class ProfessorService {
         dto.setAchievements(p.getAchievements());
         dto.setDisplayOrder(p.getDisplayOrder());
         dto.setActive(p.getActive());
+        dto.setEmail(p.getEmail());
+        dto.setEffectiveEmail(resolveEmail(p));
+        dto.setHasAccount(p.getUser() != null);
         if (p.getStudent() != null) {
             dto.setStudentId(p.getStudent().getId());
             dto.setStudentName(p.getStudent().getName());

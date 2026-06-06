@@ -13,10 +13,7 @@ public class CreateUserRequest {
     @NotBlank
     private String email;
 
-    @NotBlank
-    private String password;
-
     @NotNull
-    @Pattern(regexp = "PROFESOR|ENCARGADO", message = "Role must be PROFESOR or ENCARGADO")
+    @Pattern(regexp = "ENCARGADO", message = "Solo se pueden crear usuarios con rol ENCARGADO desde aquí. Los profesores se gestionan desde la pantalla de Profesores.")
     private String role;
 }

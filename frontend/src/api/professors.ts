@@ -16,4 +16,10 @@ export const professorsApi = {
 
   delete: (id: number) =>
     client.delete(`/professors/${id}`),
+
+  grantAccess: (id: number) =>
+    client.post<Professor>(`/professors/${id}/grant-access`).then((r) => r.data),
+
+  resendCredentials: (id: number) =>
+    client.post<Professor>(`/professors/${id}/resend-credentials`).then((r) => r.data),
 };

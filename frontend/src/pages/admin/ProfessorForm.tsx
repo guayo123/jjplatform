@@ -23,12 +23,13 @@ export default function ProfessorForm() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState<ProfessorFormType>({
-    name: '', photoUrl: null, bio: null, achievements: null, displayOrder: 0, studentId: null, disciplineId: null,
+    name: '', photoUrl: null, bio: null, achievements: null, displayOrder: 0, studentId: null, disciplineId: null, email: null,
   });
   const [loaded, setLoaded] = useState<Professor | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [disciplines, setDisciplines] = useState<Discipline[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState('');
   const [disciplineError, setDisciplineError] = useState('');
@@ -48,6 +49,7 @@ export default function ProfessorForm() {
           displayOrder: p.displayOrder ?? 0,
           studentId: p.studentId ?? null,
           disciplineId: p.disciplineId ?? null,
+          email: p.email ?? null,
         });
       });
     }
@@ -55,13 +57,21 @@ export default function ProfessorForm() {
 
   const handlePhotoUpload = async (file: File) => {
     setUploading(true);
+    setUploadProgress(0);
     try {
-      const { url } = await filesApi.upload(file, false);
+      const { url } = await filesApi.upload(file, {
+        gallery: false,
+        purpose: 'profile',
+        onProgress: setUploadProgress,
+      });
       setForm((f) => ({ ...f, photoUrl: url }));
-    } catch {
-      toast.error('Error al subir la foto');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al subir la foto';
+      toast.error(msg);
+      throw err;
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -102,6 +112,8 @@ export default function ProfessorForm() {
             onFile={handlePhotoUpload}
             onRemove={() => setForm((f) => ({ ...f, photoUrl: null }))}
             uploading={uploading}
+            progress={uploadProgress}
+            profile="profile"
             label="foto del profesor"
             aspect="portrait"
           />
@@ -168,6 +180,20 @@ export default function ProfessorForm() {
             Al crear el profesor se generará automáticamente una ficha asociada para registrar su cinturón e historial de grados en la disciplina seleccionada. Podrás asignar el cinturón inicial desde la ficha después de guardar.
           </div>
         )}
+
+        <div>
+          <label className={lbl}>Email de contacto <span className="text-gray-600 font-normal normal-case">(opcional)</span></label>
+          <FormInput
+            type="email"
+            value={form.email ?? ''}
+            onChange={(e) => setForm({ ...form, email: e.target.value || null })}
+            placeholder="profesor@email.com"
+          />
+          <p className={hint}>
+            Necesario para darle acceso al sistema desde la pantalla de Profesores.
+            Si lo dejas vacío y el profesor está vinculado a un alumno, se usará el email del alumno.
+          </p>
+        </div>
 
         <div>
           <label className={lbl}>Biografía</label>

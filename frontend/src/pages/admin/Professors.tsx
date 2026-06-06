@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { professorsApi } from '../../api/professors';
 import { useToast } from '../../components/ToastContext';
 import { useConfirm } from '../../components/ConfirmContext';
+import { useGuidedTour } from '../../utils/useGuidedTour';
 import type { Professor } from '../../types';
 
 
@@ -28,11 +29,48 @@ export default function Professors() {
         displayOrder: p.displayOrder ?? 0,
         studentId: p.studentId,
         disciplineId: p.disciplineId,
+        email: p.email,
         active: !p.active,
       });
       setProfessors((prev) => prev.map((x) => (x.id === p.id ? updated : x)));
     } catch {
       toast.error('Error al cambiar estado');
+    }
+  };
+
+  const handleGrantAccess = async (p: Professor) => {
+    if (!p.effectiveEmail) {
+      toast.error('Agrega un email al profesor antes de crear su cuenta.');
+      return;
+    }
+    const ok = await confirm({
+      message: `Se creará una cuenta para "${p.name}" y se enviará una clave temporal a ${p.effectiveEmail}. ¿Continuar?`,
+      confirmLabel: 'Crear cuenta',
+    });
+    if (!ok) return;
+    try {
+      const updated = await professorsApi.grantAccess(p.id);
+      setProfessors((prev) => prev.map((x) => (x.id === p.id ? updated : x)));
+      toast.success(`Cuenta creada. Clave temporal enviada a ${p.effectiveEmail}.`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al crear la cuenta';
+      toast.error(msg);
+    }
+  };
+
+  const handleResendCredentials = async (p: Professor) => {
+    const ok = await confirm({
+      message: `Se generará una nueva clave temporal y se enviará a ${p.effectiveEmail}. La clave anterior dejará de funcionar.`,
+      confirmLabel: 'Reenviar clave',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await professorsApi.resendCredentials(p.id);
+      toast.success(`Nueva clave temporal enviada a ${p.effectiveEmail}.`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al reenviar la clave';
+      toast.error(msg);
     }
   };
 
@@ -52,6 +90,31 @@ export default function Professors() {
     }
   };
 
+  const startTour = useGuidedTour({
+    storageKey: 'jjp_professors_tour',
+    welcomeTitle: '👋 Profesores',
+    welcomeBody: '<p>Aquí gestionas a los profesores que se muestran en el perfil público. Te muestro las opciones.</p>',
+    loading,
+    buildSteps: () => [
+      {
+        element: '[data-tour="nuevo-profesor"]',
+        popover: { title: '➕ Nuevo profesor', description: 'Agrega un profesor con su foto, disciplina y biografía.', side: 'bottom', align: 'end' },
+      },
+      ...(professors.length > 0
+        ? [
+            {
+              element: '[data-tour="prof-editar"]',
+              popover: { title: '✏️ Editar', description: 'Edita los datos del profesor.', side: 'top' as const, align: 'start' as const },
+            },
+            {
+              element: '[data-tour="prof-acceso"]',
+              popover: { title: '🔑 Acceso al sistema', description: 'Crea una cuenta para el profesor (clave temporal por correo) o reenvíale una nueva.', side: 'top' as const, align: 'start' as const },
+            },
+          ]
+        : []),
+    ],
+  });
+
   if (loading)
     return (
       <div className="flex items-center justify-center py-20">
@@ -68,12 +131,23 @@ export default function Professors() {
             Los profesores activos se muestran en el perfil público de la academia.
           </p>
         </div>
-        <button
-          onClick={() => navigate('/admin/professors/new')}
-          className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          + Nuevo profesor
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={startTour}
+            title="Ayuda"
+            aria-label="Ayuda"
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-500 hover:text-gray-700 hover:border-gray-400 text-sm font-bold transition-colors"
+          >
+            ?
+          </button>
+          <button
+            data-tour="nuevo-profesor"
+            onClick={() => navigate('/admin/professors/new')}
+            className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            + Nuevo profesor
+          </button>
+        </div>
       </div>
 
       {professors.length === 0 ? (
@@ -84,7 +158,7 @@ export default function Professors() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {professors.map((p) => (
+          {professors.map((p, i) => (
             <div
               key={p.id}
               className={`bg-white rounded-xl shadow-sm border p-5 flex flex-col gap-3 transition-opacity ${
@@ -131,6 +205,11 @@ export default function Professors() {
                         También alumno
                       </span>
                     )}
+                    {p.hasAccount && (
+                      <span className="text-xs px-2 py-0.5 rounded font-medium bg-emerald-100 text-emerald-700" title={`Acceso: ${p.effectiveEmail}`}>
+                        Acceso al sistema
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -155,8 +234,9 @@ export default function Professors() {
                 </ul>
               )}
 
-              <div className="flex gap-2 mt-auto pt-2 border-t border-gray-100">
+              <div className="flex flex-wrap gap-x-2 gap-y-1 mt-auto pt-2 border-t border-gray-100">
                 <button
+                  data-tour={i === 0 ? 'prof-editar' : undefined}
                   onClick={() => navigate(`/admin/professors/${p.id}/edit`)}
                   className="flex-1 text-center text-sm text-primary-600 hover:text-primary-700 font-medium py-1.5 rounded-lg hover:bg-primary-50 transition-colors"
                 >
@@ -169,6 +249,26 @@ export default function Professors() {
                     title="Ver historial de cinturones y promociones"
                   >
                     Historial
+                  </button>
+                )}
+                {!p.hasAccount ? (
+                  <button
+                    data-tour={i === 0 ? 'prof-acceso' : undefined}
+                    onClick={() => handleGrantAccess(p)}
+                    disabled={!p.effectiveEmail}
+                    title={p.effectiveEmail ? `Enviar clave temporal a ${p.effectiveEmail}` : 'Agrega un email al profesor primero'}
+                    className="flex-1 text-center text-sm text-emerald-600 hover:text-emerald-700 disabled:text-gray-300 disabled:cursor-not-allowed font-medium py-1.5 rounded-lg hover:bg-emerald-50 disabled:hover:bg-transparent transition-colors"
+                  >
+                    Dar acceso
+                  </button>
+                ) : (
+                  <button
+                    data-tour={i === 0 ? 'prof-acceso' : undefined}
+                    onClick={() => handleResendCredentials(p)}
+                    title={`Reenviar nueva clave a ${p.effectiveEmail}`}
+                    className="flex-1 text-center text-sm text-emerald-600 hover:text-emerald-700 font-medium py-1.5 rounded-lg hover:bg-emerald-50 transition-colors"
+                  >
+                    Reenviar clave
                   </button>
                 )}
                 <button

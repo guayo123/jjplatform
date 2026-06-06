@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { tournamentsApi } from '../../api/tournaments';
 import DatePicker from '../../components/DatePicker';
 import FormInput from '../../components/FormInput';
+import { useGuidedTour } from '../../utils/useGuidedTour';
 
 const lbl = 'block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5';
 import type { Tournament } from '../../types';
@@ -47,16 +48,46 @@ export default function Tournaments() {
     s === 'IN_PROGRESS' ? 'bg-yellow-100 text-yellow-700' :
     'bg-gray-100 text-gray-600';
 
+  const startTour = useGuidedTour({
+    storageKey: 'jjp_tournaments_tour',
+    welcomeTitle: '👋 Torneos',
+    welcomeBody: '<p>Aquí creas torneos internos, inscribes participantes y generas las llaves (brackets).</p>',
+    loading,
+    buildSteps: () => [
+      {
+        element: '[data-tour="nuevo-torneo"]',
+        popover: { title: '➕ Nuevo torneo', description: 'Crea un torneo por categorías o absoluto, con fecha y cupos.', side: 'bottom', align: 'end' },
+      },
+      ...(tournaments.length > 0
+        ? [{
+            element: '[data-tour="ver-torneo"]',
+            popover: { title: '🥋 Abrir torneo', description: 'Entra al torneo para inscribir participantes, generar la llave y registrar los resultados.', side: 'top' as const, align: 'start' as const },
+          }]
+        : []),
+    ],
+  });
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Torneos</h1>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          + Nuevo torneo
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={startTour}
+            title="Ayuda"
+            aria-label="Ayuda"
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-500 hover:text-gray-700 hover:border-gray-400 text-sm font-bold transition-colors"
+          >
+            ?
+          </button>
+          <button
+            data-tour="nuevo-torneo"
+            onClick={() => setShowForm(!showForm)}
+            className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            + Nuevo torneo
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -137,9 +168,10 @@ export default function Tournaments() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {tournaments.map((t) => (
+          {tournaments.map((t, i) => (
             <Link
               key={t.id}
+              data-tour={i === 0 ? 'ver-torneo' : undefined}
               to={`/admin/tournaments/${t.id}`}
               className="bg-white rounded-xl shadow-sm hover:shadow-md p-6 transition-all"
             >

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStudentStore } from '../../stores/studentStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -7,7 +7,10 @@ import FormInput from '../../components/FormInput';
 import FormSelect from '../../components/FormSelect';
 import { beltPromotionsApi } from '../../api/beltPromotions';
 import { exportStudentsExcel, exportStudentsPDF } from '../../utils/export';
+import { startStudentsTour } from './studentsTour';
 import type { Student, BeltPromotion } from '../../types';
+
+const TOUR_KEY = 'jjp_students_tour';
 
 const BELT_COLORS: Record<string, string> = {
   Blanco:  'bg-gray-100 text-gray-700 border border-gray-300',
@@ -145,6 +148,38 @@ export default function Students() {
     });
   }, [students, filters]);
 
+  const tourStartedRef = useRef(false);
+  const prevLoadingRef = useRef(loading);
+  const filteredRef = useRef(filtered);
+  filteredRef.current = filtered;
+  const studentsRef = useRef(students);
+  studentsRef.current = students;
+
+  const runTour = () => {
+    startStudentsTour({
+      canCreate: canEdit,
+      hasExport: filteredRef.current.length > 0,
+      hasFilters: studentsRef.current.length > 0,
+      hasRows: filteredRef.current.length > 0,
+      canEdit,
+      initialDismiss: localStorage.getItem(TOUR_KEY) === 'dismissed',
+      onFinish: (dismissForever) => {
+        if (dismissForever) localStorage.setItem(TOUR_KEY, 'dismissed');
+        else localStorage.removeItem(TOUR_KEY);
+      },
+    });
+  };
+
+  // Auto-run the tour the moment the list finishes loading (loading: true -> false), unless dismissed.
+  useEffect(() => {
+    const wasLoading = prevLoadingRef.current;
+    prevLoadingRef.current = loading;
+    if (!wasLoading || loading || tourStartedRef.current) return;
+    if (localStorage.getItem(TOUR_KEY) === 'dismissed') return;
+    tourStartedRef.current = true;
+    runTour();
+  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleExport = async (format: 'excel' | 'pdf') => {
     setExporting(true);
     try {
@@ -184,9 +219,18 @@ export default function Students() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Alumnos</h1>
         <div className="flex items-center gap-2">
+          <button
+            onClick={runTour}
+            title="Ayuda"
+            aria-label="Ayuda"
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-500 hover:text-gray-700 hover:border-gray-400 text-sm font-bold transition-colors"
+          >
+            ?
+          </button>
           {filtered.length > 0 && (
             <>
               <button
+                data-tour="excel"
                 onClick={() => handleExport('excel')}
                 disabled={exporting}
                 title="Exportar a Excel (incluye graduaciones)"
@@ -198,6 +242,7 @@ export default function Students() {
                 {exporting ? '...' : 'Excel'}
               </button>
               <button
+                data-tour="pdf"
                 onClick={() => handleExport('pdf')}
                 disabled={exporting}
                 title="Exportar a PDF (incluye graduaciones)"
@@ -211,16 +256,18 @@ export default function Students() {
             </>
           )}
           {canEdit && (
-            <Button onClick={() => navigate('/admin/students/new')}>
-              + Nuevo alumno
-            </Button>
+            <span data-tour="nuevo">
+              <Button onClick={() => navigate('/admin/students/new')}>
+                + Nuevo alumno
+              </Button>
+            </span>
           )}
         </div>
       </div>
 
       {/* Filter panel */}
       {students.length > 0 && (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-4 space-y-3">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-4 space-y-3" data-tour="filtros">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <FormInput
               type="text"
@@ -323,7 +370,7 @@ export default function Students() {
         <>
           {/* Tarjetas — móvil */}
           <div className="md:hidden space-y-3">
-            {filtered.map((student) => (
+            {filtered.map((student, i) => (
               <div
                 key={student.id}
                 onClick={() => navigate(`/admin/students/${student.id}`)}
@@ -362,6 +409,7 @@ export default function Students() {
                     </button>
                   )}
                   <button
+                    data-tour={i === 0 ? 'detalle-m' : undefined}
                     onClick={() => navigate(`/admin/students/${student.id}`)}
                     className="text-xs font-medium px-3 py-1.5 rounded-full bg-primary-50 text-primary-600 hover:bg-primary-100 transition-colors"
                   >
@@ -369,6 +417,7 @@ export default function Students() {
                   </button>
                   {canEdit && (
                     <button
+                      data-tour={i === 0 ? 'editar-m' : undefined}
                       onClick={() => navigate(`/admin/students/${student.id}/edit`)}
                       className="text-xs font-medium px-3 py-1.5 rounded-full bg-primary-600 text-white hover:bg-primary-700 transition-colors"
                     >
@@ -394,7 +443,7 @@ export default function Students() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filtered.map((student) => (
+                {filtered.map((student, i) => (
                   <tr
                     key={student.id}
                     onClick={() => navigate(`/admin/students/${student.id}`)}
@@ -443,6 +492,7 @@ export default function Students() {
                     <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-2">
                         <button
+                          data-tour={i === 0 ? 'detalle' : undefined}
                           onClick={() => navigate(`/admin/students/${student.id}`)}
                           className="text-xs font-medium px-3 py-1.5 rounded-full bg-primary-50 text-primary-600 hover:bg-primary-100 hover:text-primary-800 transition-colors"
                         >
@@ -450,6 +500,7 @@ export default function Students() {
                         </button>
                         {canEdit && (
                           <button
+                            data-tour={i === 0 ? 'editar' : undefined}
                             onClick={() => navigate(`/admin/students/${student.id}/edit`)}
                             className="text-xs font-medium px-3 py-1.5 rounded-full bg-primary-600 text-white hover:bg-primary-700 transition-colors"
                           >

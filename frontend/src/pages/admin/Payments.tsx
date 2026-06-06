@@ -5,6 +5,7 @@ import { useStudentStore } from '../../stores/studentStore';
 import { useAuthStore } from '../../stores/authStore';
 import { formatCLP } from '../../utils/format';
 import { exportPaymentsExcel, exportPaymentsPDF } from '../../utils/export';
+import { useGuidedTour } from '../../utils/useGuidedTour';
 import type { Payment, PaymentForm, Plan } from '../../types';
 import FormInput from '../../components/FormInput';
 import FormSelect from '../../components/FormSelect';
@@ -158,14 +159,48 @@ export default function Payments() {
     return acc;
   }, {});
 
+  const startTour = useGuidedTour({
+    storageKey: 'jjp_payments_tour',
+    welcomeTitle: '👋 Pagos',
+    welcomeBody: '<p>Aquí registras y revisas los pagos de tus alumnos. Te muestro las opciones.</p>',
+    loading,
+    buildSteps: () => [
+      {
+        element: '[data-tour="vista-pagos"]',
+        popover: { title: '🗓️ Vista y período', description: 'Cambia entre ver los pagos por mes o por plan, y elige el mes y año.', side: 'bottom', align: 'start' },
+      },
+      ...(canEdit
+        ? [{
+            element: '[data-tour="registrar-pago"]',
+            popover: { title: '➕ Registrar pago', description: 'Registra el pago o abono de un alumno para el período seleccionado.', side: 'bottom' as const, align: 'end' as const },
+          }]
+        : []),
+      ...(payments.length > 0
+        ? [{
+            element: '[data-tour="export-pagos"]',
+            popover: { title: '📊 Exportar', description: 'Descarga los pagos del mes en Excel o PDF.', side: 'bottom' as const, align: 'end' as const },
+          }]
+        : []),
+    ],
+  });
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Pagos</h1>
         <div className="flex items-center gap-2">
+          <button
+            onClick={startTour}
+            title="Ayuda"
+            aria-label="Ayuda"
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-500 hover:text-gray-700 hover:border-gray-400 text-sm font-bold transition-colors"
+          >
+            ?
+          </button>
           {payments.length > 0 && view === 'month' && (
             <>
               <button
+                data-tour="export-pagos"
                 onClick={() => exportPaymentsExcel(payments, month, year)}
                 title="Exportar a Excel"
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-green-600 text-green-600 hover:bg-green-50 text-sm font-medium transition-colors"
@@ -189,6 +224,7 @@ export default function Payments() {
           )}
           {canEdit && view === 'month' && (
             <button
+              data-tour="registrar-pago"
               onClick={() => setShowForm(!showForm)}
               className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
             >
@@ -199,7 +235,7 @@ export default function Payments() {
       </div>
 
       {/* View toggle + Month/Year selector */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
+      <div className="flex flex-wrap items-center gap-3 mb-6" data-tour="vista-pagos">
         <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
           <button
             onClick={() => setView('month')}

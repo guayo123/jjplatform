@@ -3,6 +3,7 @@ import { academiesApi } from '../../api/academies';
 import { disciplineBeltsApi } from '../../api/disciplineBelts';
 import { useToast } from '../../components/ToastContext';
 import { useConfirm } from '../../components/ConfirmContext';
+import { useGuidedTour } from '../../utils/useGuidedTour';
 import FormInput from '../../components/FormInput';
 import type { Discipline, DisciplineAgeCategory, DisciplineBelt } from '../../types';
 
@@ -182,6 +183,25 @@ export default function Disciplines() {
     }
   };
 
+  const startTour = useGuidedTour({
+    storageKey: 'jjp_disciplines_tour',
+    welcomeTitle: '👋 Disciplinas',
+    welcomeBody: '<p>Aquí configuras las artes marciales, sus categorías de edad y los cinturones de cada una.</p>',
+    loading,
+    buildSteps: () => [
+      {
+        element: '[data-tour="nueva-disciplina"]',
+        popover: { title: '➕ Nueva disciplina', description: 'Crea una disciplina (arte marcial) para tu academia.', side: 'bottom', align: 'end' },
+      },
+      ...(disciplines.length > 0
+        ? [{
+            element: '[data-tour="disc-cinturones"]',
+            popover: { title: '🥋 Cinturones y categorías', description: 'Abre "Cinturones" en cada disciplina para definir sus categorías de edad y los cinturones disponibles.', side: 'bottom' as const, align: 'end' as const },
+          }]
+        : []),
+    ],
+  });
+
   if (loading)
     return (
       <div className="flex items-center justify-center py-20">
@@ -198,12 +218,23 @@ export default function Disciplines() {
             Configura las disciplinas, categorías de edad y sus cinturones.
           </p>
         </div>
-        <button
-          onClick={openNew}
-          className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          + Nueva disciplina
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={startTour}
+            title="Ayuda"
+            aria-label="Ayuda"
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-500 hover:text-gray-700 hover:border-gray-400 text-sm font-bold transition-colors"
+          >
+            ?
+          </button>
+          <button
+            data-tour="nueva-disciplina"
+            onClick={openNew}
+            className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            + Nueva disciplina
+          </button>
+        </div>
       </div>
 
       {/* Discipline form modal */}
@@ -251,7 +282,7 @@ export default function Disciplines() {
         </div>
       ) : (
         <div className="space-y-3">
-          {disciplines.map((d) => {
+          {disciplines.map((d, i) => {
             const isExpanded = expandedId === d.id;
             return (
               <div key={d.id} className={`bg-white rounded-xl shadow-sm overflow-hidden ${!d.active ? 'opacity-60' : ''}`}>
@@ -273,6 +304,7 @@ export default function Disciplines() {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button
+                      data-tour={i === 0 ? 'disc-cinturones' : undefined}
                       onClick={() => setExpandedId(isExpanded ? null : d.id)}
                       className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
                         isExpanded

@@ -31,6 +31,15 @@ public class User {
     @Column(name = "academy_id")
     private Long academyId;
 
+    /** True when the user was created with a temporary password and must change it before using the app. */
+    @Column(name = "must_change_password", nullable = false, columnDefinition = "boolean not null default false")
+    @Builder.Default
+    private Boolean mustChangePassword = false;
+
+    /** Student portal cover/banner preference (one of: japones, jiujitsu, minimal). Null = no banner. */
+    @Column(name = "portal_banner")
+    private String portalBanner;
+
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Academy academy;
 
@@ -43,6 +52,8 @@ public class User {
         /** Can only view data */
         PROFESOR,
         /** Can register payments and toggle student active status */
-        ENCARGADO
+        ENCARGADO,
+        /** Self-registered student: can only view their own student record via the portal */
+        STUDENT
     }
 }

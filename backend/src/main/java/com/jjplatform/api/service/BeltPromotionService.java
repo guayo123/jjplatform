@@ -44,6 +44,14 @@ public class BeltPromotionService {
                 .map(this::toDto).toList();
     }
 
+    /** All promotions for a student (global + per-discipline), for the read-only student portal. */
+    public List<BeltPromotionDto> getAllByStudent(Long studentId, Long academyId) {
+        return beltPromotionRepository
+                .findByStudentIdAndAcademyIdOrderByPromotionDateDescIdDesc(studentId, academyId)
+                .stream()
+                .map(this::toDto).toList();
+    }
+
     public List<BeltPromotionDto> getByStudentDiscipline(Long studentDisciplineId) {
         return beltPromotionRepository
                 .findByStudentDisciplineIdOrderByPromotionDateAscIdAsc(studentDisciplineId)
