@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.UnsupportedEncodingException;
@@ -38,7 +39,9 @@ public class EmailService {
     /**
      * Sends a welcome email to a newly-created staff user with their temporary password.
      * When SMTP credentials are not configured, logs the temp password instead so local dev keeps working.
+     * Runs asynchronously so a slow/unreachable SMTP relay never blocks the HTTP request thread.
      */
+    @Async
     public void sendStaffWelcomeEmail(String toEmail, String tempPassword, String role, String academyName) {
         if (smtpUser == null || smtpUser.isBlank() || mailSender == null) {
             log.warn("[EMAIL DISABLED] SMTP not configured. Temp password for {} ({}): {}",
@@ -64,7 +67,9 @@ public class EmailService {
     /**
      * Sends a welcome email to a student who self-registered for the portal, with their temporary password.
      * When SMTP credentials are not configured, logs the temp password instead so local dev keeps working.
+     * Runs asynchronously so a slow/unreachable SMTP relay never blocks the HTTP request thread.
      */
+    @Async
     public void sendStudentWelcomeEmail(String toEmail, String tempPassword, String studentName, String academyName) {
         if (smtpUser == null || smtpUser.isBlank() || mailSender == null) {
             log.warn("[EMAIL DISABLED] SMTP not configured. Temp password for student {} ({}): {}",

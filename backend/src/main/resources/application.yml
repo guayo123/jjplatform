@@ -35,6 +35,10 @@ spring:
           starttls:
             enable: true
             required: true
+          # Fail fast instead of hanging the request thread if the SMTP relay is unreachable/slow
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
 
 server:
   port: 8081
