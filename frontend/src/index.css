@@ -8,6 +8,71 @@
   }
 }
 
+/* Promotion celebration: GPU-friendly (transform/opacity only) so it stays smooth
+   inside the Android WebView. */
+@keyframes jjp-confetti-fall {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(var(--rot, 360deg)); opacity: 0.9; }
+}
+@keyframes jjp-pop-in {
+  0%   { transform: scale(0.8); opacity: 0; }
+  60%  { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.jjp-confetti {
+  animation-name: jjp-confetti-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+  will-change: transform, opacity;
+}
+.jjp-pop {
+  animation: jjp-pop-in 0.35s ease-out both;
+}
+
+/* Streak celebration: each layer rises in sequence (staggered animation-delay) so
+   nothing pops in flat. Flame keeps a soft pulsing glow once it has entered. */
+@keyframes jjp-rise {
+  0%   { transform: translateY(18px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes jjp-flame-glow {
+  0%, 100% { transform: scale(1);    filter: drop-shadow(0 0 12px rgba(249, 115, 22, 0.55)); }
+  50%      { transform: scale(1.12); filter: drop-shadow(0 0 30px rgba(249, 115, 22, 0.9)); }
+}
+.jjp-rise {
+  animation: jjp-rise 0.5s ease-out both;
+  will-change: transform, opacity;
+}
+.jjp-flame-glow {
+  animation: jjp-flame-glow 1.6s ease-in-out infinite;
+  will-change: transform, filter;
+}
+
+/* Accessibility: users who ask for less motion get the content without the choreography. */
+@media (prefers-reduced-motion: reduce) {
+  .jjp-confetti, .jjp-pop, .jjp-rise, .jjp-flame-glow {
+    animation: none !important;
+  }
+  .jjp-rise { opacity: 1; transform: none; }
+}
+
+/* Native safe-area helpers (notch / Android gesture bar). On web these resolve to 0. */
+@layer utilities {
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pl-safe {
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+  .pr-safe {
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+}
+
 /* Student-portal guided tour (Driver.js): match the app's standard button styling. */
 @layer components {
   .driver-popover.jjp-tour .driver-popover-footer button {

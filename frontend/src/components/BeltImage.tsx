@@ -45,6 +45,12 @@ function colorsFromHex(hex: string) {
   };
 }
 
+/** The belt's main fill color — for compact swatches/chips outside the full SVG. */
+export function beltSwatchColor(belt: string, colorHex?: string | null): string {
+  if (colorHex) return colorHex;
+  return COLORS[belt]?.main ?? '#9CA3AF';
+}
+
 export default function BeltImage({ belt, stripes, colorHex, className = '' }: BeltImageProps) {
   const c = colorHex ? colorsFromHex(colorHex) : (COLORS[belt] ?? colorsFromHex('#9CA3AF'));
   const isBlack = !colorHex && belt === 'Negro';

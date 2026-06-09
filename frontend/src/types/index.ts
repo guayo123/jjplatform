@@ -410,3 +410,106 @@ export interface AcademySettings {
   wpVerifyToken: string;
   wpAdminPhones: string;
 }
+
+// ─── Training journal (student self-logged sessions) ───
+export type TrainingModality = 'GI' | 'NOGI';
+export type SubmissionDirection = 'LOGRADA' | 'RECIBIDA';
+
+export interface TrainingSubmission {
+  name: string;
+  direction: SubmissionDirection;
+}
+
+export interface TrainingPartner {
+  name: string;
+  belt: string | null;
+  partnerStudentId: number | null;
+}
+
+export interface Classmate {
+  id: number;
+  name: string;
+  belt: string | null;
+  photoUrl: string | null;
+}
+
+// ─── Duels (challenges between classmates) ───
+export type DuelStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'COMPLETED';
+export type DuelMethod = 'SUBMISSION' | 'POINTS' | 'DECISION' | 'DRAW';
+
+export interface Duel {
+  id: number;
+  status: DuelStatus;
+  challengerId: number;
+  challengerName: string;
+  challengerPhotoUrl: string | null;
+  opponentId: number;
+  opponentName: string;
+  opponentPhotoUrl: string | null;
+  modality: TrainingModality | null;
+  message: string | null;
+  winnerStudentId: number | null;
+  winnerName: string | null;
+  method: DuelMethod | null;
+  submissionName: string | null;
+  resultNotes: string | null;
+  createdAt: string;
+  respondedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface CreateDuelRequest {
+  opponentStudentId: number;
+  modality?: TrainingModality | null;
+  message?: string | null;
+}
+
+export interface DuelResultRequest {
+  winnerStudentId?: number | null;
+  method: DuelMethod;
+  submissionName?: string | null;
+  notes?: string | null;
+}
+
+export interface TrainingSession {
+  id: number;
+  disciplineId: number | null;
+  disciplineName: string | null;
+  date: string; // YYYY-MM-DD
+  modality: TrainingModality | null;
+  durationMin: number | null;
+  roundsCount: number | null;
+  energy: number | null;
+  performance: number | null;
+  notes: string | null;
+  techniques: string[];
+  submissions: TrainingSubmission[];
+  partners: TrainingPartner[];
+  createdAt: string;
+}
+
+/** Payload to create a session — everything except modality/date is optional. */
+export interface TrainingSessionForm {
+  disciplineId?: number | null;
+  date?: string;
+  modality?: TrainingModality | null;
+  durationMin?: number | null;
+  roundsCount?: number | null;
+  energy?: number | null;
+  performance?: number | null;
+  notes?: string | null;
+  techniques?: string[];
+  submissions?: TrainingSubmission[];
+  partners?: TrainingPartner[];
+}
+
+export interface TrainingSummary {
+  weeklyGoal: number | null;
+  thisWeekCount: number;
+  currentStreak: number;
+  maxStreak: number;
+  weeklyGoalMet: boolean;
+  monthSessions: number;
+  monthMinutes: number;
+  monthRounds: number;
+}
