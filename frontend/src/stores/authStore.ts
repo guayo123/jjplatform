@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { authApi } from '../api/auth';
+import { setAuthToken } from '../api/client';
+import { storeGet, storeSet, storeRemove } from '../utils/secureStore';
 import type { LoginRequest, RegisterRequest } from '../types';
 
 interface AuthState {
@@ -15,30 +17,8 @@ interface AuthState {
   login: (data: LoginRequest) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => void;
-  hydrate: () => void;
+  hydrate: () => Promise<void>;
   markPasswordChanged: () => void;
-}
-
-function loadFromStorage(): Partial<AuthState> {
-  try {
-    const stored = localStorage.getItem('auth');
-    if (stored) {
-      const res = JSON.parse(stored);
-      return {
-        token: res.token,
-        email: res.email,
-        academyId: res.academyId,
-        academyName: res.academyName,
-        role: res.role ?? null,
-        mustChangePassword: !!res.mustChangePassword,
-        isAuthenticated: true,
-      };
-    }
-  } catch {
-    localStorage.removeItem('auth');
-    localStorage.removeItem('token');
-  }
-  return {};
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -51,14 +31,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   mustChangePassword: false,
   loading: false,
   error: null,
-  ...loadFromStorage(),
 
   login: async (data) => {
     set({ loading: true, error: null });
     try {
       const res = await authApi.login(data);
-      localStorage.setItem('token', res.token);
-      localStorage.setItem('auth', JSON.stringify(res));
+      setAuthToken(res.token);
+      await storeSet('token', res.token);
+      await storeSet('auth', JSON.stringify(res));
       set({
         token: res.token,
         email: res.email,
@@ -81,8 +61,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true, error: null });
     try {
       const res = await authApi.register(data);
-      localStorage.setItem('token', res.token);
-      localStorage.setItem('auth', JSON.stringify(res));
+      setAuthToken(res.token);
+      await storeSet('token', res.token);
+      await storeSet('auth', JSON.stringify(res));
       set({
         token: res.token,
         email: res.email,
@@ -102,8 +83,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('auth');
+    // Clear session state immediately; persisted storage is cleared best-effort.
+    setAuthToken(null);
     set({
       token: null,
       email: null,
@@ -113,40 +94,44 @@ export const useAuthStore = create<AuthState>((set) => ({
       isAuthenticated: false,
       mustChangePassword: false,
     });
+    void storeRemove('token');
+    void storeRemove('auth');
   },
 
-  hydrate: () => {
-    const stored = localStorage.getItem('auth');
-    if (stored) {
-      try {
-        const res = JSON.parse(stored);
-        set({
-          token: res.token,
-          email: res.email,
-          academyId: res.academyId,
-          academyName: res.academyName,
-          role: res.role ?? null,
-          mustChangePassword: !!res.mustChangePassword,
-          isAuthenticated: true,
-        });
-      } catch {
-        localStorage.removeItem('auth');
-        localStorage.removeItem('token');
-      }
+  hydrate: async () => {
+    try {
+      const stored = await storeGet('auth');
+      if (!stored) return;
+      const res = JSON.parse(stored);
+      setAuthToken(res.token);
+      set({
+        token: res.token,
+        email: res.email,
+        academyId: res.academyId,
+        academyName: res.academyName,
+        role: res.role ?? null,
+        mustChangePassword: !!res.mustChangePassword,
+        isAuthenticated: true,
+      });
+    } catch {
+      await storeRemove('auth');
+      await storeRemove('token');
     }
   },
 
   markPasswordChanged: () => {
-    const stored = localStorage.getItem('auth');
-    if (stored) {
-      try {
-        const res = JSON.parse(stored);
-        res.mustChangePassword = false;
-        localStorage.setItem('auth', JSON.stringify(res));
-      } catch {
-        // ignore: localStorage state will be refreshed on next login
+    void (async () => {
+      const stored = await storeGet('auth');
+      if (stored) {
+        try {
+          const res = JSON.parse(stored);
+          res.mustChangePassword = false;
+          await storeSet('auth', JSON.stringify(res));
+        } catch {
+          // ignore: storage state will be refreshed on next login
+        }
       }
-    }
+    })();
     set({ mustChangePassword: false });
   },
 }));

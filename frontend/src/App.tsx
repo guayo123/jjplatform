@@ -4,6 +4,7 @@ import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
 import StudentRoute from './components/StudentRoute';
+import { useAndroidBackButton } from './native/useAndroidBackButton';
 import Home from './pages/public/Home';
 import AcademyProfile from './pages/public/AcademyProfile';
 import Login from './pages/admin/Login';
@@ -32,6 +33,7 @@ const Portal          = lazy(() => import('./pages/portal/Portal'));
 const PortalChangePassword = lazy(() => import('./pages/admin/ChangePassword'));
 
 export default function App() {
+  useAndroidBackButton();
   return (
     <Routes>
       {/* Public routes */}
