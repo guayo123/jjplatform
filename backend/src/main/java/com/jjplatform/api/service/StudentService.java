@@ -1,5 +1,6 @@
 package com.jjplatform.api.service;
 
+import com.jjplatform.api.dto.ClassmateDto;
 import com.jjplatform.api.dto.StudentDto;
 import com.jjplatform.api.exception.ResourceNotFoundException;
 import com.jjplatform.api.model.Academy;
@@ -73,6 +74,37 @@ public class StudentService {
                 dto.setBelt(beltInfos.get(0).getBelt());
                 dto.setStripes(beltInfos.get(0).getStripes());
             }
+            return dto;
+        }).toList();
+    }
+
+    /**
+     * Active classmates in an academy (excluding the given student), for the portal's
+     * training-partner picker. Returns minimal info: name, a representative belt, photo.
+     */
+    @Transactional(readOnly = true)
+    public List<ClassmateDto> getAcademyClassmates(Long academyId, Long excludeStudentId) {
+        List<Student> students = studentRepository.findByAcademyIdOrderByNameAsc(academyId).stream()
+                .filter(s -> Boolean.TRUE.equals(s.getActive()))
+                .filter(s -> !s.getId().equals(excludeStudentId))
+                .toList();
+
+        List<Long> ids = students.stream().map(Student::getId).toList();
+        Map<Long, List<StudentDiscipline>> discsByStudent = ids.isEmpty()
+                ? Map.of()
+                : studentDisciplineRepository.findByStudentIdInAndActiveTrue(ids)
+                        .stream()
+                        .collect(Collectors.groupingBy(sd -> sd.getStudent().getId()));
+
+        return students.stream().map(s -> {
+            ClassmateDto dto = new ClassmateDto();
+            dto.setId(s.getId());
+            dto.setName(s.getName());
+            dto.setPhotoUrl(s.getPhotoUrl());
+            discsByStudent.getOrDefault(s.getId(), List.of()).stream()
+                    .filter(sd -> sd.getBelt() != null)
+                    .findFirst()
+                    .ifPresent(sd -> dto.setBelt(sd.getBelt()));
             return dto;
         }).toList();
     }

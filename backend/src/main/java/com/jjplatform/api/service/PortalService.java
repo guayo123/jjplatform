@@ -1,8 +1,14 @@
 package com.jjplatform.api.service;
 
 import com.jjplatform.api.dto.BeltPromotionDto;
+import com.jjplatform.api.dto.ClassmateDto;
+import com.jjplatform.api.dto.CreateDuelRequest;
+import com.jjplatform.api.dto.DuelDto;
+import com.jjplatform.api.dto.DuelResultRequest;
 import com.jjplatform.api.dto.PaymentDto;
 import com.jjplatform.api.dto.StudentDisciplineDto;
+import com.jjplatform.api.dto.TrainingSessionDto;
+import com.jjplatform.api.dto.TrainingSummaryDto;
 import com.jjplatform.api.exception.ResourceNotFoundException;
 import com.jjplatform.api.model.Student;
 import com.jjplatform.api.model.User;
@@ -40,6 +46,9 @@ public class PortalService {
     private final BeltPromotionService beltPromotionService;
     private final PaymentService paymentService;
     private final FileStorageService fileStorageService;
+    private final TrainingService trainingService;
+    private final StudentService studentService;
+    private final DuelService duelService;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -109,5 +118,85 @@ public class PortalService {
         s.setPhotoUrl(url);
         studentRepository.save(s);
         return url;
+    }
+
+    // --- Personal training journal (self-logged sessions + streak) ---------
+
+    public TrainingSummaryDto getTrainingSummary(Long studentId) {
+        requireOwnedStudent(studentId);
+        Integer goal = securityHelper.getCurrentUser().getTrainingWeeklyGoal();
+        return trainingService.summary(studentId, goal);
+    }
+
+    public List<TrainingSessionDto> getTrainingSessions(Long studentId) {
+        requireOwnedStudent(studentId);
+        return trainingService.listByStudent(studentId);
+    }
+
+    /** Classmates (same academy as the owned student) for the training-partner picker. */
+    public List<ClassmateDto> getClassmates(Long studentId) {
+        Student s = requireOwnedStudent(studentId);
+        return studentService.getAcademyClassmates(s.getAcademy().getId(), studentId);
+    }
+
+    // --- Duels (challenges between classmates) -----------------------------
+
+    public DuelDto createDuel(Long studentId, CreateDuelRequest req) {
+        Student me = requireOwnedStudent(studentId);
+        return duelService.create(me, req);
+    }
+
+    public List<DuelDto> getDuels(Long studentId) {
+        requireOwnedStudent(studentId);
+        return duelService.listForStudent(studentId);
+    }
+
+    public List<DuelDto> getDuelFeed(Long studentId) {
+        Student me = requireOwnedStudent(studentId);
+        return duelService.feed(me.getAcademy().getId());
+    }
+
+    public DuelDto respondDuel(Long studentId, Long duelId, boolean accept) {
+        Student me = requireOwnedStudent(studentId);
+        return duelService.respond(me, duelId, accept);
+    }
+
+    public DuelDto reportDuelResult(Long studentId, Long duelId, DuelResultRequest req) {
+        Student me = requireOwnedStudent(studentId);
+        return duelService.reportResult(me, duelId, req);
+    }
+
+    public void cancelDuel(Long studentId, Long duelId) {
+        Student me = requireOwnedStudent(studentId);
+        duelService.cancel(me, duelId);
+    }
+
+    public TrainingSessionDto createTrainingSession(Long studentId, TrainingSessionDto dto) {
+        Student s = requireOwnedStudent(studentId);
+        return trainingService.create(s, dto);
+    }
+
+    public void deleteTrainingSession(Long studentId, Long sessionId) {
+        requireOwnedStudent(studentId);
+        trainingService.delete(studentId, sessionId);
+    }
+
+    /** Current student's weekly training goal (null when not set). */
+    public Integer getTrainingGoal() {
+        return securityHelper.getCurrentUser().getTrainingWeeklyGoal();
+    }
+
+    /** Sets (1-7) or clears (null) the weekly training goal for the logged-in student. */
+    @Transactional
+    public Integer setTrainingGoal(Integer goal) {
+        Integer value = goal;
+        if (value != null && (value < 1 || value > 7)) {
+            throw new IllegalArgumentException("La meta semanal debe estar entre 1 y 7.");
+        }
+        User user = userRepository.findById(securityHelper.getCurrentUser().getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+        user.setTrainingWeeklyGoal(value);
+        userRepository.save(user);
+        return value;
     }
 }

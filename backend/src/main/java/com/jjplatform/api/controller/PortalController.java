@@ -1,9 +1,15 @@
 package com.jjplatform.api.controller;
 
 import com.jjplatform.api.dto.BeltPromotionDto;
+import com.jjplatform.api.dto.ClassmateDto;
+import com.jjplatform.api.dto.CreateDuelRequest;
+import com.jjplatform.api.dto.DuelDto;
+import com.jjplatform.api.dto.DuelResultRequest;
 import com.jjplatform.api.dto.PaymentDto;
 import com.jjplatform.api.dto.StudentDisciplineDto;
 import com.jjplatform.api.dto.StudentDto;
+import com.jjplatform.api.dto.TrainingSessionDto;
+import com.jjplatform.api.dto.TrainingSummaryDto;
 import com.jjplatform.api.service.PortalService;
 import com.jjplatform.api.service.SecurityHelper;
 import com.jjplatform.api.service.StudentService;
@@ -72,6 +78,86 @@ public class PortalController {
     public ResponseEntity<Map<String, String>> setBanner(@RequestBody Map<String, String> request) {
         Map<String, String> body = new HashMap<>();
         body.put("banner", portalService.setBanner(request.get("banner")));
+        return ResponseEntity.ok(body);
+    }
+
+    // --- Personal training journal ----------------------------------------
+
+    @GetMapping("/students/{studentId}/training")
+    public ResponseEntity<List<TrainingSessionDto>> trainingSessions(@PathVariable Long studentId) {
+        return ResponseEntity.ok(portalService.getTrainingSessions(studentId));
+    }
+
+    @PostMapping("/students/{studentId}/training")
+    public ResponseEntity<TrainingSessionDto> createTraining(@PathVariable Long studentId,
+                                                             @RequestBody TrainingSessionDto dto) {
+        return ResponseEntity.ok(portalService.createTrainingSession(studentId, dto));
+    }
+
+    @DeleteMapping("/students/{studentId}/training/{sessionId}")
+    public ResponseEntity<Void> deleteTraining(@PathVariable Long studentId, @PathVariable Long sessionId) {
+        portalService.deleteTrainingSession(studentId, sessionId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/students/{studentId}/training/summary")
+    public ResponseEntity<TrainingSummaryDto> trainingSummary(@PathVariable Long studentId) {
+        return ResponseEntity.ok(portalService.getTrainingSummary(studentId));
+    }
+
+    /** Classmates for the training-partner picker. */
+    @GetMapping("/students/{studentId}/classmates")
+    public ResponseEntity<List<ClassmateDto>> classmates(@PathVariable Long studentId) {
+        return ResponseEntity.ok(portalService.getClassmates(studentId));
+    }
+
+    // --- Duels (challenges) -----------------------------------------------
+
+    @GetMapping("/students/{studentId}/duels")
+    public ResponseEntity<List<DuelDto>> duels(@PathVariable Long studentId) {
+        return ResponseEntity.ok(portalService.getDuels(studentId));
+    }
+
+    @GetMapping("/students/{studentId}/duels/feed")
+    public ResponseEntity<List<DuelDto>> duelFeed(@PathVariable Long studentId) {
+        return ResponseEntity.ok(portalService.getDuelFeed(studentId));
+    }
+
+    @PostMapping("/students/{studentId}/duels")
+    public ResponseEntity<DuelDto> createDuel(@PathVariable Long studentId, @RequestBody CreateDuelRequest req) {
+        return ResponseEntity.ok(portalService.createDuel(studentId, req));
+    }
+
+    @PostMapping("/students/{studentId}/duels/{duelId}/respond")
+    public ResponseEntity<DuelDto> respondDuel(@PathVariable Long studentId, @PathVariable Long duelId,
+                                               @RequestBody Map<String, Boolean> body) {
+        return ResponseEntity.ok(portalService.respondDuel(studentId, duelId, Boolean.TRUE.equals(body.get("accept"))));
+    }
+
+    @PostMapping("/students/{studentId}/duels/{duelId}/result")
+    public ResponseEntity<DuelDto> reportDuelResult(@PathVariable Long studentId, @PathVariable Long duelId,
+                                                    @RequestBody DuelResultRequest req) {
+        return ResponseEntity.ok(portalService.reportDuelResult(studentId, duelId, req));
+    }
+
+    @DeleteMapping("/students/{studentId}/duels/{duelId}")
+    public ResponseEntity<Void> cancelDuel(@PathVariable Long studentId, @PathVariable Long duelId) {
+        portalService.cancelDuel(studentId, duelId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Weekly training goal (per logged-in student). */
+    @GetMapping("/training/goal")
+    public ResponseEntity<Map<String, Integer>> getTrainingGoal() {
+        Map<String, Integer> body = new HashMap<>();
+        body.put("goal", portalService.getTrainingGoal());
+        return ResponseEntity.ok(body);
+    }
+
+    @PutMapping("/training/goal")
+    public ResponseEntity<Map<String, Integer>> setTrainingGoal(@RequestBody Map<String, Integer> request) {
+        Map<String, Integer> body = new HashMap<>();
+        body.put("goal", portalService.setTrainingGoal(request.get("goal")));
         return ResponseEntity.ok(body);
     }
 }

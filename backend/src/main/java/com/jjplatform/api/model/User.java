@@ -40,6 +40,10 @@ public class User {
     @Column(name = "portal_banner")
     private String portalBanner;
 
+    /** Student's personal training goal: target sessions per week (1-7). Null = not set. */
+    @Column(name = "training_weekly_goal")
+    private Integer trainingWeeklyGoal;
+
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Academy academy;
 
