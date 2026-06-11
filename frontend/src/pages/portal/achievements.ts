@@ -29,7 +29,8 @@ export function computeAchievements(sessions: TrainingSession[], summary: Traini
     minutes += s.durationMin ?? 0;
     rounds += s.roundsCount ?? 0;
     submissions += s.submissions.filter((sub) => sub.direction === 'LOGRADA').length;
-    if (s.modality) modalities.add(s.modality);
+    // Only the two real modalities count for the Gi+No-Gi badge (not open mat / competition).
+    if (s.modality === 'GI' || s.modality === 'NOGI') modalities.add(s.modality);
     for (const p of s.partners) partners.add(p.name.trim().toLowerCase());
   }
   const totalSessions = sessions.length;

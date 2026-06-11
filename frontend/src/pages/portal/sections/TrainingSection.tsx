@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Classmate, LeaderboardEntry, StudentDiscipline, TrainingSession, TrainingSessionForm, TrainingSummary } from '../../../types';
+import type { Classmate, LeaderboardEntry, StudentDiscipline, TrainingModality, TrainingSession, TrainingSessionForm, TrainingSummary } from '../../../types';
 import { trainingApi } from '../../../api/training';
 import { notifySuccess } from '../../../native/haptics';
 import { scheduleStreakReminders } from '../../../native/notifications';
@@ -17,7 +17,21 @@ interface Props {
   academyName?: string | null;
 }
 
-const MODALITY_LABEL: Record<string, string> = { GI: 'Gi', NOGI: 'No-Gi' };
+const MODALITY_LABEL: Record<string, string> = {
+  GI: 'Gi',
+  NOGI: 'No-Gi',
+  OPEN_MAT: 'Open Mat',
+  COMPETITION: 'Competición',
+};
+
+/** History filter chips: everything plus one per session type. */
+const HISTORY_FILTERS: Array<{ key: 'ALL' | TrainingModality; label: string }> = [
+  { key: 'ALL', label: 'Todo' },
+  { key: 'GI', label: 'Gi' },
+  { key: 'NOGI', label: 'No-Gi' },
+  { key: 'OPEN_MAT', label: 'Open Mat' },
+  { key: 'COMPETITION', label: 'Competición' },
+];
 
 /** Local YYYY-MM-DD for "today" — matches the backend LocalDate string on sessions. */
 const trainedToday = (sessions: TrainingSession[]) =>
@@ -36,6 +50,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
   const [formOpen, setFormOpen] = useState(false);
   // Home shows the summary; history (sessions + trends) lives one tap away.
   const [view, setView] = useState<'resumen' | 'historial'>('resumen');
+  const [historyFilter, setHistoryFilter] = useState<'ALL' | TrainingModality>('ALL');
   const [savingGoal, setSavingGoal] = useState(false);
   const [repairing, setRepairing] = useState(false);
   const [repairError, setRepairError] = useState<string | null>(null);
@@ -88,6 +103,11 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
   useEffect(() => { void load(); }, [load]);
 
   const insights = useMemo(() => computeInsights(sessions), [sessions]);
+
+  const filteredSessions = useMemo(
+    () => (historyFilter === 'ALL' ? sessions : sessions.filter((s) => s.modality === historyFilter)),
+    [sessions, historyFilter],
+  );
 
   const handleSave = async (data: TrainingSessionForm) => {
     const prevStreak = summary?.currentStreak ?? 0;
@@ -282,6 +302,25 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
           {/* Narrative insights */}
           <InsightsCard insights={insights} hasSessions={sessions.length > 0} />
 
+          {/* Session-type filter */}
+          {sessions.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-0.5">
+              {HISTORY_FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => setHistoryFilter(f.key)}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                    historyFilter === f.key
+                      ? 'bg-primary-600 border-primary-600 text-white'
+                      : 'bg-white border-gray-200 text-gray-500 hover:border-primary-300'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Recent sessions */}
           <div className="bg-white rounded-xl shadow-sm">
             <div className="p-5">
@@ -290,9 +329,13 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
                   <p className="text-gray-400 text-sm">Aún no registras entrenamientos.</p>
                   <p className="text-gray-300 text-xs mt-1">Toca el botón + al salir del tatami 🥋</p>
                 </div>
+              ) : filteredSessions.length === 0 ? (
+                <p className="text-center py-8 text-gray-400 text-sm">
+                  No tienes entrenos de tipo {MODALITY_LABEL[historyFilter] ?? historyFilter}.
+                </p>
               ) : (
                 <div className="space-y-2">
-                  {sessions.map((s) => <SessionRow key={s.id} s={s} onDelete={() => handleDelete(s.id)} />)}
+                  {filteredSessions.map((s) => <SessionRow key={s.id} s={s} onDelete={() => handleDelete(s.id)} />)}
                 </div>
               )}
             </div>

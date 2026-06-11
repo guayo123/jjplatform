@@ -163,12 +163,14 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
             </Group>
           )}
 
-          {/* Modality — first and most prominent for BJJ */}
+          {/* Session type — first and most prominent for BJJ */}
           {showModality && (
-            <Group label="Modalidad">
+            <Group label="Tipo de sesión">
               <div className="grid grid-cols-2 gap-2">
                 <BigToggle active={modality === 'GI'} onClick={() => { void tapLight(); setModality('GI'); }}>🥋 Gi</BigToggle>
                 <BigToggle active={modality === 'NOGI'} onClick={() => { void tapLight(); setModality('NOGI'); }}>👕 No-Gi</BigToggle>
+                <BigToggle active={modality === 'OPEN_MAT'} onClick={() => { void tapLight(); setModality('OPEN_MAT'); }}>🤝 Open Mat</BigToggle>
+                <BigToggle active={modality === 'COMPETITION'} onClick={() => { void tapLight(); setModality('COMPETITION'); }}>🏆 Competición</BigToggle>
               </div>
             </Group>
           )}

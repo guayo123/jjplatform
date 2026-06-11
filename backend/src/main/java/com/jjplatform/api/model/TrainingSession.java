@@ -21,8 +21,8 @@ import java.util.List;
 @Builder
 public class TrainingSession {
 
-    /** Gi vs No-Gi. Only meaningful for BJJ disciplines; null for others / unspecified. */
-    public enum Modality { GI, NOGI }
+    /** Session type: Gi / No-Gi training, open mat, or a competition. Null for others / unspecified. */
+    public enum Modality { GI, NOGI, OPEN_MAT, COMPETITION }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -41,7 +41,7 @@ public class TrainingSession {
     private LocalDate date;
 
     @Enumerated(EnumType.STRING)
-    @Column(length = 10)
+    @Column(length = 20)
     private Modality modality;
 
     private Integer durationMin;

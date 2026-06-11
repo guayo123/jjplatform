@@ -412,7 +412,7 @@ export interface AcademySettings {
 }
 
 // ─── Training journal (student self-logged sessions) ───
-export type TrainingModality = 'GI' | 'NOGI';
+export type TrainingModality = 'GI' | 'NOGI' | 'OPEN_MAT' | 'COMPETITION';
 export type SubmissionDirection = 'LOGRADA' | 'RECIBIDA';
 
 export interface TrainingSubmission {

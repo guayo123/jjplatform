@@ -360,7 +360,7 @@ public class TrainingService {
         try {
             return TrainingSession.Modality.valueOf(v.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Modalidad no válida (GI/NOGI).");
+            throw new IllegalArgumentException("Modalidad no válida (GI/NOGI/OPEN_MAT/COMPETITION).");
         }
     }
 
