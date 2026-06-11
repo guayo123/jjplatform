@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { tapLight } from '../../native/haptics';
+import { TabIcon } from './PortalTabs';
 
 interface Props {
   firstName: string;
@@ -12,10 +13,18 @@ interface Props {
 }
 
 interface GuideStep {
-  icon: string;
+  /** Emoji string or a custom icon node (the tab steps reuse the tab-bar SVG icons). */
+  icon: ReactNode;
   title: string;
   body: string;
 }
+
+/** Tab-bar icon at carousel-hero size, tinted with the brand color. */
+const tabHero = (tab: Parameters<typeof TabIcon>[0]['tab']) => (
+  <span className="inline-flex text-primary-600">
+    <TabIcon tab={tab} active size={52} />
+  </span>
+);
 
 /**
  * Native portal walkthrough. The web help is a Driver.js tour anchored to on-screen
@@ -33,27 +42,27 @@ export default function PortalGuideNative({ firstName, multiAcademy, initialDism
         body: 'Este es tu portal. Te muestro rápido qué puedes hacer desde la app.',
       },
       {
-        icon: '🔥',
+        icon: tabHero('entreno'),
         title: 'Entreno',
         body: 'Registra cada entrenamiento al salir del tatami. Mantén tu racha de días seguidos y cumple tu meta semanal.',
       },
       {
-        icon: '⚔️',
+        icon: tabHero('retos'),
         title: 'Retos',
         body: 'Desafía a tus compañeros a un duelo y registra los resultados. ¡A ver quién manda en el tatami!',
       },
       {
-        icon: '🥋',
+        icon: tabHero('fichas'),
         title: 'Fichas',
         body: 'Tu cinturón actual, tus grados (★) y el historial de promociones, cambios de cinturón y torneos.',
       },
       {
-        icon: '💳',
+        icon: tabHero('pagos'),
         title: 'Pagos',
         body: 'Consulta tus cuotas mensuales y cualquier saldo pendiente.',
       },
       {
-        icon: '👤',
+        icon: tabHero('perfil'),
         title: 'Perfil',
         body: 'Cambia tu foto y revisa tus datos. También personalizas tu portada con el botón 🎨 de arriba.',
       },
@@ -101,7 +110,7 @@ export default function PortalGuideNative({ firstName, multiAcademy, initialDism
           ×
         </button>
 
-        <div className="mb-3 text-5xl" key={step.icon}>
+        <div className="mb-3 text-5xl" key={step.title}>
           {step.icon}
         </div>
         <h2 className="text-xl font-extrabold text-gray-900">{step.title}</h2>
