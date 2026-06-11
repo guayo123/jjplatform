@@ -11,6 +11,7 @@ import {
   type ReminderPrefs,
 } from '../../../native/notifications';
 import type { Student } from '../../../types';
+import { computeAchievements, type Achievement } from '../achievements';
 import { formatDate, Field } from './shared';
 
 interface Props {
@@ -139,6 +140,62 @@ function SettingsSection({ studentId }: { studentId: number }) {
   );
 }
 
+/** "Logros" — badge vitrina computed from the student's own journal. */
+function AchievementsCard({ studentId }: { studentId: number }) {
+  const [achievements, setAchievements] = useState<Achievement[] | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    Promise.all([trainingApi.list(studentId), trainingApi.summary(studentId)])
+      .then(([sessions, summary]) => {
+        if (alive) setAchievements(computeAchievements(sessions, summary));
+      })
+      .catch(() => { /* hide the card if the journal can't load */ });
+    return () => { alive = false; };
+  }, [studentId]);
+
+  if (!achievements) return null;
+  const unlockedCount = achievements.filter((a) => a.unlocked).length;
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-5">
+      <div className="flex items-baseline justify-between gap-2 mb-4">
+        <h2 className="font-bold text-gray-900">Logros</h2>
+        <span className="text-xs text-gray-400">{unlockedCount} de {achievements.length}</span>
+      </div>
+      <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+        {achievements.map((a) => (
+          <div
+            key={a.id}
+            title={a.description}
+            className={`rounded-xl border p-3 text-center ${
+              a.unlocked ? 'border-amber-200 bg-amber-50' : 'border-gray-100 bg-gray-50'
+            }`}
+          >
+            <div className={`text-3xl ${a.unlocked ? '' : 'grayscale opacity-40'}`}>{a.emoji}</div>
+            <p className={`mt-1 text-xs font-semibold leading-tight ${a.unlocked ? 'text-gray-900' : 'text-gray-400'}`}>
+              {a.title}
+            </p>
+            {a.unlocked ? (
+              <p className="mt-0.5 text-[10px] text-amber-600 font-medium">✓ Desbloqueado</p>
+            ) : (
+              <>
+                <div className="mt-1.5 h-1 rounded-full bg-gray-200 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gray-400"
+                    style={{ width: `${Math.round((a.current / a.target) * 100)}%` }}
+                  />
+                </div>
+                <p className="mt-0.5 text-[10px] text-gray-400">{a.current} / {a.target}</p>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** "Perfil" — student card, personal data and enrolled plans/professors. */
 export default function PerfilSection({ student, uploading, uploadProgress, onPhotoUpload }: Props) {
   return (
@@ -206,6 +263,9 @@ export default function PerfilSection({ student, uploading, uploadProgress, onPh
           </div>
         )}
       </div>
+
+      {/* Badge vitrina */}
+      <AchievementsCard studentId={student.id} />
 
       {/* Settings: weekly goal + daily reminder */}
       <SettingsSection studentId={student.id} />

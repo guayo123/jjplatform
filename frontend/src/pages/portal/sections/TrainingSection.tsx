@@ -5,6 +5,7 @@ import { notifySuccess } from '../../../native/haptics';
 import { scheduleStreakReminders } from '../../../native/notifications';
 import TrainingForm from '../TrainingForm';
 import Celebration, { type CelebrationContent, streakMessage } from '../Celebration';
+import { computeAchievements, takeNewlyUnlocked, type Achievement } from '../achievements';
 import { computeInsights, type Insight } from './trainingInsights';
 import { formatDate, Spinner } from './shared';
 
@@ -29,7 +30,23 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
   const [savingGoal, setSavingGoal] = useState(false);
   const [repairing, setRepairing] = useState(false);
   const [repairError, setRepairError] = useState<string | null>(null);
-  const [celebration, setCelebration] = useState<CelebrationContent | null>(null);
+  // Celebrations queue up (weekly goal → streak → achievements) and show one at a time.
+  const [celebrations, setCelebrations] = useState<CelebrationContent[]>([]);
+
+  const celebrate = (c: CelebrationContent) => setCelebrations((prev) => [...prev, c]);
+
+  const celebrateAchievements = (fresh: Achievement[]) => {
+    for (const a of fresh) {
+      celebrate({
+        eyebrow: 'Logro desbloqueado',
+        emoji: a.emoji,
+        count: a.target,
+        unit: a.unit,
+        message: `¡${a.title}!`,
+        buttonLabel: '¡Genial!',
+      });
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,6 +64,8 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
         lostStreak: sum.lostStreak,
         repairAvailable: sum.repairAvailable,
       });
+      // Seed (or silently sync) the seen-achievements set so saves only celebrate new unlocks.
+      takeNewlyUnlocked(computeAchievements(list, sum));
     } catch {
       setSummary(null);
       setSessions([]);
@@ -76,7 +95,7 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
 
     // Celebrate the bigger event first: completing the weekly goal outranks a +1 day streak.
     if (!prevGoalMet && sum.weeklyGoalMet) {
-      setCelebration({
+      celebrate({
         eyebrow: '¡Meta semanal!',
         emoji: '🏆',
         count: sum.thisWeekCount,
@@ -85,7 +104,7 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
         buttonLabel: '¡Excelente!',
       });
     } else if (sum.currentStreak > prevStreak) {
-      setCelebration({
+      celebrate({
         eyebrow: 'Racha en marcha',
         emoji: '🔥',
         count: sum.currentStreak,
@@ -93,6 +112,8 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
         message: streakMessage(sum.currentStreak),
       });
     }
+    // Any badges this session unlocked queue up after the goal/streak celebration.
+    celebrateAchievements(takeNewlyUnlocked(computeAchievements(list, sum)));
   };
 
   const handleRepair = async () => {
@@ -106,7 +127,7 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
         lostStreak: sum.lostStreak,
         repairAvailable: sum.repairAvailable,
       });
-      setCelebration({
+      celebrate({
         eyebrow: '¡Racha recuperada!',
         emoji: '🚑',
         count: sum.currentStreak,
@@ -114,6 +135,8 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
         message: '¡Salvaste tu racha! Entrena hoy para seguir sumando 🔥',
         buttonLabel: '¡A entrenar!',
       });
+      // A revived streak can retro-unlock streak badges (maxStreak may have grown).
+      celebrateAchievements(takeNewlyUnlocked(computeAchievements(sessions, sum)));
     } catch (e) {
       setRepairError(e instanceof Error ? e.message : 'No se pudo recuperar la racha.');
     } finally {
@@ -246,8 +269,13 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
         />
       )}
 
-      {celebration && (
-        <Celebration {...celebration} onClose={() => setCelebration(null)} />
+      {celebrations.length > 0 && (
+        <Celebration
+          {...celebrations[0]}
+          // Remount when the head of the queue changes so the choreography replays.
+          key={`${celebrations[0].message}-${celebrations[0].count}`}
+          onClose={() => setCelebrations((prev) => prev.slice(1))}
+        />
       )}
     </div>
   );
