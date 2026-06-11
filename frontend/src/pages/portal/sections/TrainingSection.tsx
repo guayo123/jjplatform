@@ -6,12 +6,15 @@ import { scheduleStreakReminders } from '../../../native/notifications';
 import TrainingForm from '../TrainingForm';
 import Celebration, { type CelebrationContent, streakMessage } from '../Celebration';
 import { computeAchievements, takeNewlyUnlocked, type Achievement } from '../achievements';
+import { buildWeekCardData, drawWeekCard, shareCard } from '../shareWeekCard';
 import { computeInsights, type Insight } from './trainingInsights';
 import { formatDate, Spinner } from './shared';
 
 interface Props {
   studentId: number;
   disciplines: StudentDiscipline[];
+  studentName: string;
+  academyName?: string | null;
 }
 
 const MODALITY_LABEL: Record<string, string> = { GI: 'Gi', NOGI: 'No-Gi' };
@@ -21,11 +24,14 @@ const trainedToday = (sessions: TrainingSession[]) =>
   sessions.some((s) => s.date === new Date().toLocaleDateString('en-CA'));
 
 /** "Entreno" — personal training journal: weekly goal/streak + quick log + recent sessions. */
-export default function TrainingSection({ studentId, disciplines }: Props) {
+export default function TrainingSection({ studentId, disciplines, studentName, academyName }: Props) {
   const [summary, setSummary] = useState<TrainingSummary | null>(null);
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [classmates, setClassmates] = useState<Classmate[]>([]);
   const [board, setBoard] = useState<LeaderboardEntry[]>([]);
+  const [shareView, setShareView] = useState<{ canvas: HTMLCanvasElement; dataUrl: string } | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [shareNote, setShareNote] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [savingGoal, setSavingGoal] = useState(false);
@@ -149,6 +155,28 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
     }
   };
 
+  const openShare = () => {
+    const data = buildWeekCardData(studentName, academyName ?? null, sessions, summary, board, studentId);
+    const canvas = drawWeekCard(data);
+    setShareView({ canvas, dataUrl: canvas.toDataURL('image/png') });
+    setShareNote(null);
+  };
+
+  const handleShare = async () => {
+    if (!shareView) return;
+    setSharing(true);
+    try {
+      const result = await shareCard(shareView.canvas);
+      if (result === 'shared') setShareView(null);
+      else if (result === 'downloaded') setShareNote('Imagen descargada 📥');
+      // 'aborted': the user closed the share sheet — keep the preview open, no message.
+    } catch {
+      setShareNote('No se pudo compartir la imagen.');
+    } finally {
+      setSharing(false);
+    }
+  };
+
   const handleSetGoal = async (goal: number) => {
     setSavingGoal(true);
     try {
@@ -232,6 +260,16 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
         + Registrar entrenamiento
       </button>
 
+      {/* Shareable week summary */}
+      {summary != null && sessions.length > 0 && (
+        <button
+          onClick={openShare}
+          className="w-full bg-white border border-gray-200 hover:border-primary-300 text-gray-700 hover:text-primary-600 font-semibold py-3 rounded-xl transition-colors"
+        >
+          📤 Compartir mi semana
+        </button>
+      )}
+
       {/* Month stats */}
       {summary && summary.monthSessions > 0 && (
         <div className="grid grid-cols-3 gap-3">
@@ -275,6 +313,37 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
           onClose={() => setFormOpen(false)}
           onSave={handleSave}
         />
+      )}
+
+      {/* Week-card preview + share */}
+      {shareView && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm p-4 pt-safe pb-safe"
+          onClick={() => setShareView(null)}
+        >
+          <div
+            className="w-full max-w-sm bg-white rounded-2xl p-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img src={shareView.dataUrl} alt="Resumen de mi semana" className="w-full rounded-xl" />
+            {shareNote && <p className="text-center text-sm text-gray-500 mt-2">{shareNote}</p>}
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => setShareView(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition-colors"
+              >
+                Cerrar
+              </button>
+              <button
+                onClick={handleShare}
+                disabled={sharing}
+                className="flex-1 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-semibold transition-colors disabled:opacity-50"
+              >
+                {sharing ? 'Compartiendo…' : 'Compartir'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {celebrations.length > 0 && (

@@ -212,7 +212,14 @@ export default function Portal() {
     />
   );
   const pagos = <PagosSection payments={payments} detailLoading={detailLoading} />;
-  const entreno = student && <TrainingSection studentId={student.id} disciplines={disciplines} />;
+  const entreno = student && (
+    <TrainingSection
+      studentId={student.id}
+      disciplines={disciplines}
+      studentName={student.name}
+      academyName={student.academyName}
+    />
+  );
   const retos = student && <DuelsSection studentId={student.id} />;
 
   const content = (
