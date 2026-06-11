@@ -1,5 +1,5 @@
 import client from './client';
-import type { Classmate, TrainingSession, TrainingSessionForm, TrainingSummary } from '../types';
+import type { Classmate, LeaderboardEntry, TrainingSession, TrainingSessionForm, TrainingSummary } from '../types';
 
 /** Device-local YYYY-MM-DD; sent so streak day boundaries follow the student, not the server TZ. */
 const localToday = () => new Date().toLocaleDateString('en-CA');
@@ -14,6 +14,12 @@ export const trainingApi = {
   summary: (studentId: number) =>
     client
       .get<TrainingSummary>(`/portal/students/${studentId}/training/summary`, { params: { today: localToday() } })
+      .then((r) => r.data),
+
+  /** Academy leaderboard: active classmates ranked by sessions this week, streak as tiebreaker. */
+  leaderboard: (studentId: number) =>
+    client
+      .get<LeaderboardEntry[]>(`/portal/students/${studentId}/training/leaderboard`, { params: { today: localToday() } })
       .then((r) => r.data),
 
   /** Spends a monthly streak repair to fill the current 1-day gap; returns the refreshed summary. */

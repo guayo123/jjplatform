@@ -1,5 +1,6 @@
 package com.jjplatform.api.service;
 
+import com.jjplatform.api.dto.LeaderboardEntryDto;
 import com.jjplatform.api.dto.TrainingPartnerDto;
 import com.jjplatform.api.dto.TrainingSessionDto;
 import com.jjplatform.api.dto.TrainingSubmissionDto;
@@ -23,8 +24,11 @@ import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.IsoFields;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -177,6 +181,52 @@ public class TrainingService {
         repairRepository.save(repair);
 
         return summary(student.getId(), weeklyGoal, today);
+    }
+
+    /**
+     * Academy training leaderboard: active students ranked by sessions this week,
+     * day-streak as tiebreaker. Only students with at least one session in the last
+     * year appear (a longer streak can't exist without one). Repaired days count for
+     * streaks here too, so the board matches each student's own summary.
+     */
+    @Transactional(readOnly = true)
+    public List<LeaderboardEntryDto> leaderboard(Long academyId, LocalDate clientToday) {
+        LocalDate today = effectiveToday(clientToday);
+        LocalDate from = today.minusDays(366);
+        String currentWeek = weekKey(today);
+
+        Map<Long, Student> studentsById = new HashMap<>();
+        Map<Long, Set<LocalDate>> daysByStudent = new HashMap<>();
+        Map<Long, Integer> weekCountByStudent = new HashMap<>();
+
+        for (TrainingSession s : sessionRepository.findByStudentAcademyIdAndDateGreaterThanEqual(academyId, from)) {
+            Student student = s.getStudent();
+            if (!Boolean.TRUE.equals(student.getActive())) continue;
+            studentsById.putIfAbsent(student.getId(), student);
+            daysByStudent.computeIfAbsent(student.getId(), k -> new HashSet<>()).add(s.getDate());
+            if (weekKey(s.getDate()).equals(currentWeek)) {
+                weekCountByStudent.merge(student.getId(), 1, Integer::sum);
+            }
+        }
+        for (StreakRepair r : repairRepository.findByStudentAcademyId(academyId)) {
+            Set<LocalDate> days = daysByStudent.get(r.getStudent().getId());
+            if (days != null) days.add(r.getRepairedDate());
+        }
+
+        return studentsById.values().stream()
+                .map(student -> {
+                    LeaderboardEntryDto e = new LeaderboardEntryDto();
+                    e.setStudentId(student.getId());
+                    e.setName(student.getName());
+                    e.setPhotoUrl(student.getPhotoUrl());
+                    e.setThisWeekCount(weekCountByStudent.getOrDefault(student.getId(), 0));
+                    e.setCurrentStreak(currentDayStreak(daysByStudent.get(student.getId()), today));
+                    return e;
+                })
+                .sorted(Comparator.comparingInt(LeaderboardEntryDto::getThisWeekCount).reversed()
+                        .thenComparing(Comparator.comparingInt(LeaderboardEntryDto::getCurrentStreak).reversed())
+                        .thenComparing(LeaderboardEntryDto::getName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
     }
 
     // --- streak math -------------------------------------------------------

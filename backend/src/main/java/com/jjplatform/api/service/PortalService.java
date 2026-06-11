@@ -5,6 +5,7 @@ import com.jjplatform.api.dto.ClassmateDto;
 import com.jjplatform.api.dto.CreateDuelRequest;
 import com.jjplatform.api.dto.DuelDto;
 import com.jjplatform.api.dto.DuelResultRequest;
+import com.jjplatform.api.dto.LeaderboardEntryDto;
 import com.jjplatform.api.dto.PaymentDto;
 import com.jjplatform.api.dto.StudentDisciplineDto;
 import com.jjplatform.api.dto.TrainingSessionDto;
@@ -139,6 +140,12 @@ public class PortalService {
     public List<TrainingSessionDto> getTrainingSessions(Long studentId) {
         requireOwnedStudent(studentId);
         return trainingService.listByStudent(studentId);
+    }
+
+    /** Academy training leaderboard (sessions this week + streak), scoped to the owned student's academy. */
+    public List<LeaderboardEntryDto> getTrainingLeaderboard(Long studentId, LocalDate clientToday) {
+        Student s = requireOwnedStudent(studentId);
+        return trainingService.leaderboard(s.getAcademy().getId(), clientToday);
     }
 
     /** Classmates (same academy as the owned student) for the training-partner picker. */

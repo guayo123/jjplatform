@@ -8,4 +8,6 @@ import java.util.List;
 public interface StreakRepairRepository extends JpaRepository<StreakRepair, Long> {
 
     List<StreakRepair> findByStudentId(Long studentId);
+
+    List<StreakRepair> findByStudentAcademyId(Long academyId);
 }

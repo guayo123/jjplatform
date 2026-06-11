@@ -11,4 +11,7 @@ public interface TrainingSessionRepository extends JpaRepository<TrainingSession
     List<TrainingSession> findByStudentIdOrderByDateDescCreatedAtDesc(Long studentId);
 
     List<TrainingSession> findByStudentIdAndDateGreaterThanEqual(Long studentId, LocalDate from);
+
+    /** All sessions in an academy since {@code from} — feeds the training leaderboard. */
+    List<TrainingSession> findByStudentAcademyIdAndDateGreaterThanEqual(Long academyId, LocalDate from);
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Classmate, StudentDiscipline, TrainingSession, TrainingSessionForm, TrainingSummary } from '../../../types';
+import type { Classmate, LeaderboardEntry, StudentDiscipline, TrainingSession, TrainingSessionForm, TrainingSummary } from '../../../types';
 import { trainingApi } from '../../../api/training';
 import { notifySuccess } from '../../../native/haptics';
 import { scheduleStreakReminders } from '../../../native/notifications';
@@ -25,6 +25,7 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
   const [summary, setSummary] = useState<TrainingSummary | null>(null);
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [classmates, setClassmates] = useState<Classmate[]>([]);
+  const [board, setBoard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [savingGoal, setSavingGoal] = useState(false);
@@ -51,14 +52,16 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [sum, list, mates] = await Promise.all([
+      const [sum, list, mates, ranking] = await Promise.all([
         trainingApi.summary(studentId),
         trainingApi.list(studentId),
         trainingApi.classmates(studentId).catch(() => [] as Classmate[]),
+        trainingApi.leaderboard(studentId).catch(() => [] as LeaderboardEntry[]),
       ]);
       setSummary(sum);
       setSessions(list);
       setClassmates(mates);
+      setBoard(ranking);
       // Refresh the native streak reminders so their copy reflects the current state.
       void scheduleStreakReminders(sum.currentStreak, trainedToday(list), {
         lostStreak: sum.lostStreak,
@@ -114,6 +117,8 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
     }
     // Any badges this session unlocked queue up after the goal/streak celebration.
     celebrateAchievements(takeNewlyUnlocked(computeAchievements(list, sum)));
+    // Refresh the leaderboard in the background — the new session may move positions.
+    trainingApi.leaderboard(studentId).then(setBoard).catch(() => { /* keep the stale board */ });
   };
 
   const handleRepair = async () => {
@@ -236,6 +241,9 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
         </div>
       )}
 
+      {/* Academy leaderboard */}
+      <LeaderboardCard board={board} meId={studentId} />
+
       {/* Narrative insights */}
       <InsightsCard insights={insights} hasSessions={sessions.length > 0} />
 
@@ -277,6 +285,72 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
           onClose={() => setCelebrations((prev) => prev.slice(1))}
         />
       )}
+    </div>
+  );
+}
+
+const MEDALS = ['🥇', '🥈', '🥉'];
+
+/** Academy ranking by sessions this week (streak as tiebreaker); the logged-in student is highlighted. */
+function LeaderboardCard({ board, meId }: { board: LeaderboardEntry[]; meId: number }) {
+  if (board.length < 2) return null; // a single-person ranking isn't a ranking
+
+  const top = board.slice(0, 10);
+  const myIndex = board.findIndex((e) => e.studentId === meId);
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm">
+      <div className="p-5 border-b border-gray-100">
+        <h2 className="font-bold text-gray-900">Ranking de la semana 🏆</h2>
+        <p className="text-xs text-gray-400 mt-0.5">Entrenos registrados esta semana en tu academia</p>
+      </div>
+      <div className="p-3">
+        {top.map((e, i) => {
+          const isMe = e.studentId === meId;
+          return (
+            <div
+              key={e.studentId}
+              className={`flex items-center gap-3 rounded-lg px-2 py-2 ${isMe ? 'bg-primary-50' : ''}`}
+            >
+              <span className="w-7 text-center text-sm font-bold text-gray-500 flex-shrink-0">
+                {MEDALS[i] ?? i + 1}
+              </span>
+              {e.photoUrl ? (
+                <img src={e.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+              ) : (
+                <span className="w-8 h-8 rounded-full bg-gray-200 text-gray-500 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                  {e.name.charAt(0).toUpperCase()}
+                </span>
+              )}
+              <span className={`flex-1 min-w-0 truncate text-sm ${isMe ? 'font-bold text-primary-700' : 'text-gray-700'}`}>
+                {e.name} {isMe && <span className="text-[10px] font-semibold text-primary-500">(tú)</span>}
+              </span>
+              <span className="text-sm font-semibold text-gray-900 flex-shrink-0">
+                {e.thisWeekCount} <span className="text-xs font-normal text-gray-400">entrenos</span>
+              </span>
+              {e.currentStreak > 0 && (
+                <span className="text-xs text-orange-500 font-semibold w-12 text-right flex-shrink-0">
+                  🔥 {e.currentStreak}
+                </span>
+              )}
+            </div>
+          );
+        })}
+        {/* If I'm below the top 10, pin my row at the bottom so I always see my position. */}
+        {myIndex >= 10 && (
+          <div className="mt-1 pt-2 border-t border-dashed border-gray-200">
+            <div className="flex items-center gap-3 rounded-lg px-2 py-2 bg-primary-50">
+              <span className="w-7 text-center text-sm font-bold text-gray-500 flex-shrink-0">{myIndex + 1}</span>
+              <span className="flex-1 min-w-0 truncate text-sm font-bold text-primary-700">
+                {board[myIndex].name} <span className="text-[10px] font-semibold text-primary-500">(tú)</span>
+              </span>
+              <span className="text-sm font-semibold text-gray-900 flex-shrink-0">
+                {board[myIndex].thisWeekCount} <span className="text-xs font-normal text-gray-400">entrenos</span>
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

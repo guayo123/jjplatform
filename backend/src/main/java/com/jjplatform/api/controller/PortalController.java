@@ -5,6 +5,7 @@ import com.jjplatform.api.dto.ClassmateDto;
 import com.jjplatform.api.dto.CreateDuelRequest;
 import com.jjplatform.api.dto.DuelDto;
 import com.jjplatform.api.dto.DuelResultRequest;
+import com.jjplatform.api.dto.LeaderboardEntryDto;
 import com.jjplatform.api.dto.PaymentDto;
 import com.jjplatform.api.dto.StudentDisciplineDto;
 import com.jjplatform.api.dto.StudentDto;
@@ -116,6 +117,14 @@ public class PortalController {
                                                            @RequestParam(required = false)
                                                            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate today) {
         return ResponseEntity.ok(portalService.repairStreak(studentId, today));
+    }
+
+    /** Academy training leaderboard: sessions this week + day streak per active student. */
+    @GetMapping("/students/{studentId}/training/leaderboard")
+    public ResponseEntity<List<LeaderboardEntryDto>> trainingLeaderboard(
+            @PathVariable Long studentId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate today) {
+        return ResponseEntity.ok(portalService.getTrainingLeaderboard(studentId, today));
     }
 
     /** Classmates for the training-partner picker. */

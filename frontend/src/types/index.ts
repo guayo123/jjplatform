@@ -503,6 +503,15 @@ export interface TrainingSessionForm {
   partners?: TrainingPartner[];
 }
 
+/** One row of the academy training leaderboard. */
+export interface LeaderboardEntry {
+  studentId: number;
+  name: string;
+  photoUrl: string | null;
+  thisWeekCount: number;
+  currentStreak: number;
+}
+
 export interface TrainingSummary {
   weeklyGoal: number | null;
   thisWeekCount: number;
