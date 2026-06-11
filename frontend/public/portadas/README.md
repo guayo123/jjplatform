@@ -1,25 +1,22 @@
 # Portadas fotográficas del portal del alumno
 
-Deja aquí las imágenes de portada (samurái / japonesas) que quieras ofrecer.
-Vite las sirve desde la raíz del sitio, así que `samurai.jpg` queda en `/portadas/samurai.jpg`.
+Las portadas de catálogo son **vectoriales** (ver `src/pages/portal/portalBanners.tsx` →
+`SCENIC_BANNERS` / `BannerArt`): se ven nítidas en cualquier pantalla y no pesan nada.
+Las fotos anteriores se retiraron porque eran verticales y de baja resolución — en la franja
+ancha del header se pixelaban y obligaban a un relleno borroso.
 
-Archivos esperados (ver `src/pages/portal/portalBanners.tsx` → `IMAGE_BANNERS`):
+## Si quieres volver a ofrecer fotos
 
-| Archivo                       | Aparece como   |
-| ----------------------------- | -------------- |
-| `portadas/samuraiwarrior.png` | Samurái        |
-| `portadas/mujer.png`          | Guerrera       |
-| `portadas/mujer2.png`         | Guerrera 2     |
-| `portadas/tiburon.png`        | Tiburón        |
-| `portadas/tortugasninjas.png` | Tortugas Ninja |
+Deja el archivo aquí (Vite lo sirve como `/portadas/<nombre>`), agrégalo a `IMAGE_BANNERS`
+(frontend) y añade la misma `key` en `PortalService.ALLOWED_BANNERS` (backend).
+
+Requisitos para que se vea profesional:
+
+- **Horizontal ~3:1** — p. ej. 1800×600 px o mayor. Nada vertical ni cuadrado.
+- Nítida a ancho completo (pantallas con densidad 3x muestran ~2300 px de ancho).
+- JPG o WebP, < 300 KB para que cargue rápido.
+- La cabecera aplica un degradado oscuro abajo: prefiere imágenes con espacio/oscuridad
+  en la parte inferior izquierda, donde va el nombre.
+- Solo imágenes con licencia para uso comercial (evita personajes con copyright).
 
 Si un archivo no existe, esa opción simplemente no se muestra en el selector (no rompe nada).
-
-## Recomendaciones
-- Formato: JPG (o WebP) horizontal, ~1600×500 px, < 300 KB para que cargue rápido.
-- La cabecera aplica un degradado oscuro abajo para que el texto se lea: prefiere imágenes
-  con algo de espacio/oscuridad en la parte inferior izquierda.
-- Usa imágenes con licencia para uso comercial (las pones tú para tener el control de la licencia).
-
-Para agregar más opciones, añade el archivo aquí, una entrada en `IMAGE_BANNERS`
-(frontend) y la misma `key` en `PortalService.ALLOWED_BANNERS` (backend).
