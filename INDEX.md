@@ -11,6 +11,9 @@
 **Para entender la seguridad:**
 → Lee [SECRETS_AND_VARS.md](SECRETS_AND_VARS.md) (Manejo de secretos)
 
+**Para conocer el stack y todas las dependencias:**
+→ Lee [TECNOLOGIAS.md](TECNOLOGIAS.md) (Tecnologías, librerías y herramientas)
+
 ---
 
 ## 📄 Archivos Creados / Modificados
