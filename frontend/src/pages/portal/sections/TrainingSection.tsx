@@ -34,6 +34,8 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
   const [shareNote, setShareNote] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
+  // Home shows the summary; history (sessions + trends) lives one tap away.
+  const [view, setView] = useState<'resumen' | 'historial'>('resumen');
   const [savingGoal, setSavingGoal] = useState(false);
   const [repairing, setRepairing] = useState(false);
   const [repairError, setRepairError] = useState<string | null>(null);
@@ -249,61 +251,64 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
           </div>
         </div>
       ) : (
-        <ProgressCard summary={summary!} trainedToday={trainedToday(sessions)} onChangeGoal={handleSetGoal} savingGoal={savingGoal} />
+        <ProgressCard
+          summary={summary!}
+          trainedToday={trainedToday(sessions)}
+          onChangeGoal={handleSetGoal}
+          savingGoal={savingGoal}
+          onShare={sessions.length > 0 ? openShare : undefined}
+        />
       )}
 
-      {/* Quick log button */}
+      {/* Resumen | Historial segmented control */}
+      <div className="bg-gray-200/70 rounded-xl p-1 flex">
+        {([['resumen', 'Resumen'], ['historial', `Historial (${sessions.length})`]] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setView(key)}
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              view === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'resumen' ? (
+        <LeaderboardCard board={board} meId={studentId} />
+      ) : (
+        <>
+          {/* Narrative insights */}
+          <InsightsCard insights={insights} hasSessions={sessions.length > 0} />
+
+          {/* Recent sessions */}
+          <div className="bg-white rounded-xl shadow-sm">
+            <div className="p-5">
+              {sessions.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-400 text-sm">Aún no registras entrenamientos.</p>
+                  <p className="text-gray-300 text-xs mt-1">Toca el botón + al salir del tatami 🥋</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {sessions.map((s) => <SessionRow key={s.id} s={s} onDelete={() => handleDelete(s.id)} />)}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Floating action button: the one primary action, always within thumb reach. */}
       <button
         onClick={() => setFormOpen(true)}
-        className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3.5 rounded-xl transition-colors shadow-sm"
+        aria-label="Registrar entrenamiento"
+        title="Registrar entrenamiento"
+        className="fixed bottom-24 right-5 z-40 w-14 h-14 rounded-full bg-primary-600 hover:bg-primary-700 text-white shadow-xl shadow-primary-600/40 flex items-center justify-center transition-transform active:scale-95"
       >
-        + Registrar entrenamiento
+        <span className="text-3xl leading-none -mt-0.5">+</span>
       </button>
-
-      {/* Shareable week summary */}
-      {summary != null && sessions.length > 0 && (
-        <button
-          onClick={openShare}
-          className="w-full bg-white border border-gray-200 hover:border-primary-300 text-gray-700 hover:text-primary-600 font-semibold py-3 rounded-xl transition-colors"
-        >
-          📤 Compartir mi semana
-        </button>
-      )}
-
-      {/* Month stats */}
-      {summary && summary.monthSessions > 0 && (
-        <div className="grid grid-cols-3 gap-3">
-          <Stat value={summary.monthSessions} label="entrenos" sub="este mes" />
-          <Stat value={Math.round(summary.monthMinutes / 60 * 10) / 10} label="horas" sub="este mes" />
-          <Stat value={summary.monthRounds} label="rounds" sub="este mes" />
-        </div>
-      )}
-
-      {/* Academy leaderboard */}
-      <LeaderboardCard board={board} meId={studentId} />
-
-      {/* Narrative insights */}
-      <InsightsCard insights={insights} hasSessions={sessions.length > 0} />
-
-      {/* Recent sessions */}
-      <div className="bg-white rounded-xl shadow-sm">
-        <div className="p-5 border-b border-gray-100">
-          <h2 className="font-bold text-gray-900">Historial</h2>
-          <p className="text-xs text-gray-400 mt-0.5">{sessions.length} entreno{sessions.length !== 1 ? 's' : ''}</p>
-        </div>
-        <div className="p-5">
-          {sessions.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-400 text-sm">Aún no registras entrenamientos.</p>
-              <p className="text-gray-300 text-xs mt-1">Toca "Registrar entrenamiento" al salir del tatami 🥋</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {sessions.map((s) => <SessionRow key={s.id} s={s} onDelete={() => handleDelete(s.id)} />)}
-            </div>
-          )}
-        </div>
-      </div>
 
       {formOpen && (
         <TrainingForm
@@ -360,11 +365,16 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
-/** Academy ranking by sessions this week (streak as tiebreaker); the logged-in student is highlighted. */
+/**
+ * Academy ranking by sessions this week (streak as tiebreaker); the logged-in student is
+ * highlighted. Compact by default (top 3 + my position) — "Ver todo" expands to 10.
+ */
 function LeaderboardCard({ board, meId }: { board: LeaderboardEntry[]; meId: number }) {
+  const [expanded, setExpanded] = useState(false);
   if (board.length < 2) return null; // a single-person ranking isn't a ranking
 
-  const top = board.slice(0, 10);
+  const visibleCount = expanded ? 10 : 3;
+  const top = board.slice(0, visibleCount);
   const myIndex = board.findIndex((e) => e.studentId === meId);
 
   return (
@@ -405,8 +415,8 @@ function LeaderboardCard({ board, meId }: { board: LeaderboardEntry[]; meId: num
             </div>
           );
         })}
-        {/* If I'm below the top 10, pin my row at the bottom so I always see my position. */}
-        {myIndex >= 10 && (
+        {/* If I'm below the visible rows, pin my position at the bottom so it's always in sight. */}
+        {myIndex >= visibleCount && (
           <div className="mt-1 pt-2 border-t border-dashed border-gray-200">
             <div className="flex items-center gap-3 rounded-lg px-2 py-2 bg-primary-50">
               <span className="w-7 text-center text-sm font-bold text-gray-500 flex-shrink-0">{myIndex + 1}</span>
@@ -418,6 +428,14 @@ function LeaderboardCard({ board, meId }: { board: LeaderboardEntry[]; meId: num
               </span>
             </div>
           </div>
+        )}
+        {board.length > 3 && (
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="w-full mt-1 py-2 text-xs font-semibold text-primary-600 hover:text-primary-700 transition-colors"
+          >
+            {expanded ? 'Ver menos' : `Ver todo (${Math.min(board.length, 10)})`}
+          </button>
         )}
       </div>
     </div>
@@ -454,10 +472,12 @@ function StreakChip({ streak, trainedToday }: { streak: number; trainedToday: bo
   return <span className="text-sm font-semibold text-orange-500">🔥 {days}</span>;
 }
 
-function ProgressCard({ summary, trainedToday, onChangeGoal, savingGoal }: { summary: TrainingSummary; trainedToday: boolean; onChangeGoal: (n: number) => void; savingGoal: boolean }) {
+/** Hero card: weekly ring + streak + month totals in one block, with share/goal tucked into the corner. */
+function ProgressCard({ summary, trainedToday, onChangeGoal, savingGoal, onShare }: { summary: TrainingSummary; trainedToday: boolean; onChangeGoal: (n: number) => void; savingGoal: boolean; onShare?: () => void }) {
   const goal = summary.weeklyGoal ?? 1;
   const pct = Math.min(100, Math.round((summary.thisWeekCount / goal) * 100));
   const [editing, setEditing] = useState(false);
+  const monthHours = Math.round((summary.monthMinutes / 60) * 10) / 10;
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-5">
@@ -476,18 +496,38 @@ function ProgressCard({ summary, trainedToday, onChangeGoal, savingGoal }: { sum
             )}
           </div>
         </div>
-        <button
-          onClick={() => setEditing((v) => !v)}
-          aria-label="Cambiar meta semanal"
-          className={`self-start flex items-center gap-1 text-xs font-medium rounded-lg border px-2.5 py-1.5 transition-colors ${
-            editing
-              ? 'border-primary-300 bg-primary-50 text-primary-600'
-              : 'border-gray-200 text-gray-500 hover:border-primary-300 hover:text-primary-600'
-          }`}
-        >
-          <span>✏️</span> Meta
-        </button>
+        <div className="self-start flex items-center gap-1.5">
+          {onShare && (
+            <button
+              onClick={onShare}
+              aria-label="Compartir mi semana"
+              title="Compartir mi semana"
+              className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:border-primary-300 hover:text-primary-600 transition-colors"
+            >
+              📤
+            </button>
+          )}
+          <button
+            onClick={() => setEditing((v) => !v)}
+            aria-label="Cambiar meta semanal"
+            title="Cambiar meta semanal"
+            className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors ${
+              editing
+                ? 'border-primary-300 bg-primary-50 text-primary-600'
+                : 'border-gray-200 text-gray-500 hover:border-primary-300 hover:text-primary-600'
+            }`}
+          >
+            ✏️
+          </button>
+        </div>
       </div>
+      {summary.monthSessions > 0 && (
+        <p className="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-400">
+          Este mes: <span className="font-semibold text-gray-600">{summary.monthSessions} entreno{summary.monthSessions === 1 ? '' : 's'}</span>
+          {monthHours > 0 && <> · <span className="font-semibold text-gray-600">{monthHours} h</span></>}
+          {summary.monthRounds > 0 && <> · <span className="font-semibold text-gray-600">{summary.monthRounds} rounds</span></>}
+        </p>
+      )}
       {editing && (
         <div className="mt-4 pt-4 border-t border-gray-100">
           <p className="text-xs text-gray-400 mb-2">Cambiar meta semanal</p>
@@ -561,16 +601,6 @@ function InsightsCard({ insights, hasSessions }: { insights: Insight[]; hasSessi
           </li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-function Stat({ value, label, sub }: { value: number; label: string; sub: string }) {
-  return (
-    <div className="bg-white rounded-xl shadow-sm p-3 text-center">
-      <p className="text-xl font-bold text-gray-900">{value}</p>
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="text-[10px] text-gray-300">{sub}</p>
     </div>
   );
 }

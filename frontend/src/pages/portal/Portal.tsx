@@ -277,7 +277,10 @@ export default function Portal() {
           </div>
           <div className="mt-auto pb-5 pt-10 min-w-0">
             <p className="text-xs text-white/80 [text-shadow:_0_1px_4px_rgb(0_0_0_/_60%)]">Portal del alumno</p>
-            <p className="font-semibold text-lg truncate [text-shadow:_0_1px_4px_rgb(0_0_0_/_60%)]">{email}</p>
+            {/* Greet by first name — the email reads like a debug screen, not an app. */}
+            <p className="font-semibold text-lg truncate [text-shadow:_0_1px_4px_rgb(0_0_0_/_60%)]">
+              {student ? `Hola, ${student.name.trim().split(/\s+/)[0]} 👋` : email}
+            </p>
             <HeaderBeltChips student={student} />
           </div>
         </div>
