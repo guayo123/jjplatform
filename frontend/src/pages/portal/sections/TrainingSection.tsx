@@ -4,7 +4,7 @@ import { trainingApi } from '../../../api/training';
 import { notifySuccess } from '../../../native/haptics';
 import { scheduleStreakReminders } from '../../../native/notifications';
 import TrainingForm from '../TrainingForm';
-import StreakCelebration from '../StreakCelebration';
+import Celebration, { type CelebrationContent, streakMessage } from '../Celebration';
 import { computeInsights, type Insight } from './trainingInsights';
 import { formatDate, Spinner } from './shared';
 
@@ -27,7 +27,9 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [savingGoal, setSavingGoal] = useState(false);
-  const [streakCelebration, setStreakCelebration] = useState<number | null>(null);
+  const [repairing, setRepairing] = useState(false);
+  const [repairError, setRepairError] = useState<string | null>(null);
+  const [celebration, setCelebration] = useState<CelebrationContent | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,7 +43,10 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
       setSessions(list);
       setClassmates(mates);
       // Refresh the native streak reminders so their copy reflects the current state.
-      void scheduleStreakReminders(sum.currentStreak, trainedToday(list));
+      void scheduleStreakReminders(sum.currentStreak, trainedToday(list), {
+        lostStreak: sum.lostStreak,
+        repairAvailable: sum.repairAvailable,
+      });
     } catch {
       setSummary(null);
       setSessions([]);
@@ -56,15 +61,64 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
 
   const handleSave = async (data: TrainingSessionForm) => {
     const prevStreak = summary?.currentStreak ?? 0;
+    const prevGoalMet = summary?.weeklyGoalMet ?? false;
     await trainingApi.create(studentId, data);
     void notifySuccess();
     // Fetch fresh stats directly (load()'s state update isn't visible in this closure)
-    // so we can tell whether this session extended the day-streak.
+    // so we can tell whether this session hit a milestone.
     const [sum, list] = await Promise.all([trainingApi.summary(studentId), trainingApi.list(studentId)]);
     setSummary(sum);
     setSessions(list);
-    void scheduleStreakReminders(sum.currentStreak, trainedToday(list));
-    if (sum.currentStreak > prevStreak) setStreakCelebration(sum.currentStreak);
+    void scheduleStreakReminders(sum.currentStreak, trainedToday(list), {
+      lostStreak: sum.lostStreak,
+      repairAvailable: sum.repairAvailable,
+    });
+
+    // Celebrate the bigger event first: completing the weekly goal outranks a +1 day streak.
+    if (!prevGoalMet && sum.weeklyGoalMet) {
+      setCelebration({
+        eyebrow: '¡Meta semanal!',
+        emoji: '🏆',
+        count: sum.thisWeekCount,
+        unit: `de ${sum.weeklyGoal} entrenos esta semana`,
+        message: '¡Cumpliste tu meta de la semana! 💪',
+        buttonLabel: '¡Excelente!',
+      });
+    } else if (sum.currentStreak > prevStreak) {
+      setCelebration({
+        eyebrow: 'Racha en marcha',
+        emoji: '🔥',
+        count: sum.currentStreak,
+        unit: sum.currentStreak === 1 ? 'día seguido entrenando' : 'días seguidos entrenando',
+        message: streakMessage(sum.currentStreak),
+      });
+    }
+  };
+
+  const handleRepair = async () => {
+    setRepairing(true);
+    setRepairError(null);
+    try {
+      const sum = await trainingApi.repairStreak(studentId);
+      setSummary(sum);
+      void notifySuccess();
+      void scheduleStreakReminders(sum.currentStreak, trainedToday(sessions), {
+        lostStreak: sum.lostStreak,
+        repairAvailable: sum.repairAvailable,
+      });
+      setCelebration({
+        eyebrow: '¡Racha recuperada!',
+        emoji: '🚑',
+        count: sum.currentStreak,
+        unit: sum.currentStreak === 1 ? 'día de racha' : 'días de racha',
+        message: '¡Salvaste tu racha! Entrena hoy para seguir sumando 🔥',
+        buttonLabel: '¡A entrenar!',
+      });
+    } catch (e) {
+      setRepairError(e instanceof Error ? e.message : 'No se pudo recuperar la racha.');
+    } finally {
+      setRepairing(false);
+    }
   };
 
   const handleSetGoal = async (goal: number) => {
@@ -94,6 +148,32 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Broken streak still within the repair window — rescue banner */}
+      {summary?.repairAvailable && summary.lostStreak > 0 && (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-5">
+          <div className="flex items-start gap-3">
+            <span className="text-3xl leading-none">💔</span>
+            <div className="flex-1 min-w-0">
+              <h2 className="font-bold text-gray-900">
+                Perdiste tu racha de {summary.lostStreak} {summary.lostStreak === 1 ? 'día' : 'días'}
+              </h2>
+              <p className="text-sm text-gray-600 mt-0.5">
+                Aún estás a tiempo de salvarla. Te queda {summary.repairsLeft}{' '}
+                recuperación este mes.
+              </p>
+              {repairError && <p className="text-sm text-red-600 mt-1">{repairError}</p>}
+              <button
+                onClick={handleRepair}
+                disabled={repairing}
+                className="mt-3 w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors disabled:opacity-50"
+              >
+                {repairing ? 'Recuperando…' : '🚑 Recuperar mi racha'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Goal not set yet — onboarding step */}
       {goal == null ? (
         <div className="bg-white rounded-xl shadow-sm p-5">
@@ -113,7 +193,7 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
           </div>
         </div>
       ) : (
-        <ProgressCard summary={summary!} onChangeGoal={handleSetGoal} savingGoal={savingGoal} />
+        <ProgressCard summary={summary!} trainedToday={trainedToday(sessions)} onChangeGoal={handleSetGoal} savingGoal={savingGoal} />
       )}
 
       {/* Quick log button */}
@@ -166,14 +246,44 @@ export default function TrainingSection({ studentId, disciplines }: Props) {
         />
       )}
 
-      {streakCelebration != null && (
-        <StreakCelebration days={streakCelebration} onClose={() => setStreakCelebration(null)} />
+      {celebration && (
+        <Celebration {...celebration} onClose={() => setCelebration(null)} />
       )}
     </div>
   );
 }
 
-function ProgressCard({ summary, onChangeGoal, savingGoal }: { summary: TrainingSummary; onChangeGoal: (n: number) => void; savingGoal: boolean }) {
+/**
+ * Streak chip with a state-aware flame: orange while the streak is safe, blue and pulsing
+ * when the day is running out without a session (≤6h left), gray smoke when there's no
+ * streak to show — so a lost streak never keeps the fire lit.
+ */
+function StreakChip({ streak, trainedToday }: { streak: number; trainedToday: boolean }) {
+  if (streak === 0) {
+    return (
+      <span className="text-sm font-semibold text-gray-400" title="Registra un entreno para encender tu racha">
+        💨 Sin racha
+      </span>
+    );
+  }
+  const days = `${streak} ${streak === 1 ? 'día' : 'días'}`;
+  if (!trainedToday) {
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    const hoursLeft = Math.max(1, Math.ceil((midnight.getTime() - now.getTime()) / 3_600_000));
+    if (hoursLeft <= 6) {
+      return (
+        <span className="text-sm font-semibold text-blue-500" title="Entrena hoy para no perder tu racha">
+          <span className="jjp-flame-cold">🔥</span> {days} · quedan {hoursLeft}h
+        </span>
+      );
+    }
+  }
+  return <span className="text-sm font-semibold text-orange-500">🔥 {days}</span>;
+}
+
+function ProgressCard({ summary, trainedToday, onChangeGoal, savingGoal }: { summary: TrainingSummary; trainedToday: boolean; onChangeGoal: (n: number) => void; savingGoal: boolean }) {
   const goal = summary.weeklyGoal ?? 1;
   const pct = Math.min(100, Math.round((summary.thisWeekCount / goal) * 100));
   const [editing, setEditing] = useState(false);
@@ -186,9 +296,7 @@ function ProgressCard({ summary, onChangeGoal, savingGoal }: { summary: Training
           <p className="text-sm text-gray-500">Esta semana</p>
           <p className="text-2xl font-bold text-gray-900">{summary.thisWeekCount}<span className="text-base font-medium text-gray-400"> / {goal}</span></p>
           <div className="flex items-center gap-4 mt-2 flex-wrap">
-            <span className="text-sm font-semibold text-orange-500">
-              🔥 {summary.currentStreak} {summary.currentStreak === 1 ? 'día' : 'días'}
-            </span>
+            <StreakChip streak={summary.currentStreak} trainedToday={trainedToday} />
             <span className="text-xs text-gray-400">Récord: {summary.maxStreak}</span>
             {summary.weeklyGoalMet && (
               <span className="text-xs font-semibold text-green-600" title="¡Cumpliste tu meta semanal!">
@@ -197,7 +305,17 @@ function ProgressCard({ summary, onChangeGoal, savingGoal }: { summary: Training
             )}
           </div>
         </div>
-        <button onClick={() => setEditing((v) => !v)} className="text-xs text-gray-400 hover:text-gray-600 self-start">Meta</button>
+        <button
+          onClick={() => setEditing((v) => !v)}
+          aria-label="Cambiar meta semanal"
+          className={`self-start flex items-center gap-1 text-xs font-medium rounded-lg border px-2.5 py-1.5 transition-colors ${
+            editing
+              ? 'border-primary-300 bg-primary-50 text-primary-600'
+              : 'border-gray-200 text-gray-500 hover:border-primary-300 hover:text-primary-600'
+          }`}
+        >
+          <span>✏️</span> Meta
+        </button>
       </div>
       {editing && (
         <div className="mt-4 pt-4 border-t border-gray-100">

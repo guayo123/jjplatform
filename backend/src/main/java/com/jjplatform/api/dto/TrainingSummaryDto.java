@@ -15,6 +15,12 @@ public class TrainingSummaryDto {
     private int maxStreak;
     /** Whether the weekly goal has already been met this week (for the "meta cumplida" badge). */
     private boolean weeklyGoalMet;
+    /** Length of the streak that just broke (run before a repairable 1-day gap); 0 when there's nothing to recover. */
+    private int lostStreak;
+    /** True when there is a repairable gap AND the student still has repairs left this month. */
+    private boolean repairAvailable;
+    /** Streak repairs remaining this calendar month. */
+    private int repairsLeft;
     /** Sessions in the current calendar month. */
     private int monthSessions;
     /** Total minutes trained in the current calendar month. */

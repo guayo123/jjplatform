@@ -3,22 +3,22 @@ import { tapHeavy, tapLight } from '../../native/haptics';
 
 const CONFETTI_COLORS = ['#F59E0B', '#EF4444', '#FB923C', '#22C55E', '#FCD34D', '#FDBA74'];
 
-/** Milestone copy — falls back to a generic line for non-milestone days. */
-const MILESTONES: Record<number, string> = {
-  1: '¡Arrancaste tu racha!',
-  3: '¡Vas tomando ritmo!',
-  5: '¡Cinco días al hilo!',
-  7: '¡Una semana seguida! 🗓️',
-  14: '¡Dos semanas imparable!',
-  21: '¡Tres semanas de fuego!',
-  30: '¡Un mes entero! 🏆',
-  60: '¡Dos meses! Bestia 🦈',
-  100: '¡100 días! Leyenda 🐉',
-};
+export interface CelebrationContent {
+  /** Small uppercase label above the emoji, e.g. "Racha en marcha". */
+  eyebrow: string;
+  /** Hero emoji that pulses with a glow, e.g. 🔥 or 🏆. */
+  emoji: string;
+  /** The number that counts up from 0 (streak days, sessions this week, …). */
+  count: number;
+  /** Label under the number, e.g. "días seguidos entrenando". */
+  unit: string;
+  /** Headline congratulation / milestone line. */
+  message: string;
+  /** Dismiss button text. */
+  buttonLabel?: string;
+}
 
-interface Props {
-  /** Current consecutive-day streak just reached. */
-  days: number;
+interface Props extends CelebrationContent {
   onClose: () => void;
 }
 
@@ -27,15 +27,14 @@ const prefersReducedMotion = () =>
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
 
 /**
- * Full-screen celebration shown when the student's day-streak grows after logging a
- * session. The sequence is orchestrated, not simultaneous: eyebrow → flame (glow) →
- * the number counts up from 0 → confetti bursts as it lands → subtitle → button.
- * Haptics (light on enter, heavy on landing) make it feel native on the phone.
- * Honors prefers-reduced-motion by showing the final state without choreography.
+ * Reusable full-screen achievement celebration. The sequence is orchestrated, not
+ * simultaneous: eyebrow → emoji (glow) → the number counts up from 0 → confetti bursts
+ * as it lands → message → button. Haptics (light on enter, heavy on landing) make it
+ * feel native. Honors prefers-reduced-motion by showing the final state without motion.
  */
-export default function StreakCelebration({ days, onClose }: Props) {
+export default function Celebration({ eyebrow, emoji, count, unit, message, buttonLabel = '¡A seguir!', onClose }: Props) {
   const reduced = useMemo(prefersReducedMotion, []);
-  const [count, setCount] = useState(reduced ? days : 0);
+  const [value, setValue] = useState(reduced ? count : 0);
   const [landed, setLanded] = useState(reduced);
   const landedHaptic = useRef(false);
 
@@ -44,18 +43,18 @@ export default function StreakCelebration({ days, onClose }: Props) {
     void tapLight();
   }, []);
 
-  // Count up 0 → days with easeOutCubic, then mark the landing.
+  // Count up 0 → count with easeOutCubic, then mark the landing.
   useEffect(() => {
     if (reduced) return;
-    const duration = Math.min(1600, Math.max(550, days * 130));
-    const startDelay = 250; // let the eyebrow/flame read first
+    const duration = Math.min(1600, Math.max(550, count * 130));
+    const startDelay = 250; // let the eyebrow/emoji read first
     let raf = 0;
     let startTs = 0;
     const tick = (now: number) => {
       if (!startTs) startTs = now;
       const t = Math.min(1, (now - startTs) / duration);
       const eased = 1 - Math.pow(1 - t, 3);
-      setCount(Math.round(eased * days));
+      setValue(Math.round(eased * count));
       if (t < 1) raf = requestAnimationFrame(tick);
       else setLanded(true);
     };
@@ -66,7 +65,7 @@ export default function StreakCelebration({ days, onClose }: Props) {
       window.clearTimeout(timer);
       cancelAnimationFrame(raf);
     };
-  }, [days, reduced]);
+  }, [count, reduced]);
 
   // Heavy punch the moment the number lands and the confetti bursts.
   useEffect(() => {
@@ -91,7 +90,6 @@ export default function StreakCelebration({ days, onClose }: Props) {
     [],
   );
 
-  const message = MILESTONES[days] ?? '¡Día sumado a tu racha!';
   const showConfetti = landed && !reduced;
 
   return (
@@ -119,19 +117,17 @@ export default function StreakCelebration({ days, onClose }: Props) {
 
       <div className="relative mx-4 w-full max-w-sm rounded-2xl bg-white p-8 text-center shadow-2xl jjp-pop">
         <p className="jjp-rise text-xs font-bold uppercase tracking-[0.2em] text-orange-500" style={{ animationDelay: '0ms' }}>
-          Racha en marcha
+          {eyebrow}
         </p>
 
         <div className="jjp-flame-glow my-3 text-6xl" style={{ animationDelay: '150ms' }}>
-          🔥
+          {emoji}
         </div>
 
         {/* Count-up number */}
         <div className="jjp-rise" style={{ animationDelay: '120ms' }}>
-          <span className="text-7xl font-extrabold leading-none text-gray-900 tabular-nums">{count}</span>
-          <p className="mt-1 text-base font-semibold text-gray-500">
-            {days === 1 ? 'día seguido' : 'días seguidos'} entrenando
-          </p>
+          <span className="text-7xl font-extrabold leading-none text-gray-900 tabular-nums">{value}</span>
+          <p className="mt-1 text-base font-semibold text-gray-500">{unit}</p>
         </div>
 
         <p className="jjp-rise mt-5 text-lg font-bold text-orange-600" style={{ animationDelay: '900ms' }}>
@@ -143,9 +139,25 @@ export default function StreakCelebration({ days, onClose }: Props) {
           className="jjp-rise mt-7 w-full rounded-xl bg-primary-600 py-3 font-semibold text-white transition-colors hover:bg-primary-700"
           style={{ animationDelay: '1100ms' }}
         >
-          ¡A seguir!
+          {buttonLabel}
         </button>
       </div>
     </div>
   );
+}
+
+/** Milestone copy for a day-streak — falls back to a generic line. */
+export function streakMessage(days: number): string {
+  const MILESTONES: Record<number, string> = {
+    1: '¡Arrancaste tu racha!',
+    3: '¡Vas tomando ritmo!',
+    5: '¡Cinco días al hilo!',
+    7: '¡Una semana seguida! 🗓️',
+    14: '¡Dos semanas imparable!',
+    21: '¡Tres semanas de fuego!',
+    30: '¡Un mes entero! 🏆',
+    60: '¡Dos meses! Bestia 🦈',
+    100: '¡100 días! Leyenda 🐉',
+  };
+  return MILESTONES[days] ?? '¡Día sumado a tu racha!';
 }

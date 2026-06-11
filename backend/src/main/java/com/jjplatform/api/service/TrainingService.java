@@ -6,17 +6,21 @@ import com.jjplatform.api.dto.TrainingSubmissionDto;
 import com.jjplatform.api.dto.TrainingSummaryDto;
 import com.jjplatform.api.exception.ResourceNotFoundException;
 import com.jjplatform.api.model.Discipline;
+import com.jjplatform.api.model.StreakRepair;
 import com.jjplatform.api.model.Student;
 import com.jjplatform.api.model.TrainingPartner;
 import com.jjplatform.api.model.TrainingSession;
 import com.jjplatform.api.model.TrainingSubmission;
 import com.jjplatform.api.repository.DisciplineRepository;
+import com.jjplatform.api.repository.StreakRepairRepository;
 import com.jjplatform.api.repository.TrainingSessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.IsoFields;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -33,8 +37,12 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class TrainingService {
 
+    /** Streak repairs each student can spend per calendar month. */
+    public static final int REPAIRS_PER_MONTH = 1;
+
     private final TrainingSessionRepository sessionRepository;
     private final DisciplineRepository disciplineRepository;
+    private final StreakRepairRepository repairRepository;
 
     @Transactional
     public TrainingSessionDto create(Student student, TrainingSessionDto dto) {
@@ -96,9 +104,10 @@ public class TrainingService {
         sessionRepository.delete(s);
     }
 
-    public TrainingSummaryDto summary(Long studentId, Integer weeklyGoal) {
-        LocalDate today = LocalDate.now();
+    public TrainingSummaryDto summary(Long studentId, Integer weeklyGoal, LocalDate clientToday) {
+        LocalDate today = effectiveToday(clientToday);
         List<TrainingSession> all = sessionRepository.findByStudentIdOrderByDateDescCreatedAtDesc(studentId);
+        List<StreakRepair> repairs = repairRepository.findByStudentId(studentId);
 
         TrainingSummaryDto out = new TrainingSummaryDto();
         out.setWeeklyGoal(weeklyGoal);
@@ -122,10 +131,52 @@ public class TrainingService {
         out.setMonthMinutes(monthMinutes);
         out.setMonthRounds(monthRounds);
 
-        out.setCurrentStreak(currentDayStreak(trainedDays, today));
-        out.setMaxStreak(maxDayStreak(trainedDays));
+        // Repaired days count as trained for streak math only — never for session/volume stats.
+        Set<LocalDate> streakDays = new HashSet<>(trainedDays);
+        for (StreakRepair r : repairs) streakDays.add(r.getRepairedDate());
+
+        out.setCurrentStreak(currentDayStreak(streakDays, today));
+        out.setMaxStreak(maxDayStreak(streakDays));
         out.setWeeklyGoalMet(weeklyGoal != null && weeklyGoal > 0 && thisWeekCount >= weeklyGoal);
+
+        int repairsLeft = repairsLeft(repairs, today);
+        LocalDate gap = repairableGapDay(streakDays, today);
+        int lostStreak = gap == null ? 0 : runEndingAt(streakDays, gap.minusDays(1));
+        out.setLostStreak(lostStreak);
+        out.setRepairsLeft(repairsLeft);
+        out.setRepairAvailable(lostStreak > 0 && repairsLeft > 0);
         return out;
+    }
+
+    /**
+     * Spends a monthly repair to fill the current 1-day gap, reviving the streak that broke.
+     * Validates the gap still exists and quota remains; returns the refreshed summary.
+     */
+    @Transactional
+    public TrainingSummaryDto repairStreak(Student student, Integer weeklyGoal, LocalDate clientToday) {
+        LocalDate today = effectiveToday(clientToday);
+        List<StreakRepair> repairs = repairRepository.findByStudentId(student.getId());
+
+        Set<LocalDate> streakDays = new HashSet<>();
+        for (TrainingSession s : sessionRepository.findByStudentIdOrderByDateDescCreatedAtDesc(student.getId())) {
+            streakDays.add(s.getDate());
+        }
+        for (StreakRepair r : repairs) streakDays.add(r.getRepairedDate());
+
+        LocalDate gap = repairableGapDay(streakDays, today);
+        if (gap == null) {
+            throw new IllegalArgumentException("No hay ninguna racha que recuperar ahora mismo.");
+        }
+        if (repairsLeft(repairs, today) <= 0) {
+            throw new IllegalArgumentException("Ya usaste tu recuperación de racha de este mes.");
+        }
+
+        StreakRepair repair = new StreakRepair();
+        repair.setStudent(student);
+        repair.setRepairedDate(gap);
+        repairRepository.save(repair);
+
+        return summary(student.getId(), weeklyGoal, today);
     }
 
     // --- streak math -------------------------------------------------------
@@ -162,6 +213,52 @@ public class TrainingService {
             best = Math.max(best, run);
         }
         return best;
+    }
+
+    /**
+     * The single missed day that can still be repaired, or null. Only a 1-day gap counts,
+     * and only within ~48h of the break: the gap must be yesterday (run ended at D-2), or
+     * the day before yesterday with yesterday already trained (the student came back on
+     * their own but the hole is still fresh).
+     */
+    private LocalDate repairableGapDay(Set<LocalDate> days, LocalDate today) {
+        LocalDate yesterday = today.minusDays(1);
+        if (!days.contains(yesterday) && days.contains(today.minusDays(2))) {
+            return yesterday;
+        }
+        if (days.contains(yesterday) && !days.contains(today.minusDays(2)) && days.contains(today.minusDays(3))) {
+            return today.minusDays(2);
+        }
+        return null;
+    }
+
+    /** Length of the consecutive run of trained days ending exactly at {@code end}. */
+    private int runEndingAt(Set<LocalDate> days, LocalDate end) {
+        int run = 0;
+        for (LocalDate c = end; days.contains(c); c = c.minusDays(1)) run++;
+        return run;
+    }
+
+    /** Repairs remaining in {@code today}'s calendar month. */
+    private int repairsLeft(List<StreakRepair> repairs, LocalDate today) {
+        YearMonth month = YearMonth.from(today);
+        long used = repairs.stream()
+                .filter(r -> r.getCreatedAt() != null && YearMonth.from(r.getCreatedAt()).equals(month))
+                .count();
+        return (int) Math.max(0, REPAIRS_PER_MONTH - used);
+    }
+
+    /**
+     * The student's local "today" (sent by the device) wins over the server clock — Railway
+     * runs in UTC, which would otherwise shift evening sessions into the next day. Sanity
+     * clamp: anything more than a day away from server time falls back to the server date.
+     */
+    private LocalDate effectiveToday(LocalDate clientToday) {
+        LocalDate server = LocalDate.now();
+        if (clientToday == null || Math.abs(ChronoUnit.DAYS.between(server, clientToday)) > 1) {
+            return server;
+        }
+        return clientToday;
     }
 
     private String weekKey(LocalDate d) {

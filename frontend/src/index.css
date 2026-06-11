@@ -49,9 +49,22 @@
   will-change: transform, filter;
 }
 
+/* Streak chip "freezing": when the day is running out without a logged session, the
+   flame emoji is tinted blue via hue-rotate and pulses gently to draw the eye. */
+@keyframes jjp-flame-freeze {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.18); }
+}
+.jjp-flame-cold {
+  display: inline-block;
+  filter: hue-rotate(185deg) saturate(1.6);
+  animation: jjp-flame-freeze 1.4s ease-in-out infinite;
+  will-change: transform;
+}
+
 /* Accessibility: users who ask for less motion get the content without the choreography. */
 @media (prefers-reduced-motion: reduce) {
-  .jjp-confetti, .jjp-pop, .jjp-rise, .jjp-flame-glow {
+  .jjp-confetti, .jjp-pop, .jjp-rise, .jjp-flame-glow, .jjp-flame-cold {
     animation: none !important;
   }
   .jjp-rise { opacity: 1; transform: none; }

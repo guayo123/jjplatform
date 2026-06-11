@@ -14,11 +14,13 @@ import com.jjplatform.api.service.PortalService;
 import com.jjplatform.api.service.SecurityHelper;
 import com.jjplatform.api.service.StudentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -100,9 +102,20 @@ public class PortalController {
         return ResponseEntity.noContent().build();
     }
 
+    /** {@code today} is the device's local date so streak day boundaries follow the student, not the server TZ. */
     @GetMapping("/students/{studentId}/training/summary")
-    public ResponseEntity<TrainingSummaryDto> trainingSummary(@PathVariable Long studentId) {
-        return ResponseEntity.ok(portalService.getTrainingSummary(studentId));
+    public ResponseEntity<TrainingSummaryDto> trainingSummary(@PathVariable Long studentId,
+                                                              @RequestParam(required = false)
+                                                              @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate today) {
+        return ResponseEntity.ok(portalService.getTrainingSummary(studentId, today));
+    }
+
+    /** Spends a monthly streak repair to fill the current 1-day gap and revive the broken streak. */
+    @PostMapping("/students/{studentId}/training/streak-repair")
+    public ResponseEntity<TrainingSummaryDto> repairStreak(@PathVariable Long studentId,
+                                                           @RequestParam(required = false)
+                                                           @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate today) {
+        return ResponseEntity.ok(portalService.repairStreak(studentId, today));
     }
 
     /** Classmates for the training-partner picker. */

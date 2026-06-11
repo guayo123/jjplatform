@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
@@ -122,10 +123,17 @@ public class PortalService {
 
     // --- Personal training journal (self-logged sessions + streak) ---------
 
-    public TrainingSummaryDto getTrainingSummary(Long studentId) {
+    public TrainingSummaryDto getTrainingSummary(Long studentId, LocalDate clientToday) {
         requireOwnedStudent(studentId);
         Integer goal = securityHelper.getCurrentUser().getTrainingWeeklyGoal();
-        return trainingService.summary(studentId, goal);
+        return trainingService.summary(studentId, goal, clientToday);
+    }
+
+    /** Spends a monthly streak repair to fill the student's current 1-day gap. */
+    public TrainingSummaryDto repairStreak(Long studentId, LocalDate clientToday) {
+        Student me = requireOwnedStudent(studentId);
+        Integer goal = securityHelper.getCurrentUser().getTrainingWeeklyGoal();
+        return trainingService.repairStreak(me, goal, clientToday);
     }
 
     public List<TrainingSessionDto> getTrainingSessions(Long studentId) {

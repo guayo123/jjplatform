@@ -509,6 +509,12 @@ export interface TrainingSummary {
   currentStreak: number;
   maxStreak: number;
   weeklyGoalMet: boolean;
+  /** Length of the streak that just broke (repairable 1-day gap); 0 when there's nothing to recover. */
+  lostStreak: number;
+  /** True when there's a repairable gap and the student still has repairs left this month. */
+  repairAvailable: boolean;
+  /** Streak repairs remaining this calendar month. */
+  repairsLeft: number;
   monthSessions: number;
   monthMinutes: number;
   monthRounds: number;

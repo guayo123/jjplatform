@@ -1,10 +1,33 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { getPlatformInfo } from './usePlatform';
 
-// Evening slot for the streak reminders, and one notification id per upcoming day.
-// Reusing 1001 overwrites the legacy single daily reminder.
-const STREAK_REMINDER_HOUR = 19;
+// One notification id per upcoming day. Reusing 1001 overwrites the legacy daily reminder.
 const STREAK_REMINDER_IDS = [1001, 1002, 1003];
+
+// User-tweakable reminder preferences (device-local, since the notifications are too).
+const PREFS_ENABLED_KEY = 'jjp_reminder_enabled';
+const PREFS_HOUR_KEY = 'jjp_reminder_hour';
+const DEFAULT_REMINDER_HOUR = 19;
+
+export interface ReminderPrefs {
+  enabled: boolean;
+  /** Hour of day (0-23) the daily reminder fires. */
+  hour: number;
+}
+
+export function getReminderPrefs(): ReminderPrefs {
+  const enabledRaw = localStorage.getItem(PREFS_ENABLED_KEY);
+  const hourRaw = Number(localStorage.getItem(PREFS_HOUR_KEY));
+  return {
+    enabled: enabledRaw == null ? true : enabledRaw === '1', // default on
+    hour: Number.isInteger(hourRaw) && hourRaw >= 0 && hourRaw <= 23 ? hourRaw : DEFAULT_REMINDER_HOUR,
+  };
+}
+
+export function setReminderPrefs(prefs: ReminderPrefs): void {
+  localStorage.setItem(PREFS_ENABLED_KEY, prefs.enabled ? '1' : '0');
+  localStorage.setItem(PREFS_HOUR_KEY, String(prefs.hour));
+}
 
 /** Ask for local-notification permission. Returns true if granted. No-op on web. */
 export async function ensureLocalNotificationPermission(): Promise<boolean> {
@@ -19,8 +42,24 @@ export async function ensureLocalNotificationPermission(): Promise<boolean> {
   }
 }
 
+/** Lost-streak rescue state, when the student can still repair a 1-day gap. */
+export interface StreakRescue {
+  /** Length of the streak that just broke (0 = nothing to recover). */
+  lostStreak: number;
+  /** Whether a repair can still be spent this month. */
+  repairAvailable: boolean;
+}
+
 /** Title/body tailored to the streak and how far out the reminder is. */
-function streakReminderCopy(streak: number, dayOffset: number): { title: string; body: string } {
+function streakReminderCopy(streak: number, dayOffset: number, rescue?: StreakRescue): { title: string; body: string } {
+  // A broken streak that's still repairable: today's reminder becomes a rescue call.
+  // Only day 0 — the repair window closes if today also passes untrained.
+  if (dayOffset === 0 && rescue?.repairAvailable && rescue.lostStreak > 0) {
+    return {
+      title: `🚑 Salva tu racha de ${rescue.lostStreak} día${rescue.lostStreak === 1 ? '' : 's'}`,
+      body: 'Aún estás a tiempo: entra y usa tu recuperación del mes. ¡No la dejes ir!',
+    };
+  }
   // Day 2+: the student likely hasn't reopened the app — switch to gentle re-engagement.
   if (dayOffset >= 2) {
     return {
@@ -49,8 +88,17 @@ function streakReminderCopy(streak: number, dayOffset: number): { title: string;
  * state and an already-trained day never nags. Each call overwrites the previous ladder.
  * No-op on web.
  */
-export async function scheduleStreakReminders(currentStreak: number, trainedToday: boolean): Promise<void> {
+export async function scheduleStreakReminders(
+  currentStreak: number,
+  trainedToday: boolean,
+  rescue?: StreakRescue,
+): Promise<void> {
   if (!getPlatformInfo().isNative) return;
+  const prefs = getReminderPrefs();
+  if (!prefs.enabled) {
+    await cancelStreakReminders(); // user turned reminders off
+    return;
+  }
   const granted = await ensureLocalNotificationPermission();
   if (!granted) return;
   try {
@@ -62,7 +110,7 @@ export async function scheduleStreakReminders(currentStreak: number, trainedToda
       .map((id, dayOffset) => {
         const at = new Date(now);
         at.setDate(now.getDate() + dayOffset);
-        at.setHours(STREAK_REMINDER_HOUR, 0, 0, 0);
+        at.setHours(prefs.hour, 0, 0, 0);
         return { id, at, dayOffset };
       })
       // Drop today's reminder if the evening already passed or they already trained today.
@@ -73,7 +121,7 @@ export async function scheduleStreakReminders(currentStreak: number, trainedToda
     await LocalNotifications.schedule({
       notifications: reminders.map((r) => ({
         id: r.id,
-        ...streakReminderCopy(currentStreak, r.dayOffset),
+        ...streakReminderCopy(currentStreak, r.dayOffset, rescue),
         schedule: { at: r.at, allowWhileIdle: true },
       })),
     });
