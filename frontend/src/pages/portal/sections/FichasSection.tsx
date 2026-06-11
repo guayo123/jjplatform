@@ -1,4 +1,5 @@
 import type { StudentDiscipline, BeltPromotion } from '../../../types';
+import BeltImage from '../../../components/BeltImage';
 import { formatDate, BeltBadge, Spinner, TYPE_CONFIG } from './shared';
 
 interface Props {
@@ -62,26 +63,22 @@ export default function FichasSection({ disciplines, promotions, detailLoading, 
                         <div className="space-y-2">
                           {discPromos.map((promo) => {
                             const tc = TYPE_CONFIG[promo.type];
+                            const beltChange = promo.fromBelt && promo.fromBelt !== promo.toBelt;
                             return (
-                              <div key={promo.id} className="flex items-start gap-3 bg-white rounded-lg p-3 border border-gray-100">
-                                <span className="text-base mt-0.5 flex-shrink-0">{tc.icon}</span>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className={`text-xs font-semibold ${tc.color}`}>{tc.label}</span>
-                                    {promo.fromBelt && (
-                                      <>
-                                        <BeltBadge belt={promo.fromBelt} />
-                                        <span className="text-gray-300 text-xs">→</span>
-                                      </>
-                                    )}
-                                    <BeltBadge belt={promo.toBelt} />
-                                    {promo.toStripes > 0 && <span className="text-amber-400 text-xs">{'★'.repeat(promo.toStripes)}</span>}
-                                  </div>
-                                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-400">
-                                    <span>{formatDate(promo.promotionDate)}</span>
-                                    {promo.notes && <span className="italic">"{promo.notes}"</span>}
-                                  </div>
+                              <div key={promo.id} className="bg-white rounded-lg p-3 border border-gray-100">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-base flex-shrink-0">{tc.icon}</span>
+                                  <span className={`text-xs font-semibold ${tc.color}`}>{tc.label}</span>
+                                  {beltChange && (
+                                    <span className="text-xs text-gray-400">desde {promo.fromBelt}</span>
+                                  )}
+                                  <span className="text-xs text-gray-400 ml-auto">{formatDate(promo.promotionDate)}</span>
                                 </div>
+                                {/* Resulting belt with its degrees attached, like the promotion celebration */}
+                                <div className="mt-2">
+                                  <BeltImage belt={promo.toBelt} stripes={promo.toStripes} className="max-w-[220px]" />
+                                </div>
+                                {promo.notes && <p className="text-xs text-gray-400 italic mt-1.5">"{promo.notes}"</p>}
                               </div>
                             );
                           })}
