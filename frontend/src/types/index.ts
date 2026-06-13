@@ -390,6 +390,14 @@ export interface ScheduleForm {
   capacity?: number | null;
 }
 
+/** A student who reserved a given class occurrence (admin roster view). */
+export interface ReservationRoster {
+  studentId: number;
+  name: string;
+  photoUrl: string | null;
+  belt: string | null;
+}
+
 export interface Photo {
   id: number;
   url: string;
