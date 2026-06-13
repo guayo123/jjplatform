@@ -32,7 +32,8 @@ Estado del trabajo reciente y lo que viene. Última actualización: 2026-06-13.
 
 ## 🔧 Pendiente para producción
 
-- [ ] **Commitear** las dos features (programa técnico + pagos/retención). No se ha pusheado nada.
+- [x] **Commiteado** en la rama `feat/portal-tecnicas-pagos-reservas` (aún **sin pushear** — pushear auto-despliega).
+- [ ] **Pushear / mergear** la rama cuando quieras desplegar.
 - [ ] **Credenciales de pasarela**: obtener y pegar en *Ajustes* la API Key de Khipu y el Access Token de Mercado Pago. Sin ellas los botones de pago no aparecen.
 - [ ] **Probar los pagos de extremo a extremo** (en sandbox primero) — los flujos de pasarela aún no se han verificado por falta de credenciales.
 - [ ] **Variable de entorno `PORTAL_URL`** en Railway (URL de retorno tras pagar). Tiene default, pero conviene fijarla.
