@@ -1,0 +1,6 @@
+06-13 20:00:28.240  8147  8147 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 75431765, pluginId: LocalNotifications, methodName: requestPermissions
+06-13 20:00:28.240  8147  8147 V Capacitor: callback: 75431765, pluginId: LocalNotifications, methodName: requestPermissions, methodData: {}
+06-13 20:00:28.250  8147  8147 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 75431766, pluginId: LocalNotifications, methodName: schedule
+06-13 20:00:28.250  8147  8147 V Capacitor: callback: 75431766, pluginId: LocalNotifications, methodName: schedule, methodData: {"notifications":[{"id":101,"title":"Recordatorio de clase 🥋","body":"Tu clase de BJJ empieza en ~2 horas. ¡Reservaste tu lugar!","schedule":{"at":"2026-06-13T20:00:30.248Z"}}]}
+06-13 20:00:33.270  8147  8147 V Capacitor/LocalNotificationsPlugin: Notifying listeners for event localNotificationReceived
+06-13 20:00:33.270  8147  8147 D Capacitor/LocalNotificationsPlugin: No listeners found for event localNotificationReceived

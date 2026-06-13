@@ -32,12 +32,13 @@ Estado del trabajo reciente y lo que viene. Última actualización: 2026-06-13.
 
 ## 🔧 Pendiente para producción
 
-- [x] **Commiteado** en la rama `feat/portal-tecnicas-pagos-reservas` (aún **sin pushear** — pushear auto-despliega).
-- [ ] **Pushear / mergear** la rama cuando quieras desplegar.
+- [x] **Mergeado a `main` y pusheado** (2026-06-13, commit `d831deb`) → auto-deploy en Railway + Vercel. Antes de esto producción NO tenía nada de training/diario/técnicas/pagos/reservas (origin/main estaba en `783f574`).
+- [x] **CORS Capacitor**: el usuario agregó `capacitor://localhost,https://localhost,http://localhost` a `CORS_ORIGINS` en Railway.
+- [x] **Bug Android (crash de push)** corregido y commiteado (`registerPush` tras `VITE_ENABLE_PUSH`).
+- [ ] **Reverificar tras el deploy**: meta semanal, registrar entreno (que daban 500 por estar sin desplegar), racha y tarjeta "Próximas clases" (reservas). Ver `TEST_REPORT.md`.
 - [ ] **Credenciales de pasarela**: obtener y pegar en *Ajustes* la API Key de Khipu y el Access Token de Mercado Pago. Sin ellas los botones de pago no aparecen.
 - [ ] **Probar los pagos de extremo a extremo** (en sandbox primero) — los flujos de pasarela aún no se han verificado por falta de credenciales.
 - [ ] **Variable de entorno `PORTAL_URL`** en Railway (URL de retorno tras pagar). Tiene default, pero conviene fijarla.
-- [ ] **CORS Capacitor** (pendiente previo): agregar `capacitor://localhost,https://localhost,http://localhost` a `CORS_ORIGINS` en Railway o falla el login en la app.
 - [ ] Configurar la **URL de notificación** en los paneles de Khipu/Mercado Pago si lo requieren (apunta a `APP_BASE_URL`).
 
 ---

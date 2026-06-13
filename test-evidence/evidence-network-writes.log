@@ -1,0 +1,4 @@
+PUT  /api/portal/training/goal              -> HTTP 500  (guardar meta semanal)
+POST /api/portal/students/20/training       -> HTTP 500  (registrar entrenamiento)
+GET  reads (perfil, pagos, cinturón, fichas)-> HTTP 200  (funcionan OK)
+Mismo Bearer token en lecturas y escrituras => no es auth; es error server-side (500).

@@ -1,0 +1,16 @@
+06-13 20:00:02.538  8147  8147 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 75431762, pluginId: Haptics, methodName: impact
+06-13 20:00:02.539  8147  8147 V Capacitor: callback: 75431762, pluginId: Haptics, methodName: impact, methodData: {"style":"HEAVY"}
+06-13 20:00:02.557   337   337 I android.hardware.vibrator-service.example: Vibrator off
+06-13 20:00:02.561   337   337 I android.hardware.vibrator-service.example: Vibrator on for timeoutMs: 60
+06-13 20:00:02.563   337   337 I android.hardware.vibrator-service.example: Vibrator set amplitude: 1
+06-13 20:00:02.568  8147  8147 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 75431763, pluginId: Haptics, methodName: impact
+06-13 20:00:02.568  8147  8147 V Capacitor: callback: 75431763, pluginId: Haptics, methodName: impact, methodData: {"style":"MEDIUM"}
+06-13 20:00:02.569   337   337 I android.hardware.vibrator-service.example: Vibrator off
+06-13 20:00:02.570   337   337 I android.hardware.vibrator-service.example: Vibrator on for timeoutMs: 43
+06-13 20:00:02.570   337   337 I android.hardware.vibrator-service.example: Vibrator set amplitude: 0.705882
+06-13 20:00:02.574  8147  8147 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 75431764, pluginId: Haptics, methodName: vibrate
+06-13 20:00:02.574  8147  8147 V Capacitor: callback: 75431764, pluginId: Haptics, methodName: vibrate, methodData: {"duration":300}
+06-13 20:00:02.575   337   337 I android.hardware.vibrator-service.example: Vibrator off
+06-13 20:00:02.576   337   337 I android.hardware.vibrator-service.example: Vibrator on for timeoutMs: 300
+06-13 20:00:02.576   337   337 I android.hardware.vibrator-service.example: Vibrator set amplitude: 1
+06-13 20:00:02.877   337   337 I android.hardware.vibrator-service.example: Vibrator off
