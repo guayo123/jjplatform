@@ -5,6 +5,7 @@ import { useToast } from '../../components/ToastContext';
 import { useConfirm } from '../../components/ConfirmContext';
 import { useGuidedTour } from '../../utils/useGuidedTour';
 import FormInput from '../../components/FormInput';
+import TechniqueManager from './TechniqueManager';
 import type { Discipline, DisciplineAgeCategory, DisciplineBelt } from '../../types';
 
 // Preset belt colors so the admin can pick quickly
@@ -24,7 +25,7 @@ const PRESET_COLORS = [
   { name: 'Plomo',    hex: '#6B7280' },
 ];
 
-function BeltChip({ belt, onDelete }: { belt: DisciplineBelt; onDelete: () => void }) {
+function BeltChip({ belt, onDelete, onManage }: { belt: DisciplineBelt; onDelete: () => void; onManage: () => void }) {
   const r = parseInt(belt.colorHex.slice(1, 3), 16);
   const g = parseInt(belt.colorHex.slice(3, 5), 16);
   const b = parseInt(belt.colorHex.slice(5, 7), 16);
@@ -37,7 +38,12 @@ function BeltChip({ belt, onDelete }: { belt: DisciplineBelt; onDelete: () => vo
       className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border"
       style={{ background: belt.colorHex, color: textColor, borderColor }}
     >
-      {belt.name}
+      <button onClick={onManage} className="hover:opacity-70 transition-opacity leading-none" title="Programa técnico de este cinturón">
+        {belt.name}
+      </button>
+      <button onClick={onManage} className="hover:opacity-70 transition-opacity leading-none" title="Programa técnico">
+        📋
+      </button>
       <button onClick={onDelete} className="hover:opacity-70 transition-opacity leading-none" title="Eliminar cinturón">
         ✕
       </button>
@@ -70,6 +76,9 @@ export default function Disciplines() {
   const [showBeltFormFor, setShowBeltFormFor] = useState<number | null>(null);
   const [beltForm, setBeltForm] = useState<AddBeltForm>({ name: '', colorHex: '#9CA3AF' });
   const [beltSaving, setBeltSaving] = useState(false);
+
+  // Technique-curriculum manager modal (per belt)
+  const [managing, setManaging] = useState<{ beltId: number; beltName: string } | null>(null);
 
   const load = () =>
     academiesApi.getDisciplines().then(setDisciplines).finally(() => setLoading(false));
@@ -416,6 +425,7 @@ export default function Disciplines() {
                             onAddBelt={() => handleAddBelt(d.id, cat.id)}
                             onDeleteBelt={(beltId) => handleDeleteBelt(d.id, cat.id, beltId)}
                             onDeleteCategory={() => handleDeleteCategory(d.id, cat.id)}
+                            onManageBelt={(belt) => setManaging({ beltId: belt.id, beltName: belt.name })}
                           />
                         ))}
                       </div>
@@ -426,6 +436,14 @@ export default function Disciplines() {
             );
           })}
         </div>
+      )}
+
+      {managing && (
+        <TechniqueManager
+          beltId={managing.beltId}
+          beltName={managing.beltName}
+          onClose={() => setManaging(null)}
+        />
       )}
     </div>
   );
@@ -445,12 +463,13 @@ interface CategoryPanelProps {
   onAddBelt: () => void;
   onDeleteBelt: (beltId: number) => void;
   onDeleteCategory: () => void;
+  onManageBelt: (belt: DisciplineBelt) => void;
 }
 
 function CategoryPanel({
   cat, showBeltForm, beltForm, beltSaving,
   onOpenBeltForm, onCloseBeltForm, onBeltFormChange,
-  onAddBelt, onDeleteBelt, onDeleteCategory,
+  onAddBelt, onDeleteBelt, onDeleteCategory, onManageBelt,
 }: CategoryPanelProps) {
   const ageLabel = cat.minAge != null || cat.maxAge != null
     ? `${cat.minAge ?? '0'} – ${cat.maxAge ?? '∞'} años`
@@ -493,7 +512,7 @@ function CategoryPanel({
         ) : (
           <div className="flex flex-wrap gap-2">
             {cat.belts.map((belt) => (
-              <BeltChip key={belt.id} belt={belt} onDelete={() => onDeleteBelt(belt.id)} />
+              <BeltChip key={belt.id} belt={belt} onDelete={() => onDeleteBelt(belt.id)} onManage={() => onManageBelt(belt)} />
             ))}
           </div>
         )}

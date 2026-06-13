@@ -154,6 +154,57 @@ export async function notifyNow(title: string, body: string): Promise<void> {
   }
 }
 
+// ── Class reservation reminders ──────────────────────────────────────────────
+// A local notification ~2h before a reserved class. Deterministic id per (schedule, date)
+// so cancelling a reservation can target exactly that reminder.
+
+const CLASS_REMINDER_LEAD_MIN = 120;
+
+function classReminderId(scheduleId: number, classDateIso: string): number {
+  // dayOfYear (1-366) keeps the id small and unique enough within a year.
+  const d = new Date(`${classDateIso}T00:00:00`);
+  const start = new Date(d.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((d.getTime() - start.getTime()) / 86_400_000);
+  return 3_000_000 + (scheduleId % 1000) * 1000 + dayOfYear; // < 2^31
+}
+
+/** Schedule a reminder ~2h before a reserved class. No-op on web or if the time already passed. */
+export async function scheduleClassReminder(
+  scheduleId: number,
+  classDateIso: string,
+  startTime: string,
+  className: string,
+): Promise<void> {
+  if (!getPlatformInfo().isNative) return;
+  const granted = await ensureLocalNotificationPermission();
+  if (!granted) return;
+  const at = new Date(`${classDateIso}T${startTime}`);
+  at.setMinutes(at.getMinutes() - CLASS_REMINDER_LEAD_MIN);
+  if (at.getTime() <= Date.now()) return;
+  try {
+    await LocalNotifications.schedule({
+      notifications: [{
+        id: classReminderId(scheduleId, classDateIso),
+        title: '🥋 Tienes clase pronto',
+        body: `${className} en un par de horas. ¡Prepara el kimono!`,
+        schedule: { at, allowWhileIdle: true },
+      }],
+    });
+  } catch {
+    /* non-critical */
+  }
+}
+
+/** Cancel the reminder for a reservation the student dropped. No-op on web. */
+export async function cancelClassReminder(scheduleId: number, classDateIso: string): Promise<void> {
+  if (!getPlatformInfo().isNative) return;
+  try {
+    await LocalNotifications.cancel({ notifications: [{ id: classReminderId(scheduleId, classDateIso) }] });
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Cancel the streak reminder ladder (e.g. on logout). No-op on web. */
 export async function cancelStreakReminders(): Promise<void> {
   if (!getPlatformInfo().isNative) return;

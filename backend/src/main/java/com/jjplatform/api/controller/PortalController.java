@@ -9,7 +9,9 @@ import com.jjplatform.api.dto.LeaderboardEntryDto;
 import com.jjplatform.api.dto.PaymentDto;
 import com.jjplatform.api.dto.StudentDisciplineDto;
 import com.jjplatform.api.dto.StudentDto;
+import com.jjplatform.api.dto.TechniqueCurriculumDto;
 import com.jjplatform.api.dto.TrainingSessionDto;
+import com.jjplatform.api.dto.UpcomingClassDto;
 import com.jjplatform.api.dto.TrainingSummaryDto;
 import com.jjplatform.api.service.PortalService;
 import com.jjplatform.api.service.SecurityHelper;
@@ -60,6 +62,60 @@ public class PortalController {
     @GetMapping("/students/{studentId}/payments")
     public ResponseEntity<List<PaymentDto>> payments(@PathVariable Long studentId) {
         return ResponseEntity.ok(portalService.getPayments(studentId));
+    }
+
+    /** The student's technique curriculum (program per belt, with learned flags). */
+    @GetMapping("/students/{studentId}/techniques")
+    public ResponseEntity<List<TechniqueCurriculumDto>> techniques(@PathVariable Long studentId) {
+        return ResponseEntity.ok(portalService.getTechniqueCurriculum(studentId));
+    }
+
+    /** Marks (true) or unmarks (false) a curriculum technique learned for the student. */
+    @PutMapping("/students/{studentId}/techniques/{techniqueId}")
+    public ResponseEntity<Void> setTechniqueLearned(@PathVariable Long studentId,
+                                                    @PathVariable Long techniqueId,
+                                                    @RequestBody Map<String, Boolean> body) {
+        portalService.setTechniqueLearned(studentId, techniqueId, Boolean.TRUE.equals(body.get("learned")));
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Online-payment methods the academy offers + bank-transfer details. */
+    @GetMapping("/students/{studentId}/payment-options")
+    public ResponseEntity<Map<String, Object>> paymentOptions(@PathVariable Long studentId) {
+        return ResponseEntity.ok(portalService.getPaymentOptions(studentId));
+    }
+
+    /** Starts a Khipu/Mercado Pago checkout for a month; returns {url} to open. */
+    @PostMapping("/students/{studentId}/pay")
+    public ResponseEntity<Map<String, String>> pay(@PathVariable Long studentId,
+                                                   @RequestBody Map<String, Object> body) {
+        String method = String.valueOf(body.get("method"));
+        int month = ((Number) body.get("month")).intValue();
+        int year = ((Number) body.get("year")).intValue();
+        String url = portalService.createCheckout(studentId, method, month, year);
+        return ResponseEntity.ok(Map.of("url", url));
+    }
+
+    // --- Class reservations ------------------------------------------------
+
+    /** Upcoming classes (next 7 days) with capacity + the student's reservation state. */
+    @GetMapping("/students/{studentId}/classes")
+    public ResponseEntity<List<UpcomingClassDto>> upcomingClasses(@PathVariable Long studentId) {
+        return ResponseEntity.ok(portalService.getUpcomingClasses(studentId));
+    }
+
+    @PostMapping("/students/{studentId}/classes/{scheduleId}/reserve")
+    public ResponseEntity<Void> reserveClass(@PathVariable Long studentId, @PathVariable Long scheduleId,
+                                             @RequestBody Map<String, String> body) {
+        portalService.reserveClass(studentId, scheduleId, LocalDate.parse(body.get("date")));
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/students/{studentId}/classes/{scheduleId}/reserve")
+    public ResponseEntity<Void> cancelClass(@PathVariable Long studentId, @PathVariable Long scheduleId,
+                                            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        portalService.cancelClass(studentId, scheduleId, date);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/students/{studentId}/photo")

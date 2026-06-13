@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { Link } from 'react-router-dom';
 import { useGuidedTour } from '../../utils/useGuidedTour';
+import AtRiskPanel from '../../components/AtRiskPanel';
 
 export default function Dashboard() {
   const academyName = useAuthStore((s) => s.academyName);
@@ -68,6 +69,10 @@ export default function Dashboard() {
             <p className="text-gray-500 text-sm mt-1">{card.desc}</p>
           </Link>
         ))}
+      </div>
+
+      <div className="mt-8 max-w-2xl">
+        <AtRiskPanel />
       </div>
     </div>
   );

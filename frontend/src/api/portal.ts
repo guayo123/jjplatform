@@ -1,5 +1,5 @@
 import client from './client';
-import type { Student, StudentDiscipline, BeltPromotion, Payment } from '../types';
+import type { Student, StudentDiscipline, BeltPromotion, Payment, TechniqueCurriculum, PaymentOptions, UpcomingClass } from '../types';
 
 export const portalApi = {
   /** The logged-in student's profile(s) — one per academy they belong to. */
@@ -13,6 +13,27 @@ export const portalApi = {
 
   payments: (studentId: number) =>
     client.get<Payment[]>(`/portal/students/${studentId}/payments`).then((r) => r.data),
+
+  paymentOptions: (studentId: number) =>
+    client.get<PaymentOptions>(`/portal/students/${studentId}/payment-options`).then((r) => r.data),
+
+  pay: (studentId: number, method: string, month: number, year: number) =>
+    client.post<{ url: string }>(`/portal/students/${studentId}/pay`, { method, month, year }).then((r) => r.data),
+
+  upcomingClasses: (studentId: number) =>
+    client.get<UpcomingClass[]>(`/portal/students/${studentId}/classes`).then((r) => r.data),
+
+  reserveClass: (studentId: number, scheduleId: number, date: string) =>
+    client.post(`/portal/students/${studentId}/classes/${scheduleId}/reserve`, { date }),
+
+  cancelClass: (studentId: number, scheduleId: number, date: string) =>
+    client.delete(`/portal/students/${studentId}/classes/${scheduleId}/reserve`, { params: { date } }),
+
+  techniques: (studentId: number) =>
+    client.get<TechniqueCurriculum[]>(`/portal/students/${studentId}/techniques`).then((r) => r.data),
+
+  setTechniqueLearned: (studentId: number, techniqueId: number, learned: boolean) =>
+    client.put(`/portal/students/${studentId}/techniques/${techniqueId}`, { learned }),
 
   getBanner: () =>
     client.get<{ banner: string | null }>('/portal/banner').then((r) => r.data.banner),

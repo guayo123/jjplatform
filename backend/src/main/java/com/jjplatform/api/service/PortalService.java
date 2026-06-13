@@ -8,7 +8,9 @@ import com.jjplatform.api.dto.DuelResultRequest;
 import com.jjplatform.api.dto.LeaderboardEntryDto;
 import com.jjplatform.api.dto.PaymentDto;
 import com.jjplatform.api.dto.StudentDisciplineDto;
+import com.jjplatform.api.dto.TechniqueCurriculumDto;
 import com.jjplatform.api.dto.TrainingSessionDto;
+import com.jjplatform.api.dto.UpcomingClassDto;
 import com.jjplatform.api.dto.TrainingSummaryDto;
 import com.jjplatform.api.exception.ResourceNotFoundException;
 import com.jjplatform.api.model.Student;
@@ -23,7 +25,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -51,6 +55,9 @@ public class PortalService {
     private final TrainingService trainingService;
     private final StudentService studentService;
     private final DuelService duelService;
+    private final TechniqueService techniqueService;
+    private final PaymentGatewayService paymentGatewayService;
+    private final ClassReservationService classReservationService;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -98,6 +105,54 @@ public class PortalService {
     public List<PaymentDto> getPayments(Long studentId) {
         requireOwnedStudent(studentId);
         return paymentService.getPaymentsByStudent(studentId);
+    }
+
+    /** Online-payment methods the academy offers + bank-transfer instructions, for the portal. */
+    public Map<String, Object> getPaymentOptions(Long studentId) {
+        Student s = requireOwnedStudent(studentId);
+        Map<String, Boolean> methods = paymentGatewayService.availableMethods(s.getAcademy().getId());
+        Map<String, Object> out = new HashMap<>();
+        out.put("khipu", methods.get("khipu"));
+        out.put("mercadoPago", methods.get("mercadoPago"));
+        out.put("bankDetails", s.getAcademy().getBankDetails());
+        return out;
+    }
+
+    /** Starts a gateway checkout for the student's monthly fee; returns the URL to open. */
+    public String createCheckout(Long studentId, String method, int month, int year) {
+        Student s = requireOwnedStudent(studentId);
+        return paymentGatewayService.createCheckout(studentId, s.getAcademy().getId(), month, year, method);
+    }
+
+    // --- Class reservations -------------------------------------------------
+
+    public List<UpcomingClassDto> getUpcomingClasses(Long studentId) {
+        Student s = requireOwnedStudent(studentId);
+        return classReservationService.getUpcoming(studentId, s.getAcademy().getId());
+    }
+
+    public void reserveClass(Long studentId, Long scheduleId, LocalDate date) {
+        Student s = requireOwnedStudent(studentId);
+        classReservationService.reserve(studentId, s.getAcademy().getId(), scheduleId, date);
+    }
+
+    public void cancelClass(Long studentId, Long scheduleId, LocalDate date) {
+        Student s = requireOwnedStudent(studentId);
+        classReservationService.cancel(studentId, s.getAcademy().getId(), scheduleId, date);
+    }
+
+    // --- Technique curriculum ----------------------------------------------
+
+    /** The student's per-belt technique program for every discipline they train. */
+    public List<TechniqueCurriculumDto> getTechniqueCurriculum(Long studentId) {
+        Student s = requireOwnedStudent(studentId);
+        return techniqueService.getCurriculum(s);
+    }
+
+    /** Marks (or unmarks) a curriculum technique learned for the owned student. */
+    public void setTechniqueLearned(Long studentId, Long techniqueId, boolean learned) {
+        Student s = requireOwnedStudent(studentId);
+        techniqueService.setLearned(s, techniqueId, learned);
     }
 
     /** Stores a new profile photo for the owned student and returns its public URL. */

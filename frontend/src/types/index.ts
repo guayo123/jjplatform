@@ -198,6 +198,49 @@ export interface StudentDisciplineForm {
   joinDate: string | null;
 }
 
+// ─── Technique curriculum (per-belt program) ───
+export interface Technique {
+  id: number;
+  beltId: number;
+  name: string;
+  description: string | null;
+  position: string | null;
+  videoUrl: string | null;
+  displayOrder: number;
+  /** Portal only: whether the logged-in student marked this learned. */
+  learned?: boolean | null;
+  learnedAt?: string | null;
+}
+
+export interface TechniqueBeltGroup {
+  beltId: number;
+  beltName: string;
+  beltColorHex: string | null;
+  displayOrder: number;
+  current: boolean;
+  reached: boolean;
+  totalCount: number;
+  learnedCount: number;
+  techniques: Technique[];
+}
+
+export interface TechniqueCurriculum {
+  disciplineId: number;
+  disciplineName: string;
+  ageCategoryName: string | null;
+  currentBelt: string | null;
+  totalCount: number;
+  learnedCount: number;
+  belts: TechniqueBeltGroup[];
+}
+
+export interface TechniqueForm {
+  name: string;
+  description: string;
+  position: string;
+  videoUrl: string;
+}
+
 // ─── Payment ───
 export interface Payment {
   id: number;
@@ -212,6 +255,40 @@ export interface Payment {
   year: number;
   notes: string | null;
   paidAt: string | null;
+  status?: string | null;   // PAID | PENDING_CONFIRMATION
+  method?: string | null;   // MANUAL | TRANSFER | KHIPU | MERCADO_PAGO
+  proofUrl?: string | null;
+}
+
+export interface PaymentOptions {
+  khipu: boolean;
+  mercadoPago: boolean;
+  bankDetails: string | null;
+}
+
+export interface UpcomingClass {
+  scheduleId: number;
+  classDate: string;   // yyyy-MM-dd
+  dayOfWeek: string;
+  startTime: string;   // HH:mm
+  endTime: string;     // HH:mm
+  className: string;
+  professorName: string | null;
+  capacity: number | null;
+  reservedCount: number;
+  spotsLeft: number | null;
+  mineReserved: boolean;
+}
+
+export interface AtRiskStudent {
+  studentId: number;
+  name: string;
+  phone: string | null;
+  photoUrl: string | null;
+  lastSessionDate: string | null;
+  daysSinceLastSession: number | null;
+  inactive: boolean;
+  overduePayment: boolean;
 }
 
 export interface PaymentForm {
@@ -300,6 +377,7 @@ export interface Schedule {
   professorId: number | null;
   professorName: string | null;
   professorPhotoUrl: string | null;
+  capacity: number | null;
 }
 
 export interface ScheduleForm {
@@ -309,6 +387,7 @@ export interface ScheduleForm {
   className: string;
   planId?: number | null;
   professorId?: number | null;
+  capacity?: number | null;
 }
 
 export interface Photo {
@@ -409,6 +488,10 @@ export interface AcademySettings {
   wpAccessToken: string;
   wpVerifyToken: string;
   wpAdminPhones: string;
+  bankDetails: string;
+  mpAccessToken: string;
+  khipuApiKey: string;
+  paymentRemindersEnabled: boolean;
 }
 
 // ─── Training journal (student self-logged sessions) ───

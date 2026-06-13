@@ -60,10 +60,7 @@ public class PaymentService {
         Academy academy = academyRepository.findById(academyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Academy not found"));
 
-        BigDecimal expectedAmount = student.getPlans().stream()
-                .filter(p -> Boolean.TRUE.equals(p.getActive()) && p.getPrice() != null)
-                .map(p -> BigDecimal.valueOf(p.getPrice()))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal expectedAmount = computeExpected(student);
 
         BigDecimal discount = dto.getDiscount() != null ? dto.getDiscount() : BigDecimal.ZERO;
         String discountType = dto.getDiscountType() != null ? dto.getDiscountType() : "AMOUNT";
@@ -126,6 +123,71 @@ public class PaymentService {
         return toDto(payment);
     }
 
+    /** Sum of the student's active plan prices — the full monthly fee. */
+    private BigDecimal computeExpected(Student student) {
+        return student.getPlans().stream()
+                .filter(p -> Boolean.TRUE.equals(p.getActive()) && p.getPrice() != null)
+                .map(p -> BigDecimal.valueOf(p.getPrice()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Returns the student's pending (or already paid) payment for the month, creating a
+     * PENDING_CONFIRMATION row when none exists. Used when initiating an online (Khipu/MP)
+     * payment so the webhook can reconcile by the payment id. Throws when the month is already paid.
+     */
+    @Transactional
+    public Payment getOrCreatePendingPayment(Long studentId, Long academyId, int month, int year, String method) {
+        Student student = studentRepository.findByIdWithPlans(studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
+        if (!student.getAcademy().getId().equals(academyId)) {
+            throw new ResourceNotFoundException("Student does not belong to this academy");
+        }
+
+        Payment existing = paymentRepository.findByStudentIdAndMonthAndYear(studentId, month, year).orElse(null);
+        if (existing != null) {
+            if ("PAID".equals(existing.getStatus())) {
+                throw new IllegalArgumentException("Este mes ya está pagado.");
+            }
+            existing.setMethod(method);
+            return paymentRepository.save(existing);
+        }
+
+        BigDecimal expected = computeExpected(student);
+        if (expected.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("No hay un plan con precio configurado para cobrar en línea.");
+        }
+
+        Academy academy = academyRepository.findById(academyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Academy not found"));
+
+        Payment payment = Payment.builder()
+                .student(student)
+                .academy(academy)
+                .expectedAmount(expected)
+                .amount(expected)
+                .discount(BigDecimal.ZERO)
+                .discountType("AMOUNT")
+                .month(month)
+                .year(year)
+                .status("PENDING_CONFIRMATION")
+                .method(method)
+                .build();
+        return paymentRepository.save(payment);
+    }
+
+    /** Marks a payment PAID after a verified gateway notification. Idempotent. */
+    @Transactional
+    public void markPaidByGateway(Long paymentId, String method, String gatewayPaymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
+        if ("PAID".equals(payment.getStatus())) return;
+        payment.setStatus("PAID");
+        payment.setMethod(method);
+        payment.setGatewayPaymentId(gatewayPaymentId);
+        paymentRepository.save(payment);
+    }
+
     private BigDecimal computeNetExpected(Payment payment) {
         if (payment.getExpectedAmount() == null) return null;
         BigDecimal expected = payment.getExpectedAmount();
@@ -150,6 +212,9 @@ public class PaymentService {
         dto.setYear(payment.getYear());
         dto.setNotes(payment.getNotes());
         dto.setPaidAt(payment.getPaidAt() != null ? payment.getPaidAt().toString() : null);
+        dto.setStatus(payment.getStatus());
+        dto.setMethod(payment.getMethod());
+        dto.setProofUrl(payment.getProofUrl());
 
         BigDecimal netExpected = computeNetExpected(payment);
         if (netExpected != null) {

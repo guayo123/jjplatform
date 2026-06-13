@@ -73,6 +73,7 @@ app:
   file:
     upload-dir: ${FILE_UPLOAD_DIR:/tmp/uploads}
   base-url: ${APP_BASE_URL:https://fantastic-success-production-b215.up.railway.app}
+  portal-url: ${PORTAL_URL:https://jjplatform.vercel.app/portal}
   cors:
     allowed-origins: ${CORS_ORIGINS:https://jjplatform.vercel.app}
   mail:

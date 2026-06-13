@@ -47,6 +47,27 @@ public class Payment {
 
     private String notes;
 
+    /**
+     * PAID = confirmed (manual entry, approved transfer or paid via Mercado Pago).
+     * PENDING_CONFIRMATION = student declared a transfer, awaiting staff approval.
+     * Column default 'PAID' so every pre-existing row stays paid when the column is added.
+     */
+    @Builder.Default
+    @Column(nullable = false, length = 30, columnDefinition = "varchar(30) default 'PAID'")
+    private String status = "PAID";
+
+    /** How the payment was made: MANUAL (staff), TRANSFER, MERCADO_PAGO. */
+    @Column(length = 30)
+    private String method;
+
+    /** Uploaded transfer receipt (comprobante) URL, when method = TRANSFER. */
+    @Column(length = 500)
+    private String proofUrl;
+
+    /** Gateway payment/transaction id (Khipu or Mercado Pago) for reconciliation/idempotency. */
+    @Column(length = 100)
+    private String gatewayPaymentId;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime paidAt;

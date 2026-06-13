@@ -39,4 +39,7 @@ public class ClassSchedule {
 
     @Column(nullable = false)
     private String className;
+
+    /** Max students that can reserve a spot per session. Null = unlimited (reservations optional). */
+    private Integer capacity;
 }

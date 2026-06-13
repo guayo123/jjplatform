@@ -244,6 +244,61 @@ export default function Settings() {
           </div>
         )}
 
+        <h2 className={sectionTitle}>Pagos en línea</h2>
+        <p className="text-xs text-gray-500 -mt-3">
+          Pega las credenciales de tus pasarelas para que los alumnos paguen su mensualidad desde la app.
+          Déjalas vacías para deshabilitar cada método.
+        </p>
+
+        <div>
+          <label className={lbl}>Khipu — API Key</label>
+          <FormInput
+            type="password"
+            value={form.khipuApiKey ?? ''}
+            onChange={(e) => setForm({ ...form, khipuApiKey: e.target.value })}
+            placeholder="x-api-key de Khipu (v3)"
+          />
+          <p className={hint}>Khipu → Cuenta → Para integrar tu sitio → API Keys.</p>
+        </div>
+
+        <div>
+          <label className={lbl}>Mercado Pago — Access Token</label>
+          <FormInput
+            type="password"
+            value={form.mpAccessToken ?? ''}
+            onChange={(e) => setForm({ ...form, mpAccessToken: e.target.value })}
+            placeholder="APP_USR-… (Access Token de producción)"
+          />
+          <p className={hint}>Mercado Pago → Tus integraciones → Credenciales de producción.</p>
+        </div>
+
+        <div>
+          <label className={lbl}>Datos para transferencia</label>
+          <FormTextarea
+            rows={3}
+            value={form.bankDetails ?? ''}
+            onChange={(e) => setForm({ ...form, bankDetails: e.target.value })}
+            placeholder={'Banco, tipo de cuenta, número, RUT, nombre, correo…'}
+          />
+          <p className={hint}>Se muestran en la app como alternativa de pago manual (opcional).</p>
+        </div>
+
+        <h2 className={sectionTitle}>Recordatorios de pago</h2>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={!!form.paymentRemindersEnabled}
+            onChange={(e) => setForm({ ...form, paymentRemindersEnabled: e.target.checked })}
+            className="mt-0.5 h-4 w-4 rounded border-gray-600 bg-gray-800 text-primary-600 focus:ring-primary-500"
+          />
+          <span className="text-sm text-gray-300">
+            Enviar recordatorio de pago por WhatsApp automáticamente
+            <span className="block text-xs text-gray-500 mt-0.5">
+              Una vez al mes a los alumnos con la mensualidad sin pagar. Requiere el bot de WhatsApp configurado abajo.
+            </span>
+          </span>
+        </label>
+
         <h2 className={sectionTitle} data-tour="set-bot">Bot de WhatsApp</h2>
         <p className="text-xs text-gray-500 -mt-3">
           Configura las credenciales de la API de WhatsApp Business (Meta) para activar el asistente virtual.

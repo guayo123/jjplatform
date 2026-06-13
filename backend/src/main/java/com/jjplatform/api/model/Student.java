@@ -74,6 +74,9 @@ public class Student {
     @Builder.Default
     private Boolean active = true;
 
+    /** Last date an automatic payment reminder was sent (dedupe so we don't message more than once a month). */
+    private LocalDate lastPaymentReminderAt;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;

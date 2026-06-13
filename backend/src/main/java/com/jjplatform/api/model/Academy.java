@@ -50,6 +50,23 @@ public class Academy {
     @Column(length = 500)
     private String wpAdminPhones;
 
+    /** Bank-transfer instructions shown to students in the portal (account, RUT, bank, etc.). */
+    @Column(columnDefinition = "TEXT")
+    private String bankDetails;
+
+    /** Mercado Pago access token (set by the academy in Settings). Enables MP checkout. */
+    @Column(length = 200)
+    private String mpAccessToken;
+
+    /** Khipu API key (v3, x-api-key). Enables Khipu transfer payments. */
+    @Column(length = 200)
+    private String khipuApiKey;
+
+    /** When true, the scheduled job auto-sends WhatsApp reminders for overdue/inactive students. */
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private Boolean paymentRemindersEnabled = false;
+
     @Builder.Default
     @Column(nullable = false)
     private Boolean active = true;

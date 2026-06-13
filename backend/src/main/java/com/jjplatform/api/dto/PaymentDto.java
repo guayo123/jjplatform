@@ -36,4 +36,10 @@ public class PaymentDto {
 
     private String notes;
     private String paidAt;
+
+    /** PAID | PENDING_CONFIRMATION */
+    private String status;
+    /** MANUAL | TRANSFER | MERCADO_PAGO */
+    private String method;
+    private String proofUrl;
 }

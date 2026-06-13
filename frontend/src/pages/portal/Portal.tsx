@@ -25,9 +25,10 @@ import PerfilSection from './sections/PerfilSection';
 import FichasSection from './sections/FichasSection';
 import PagosSection from './sections/PagosSection';
 import TrainingSection from './sections/TrainingSection';
+import UpcomingClassesCard from './sections/UpcomingClassesCard';
 import DuelsSection from './sections/DuelsSection';
 import { Spinner } from './sections/shared';
-import type { Student, StudentDiscipline, BeltPromotion, Payment } from '../../types';
+import type { Student, StudentDiscipline, BeltPromotion, Payment, TechniqueCurriculum, PaymentOptions } from '../../types';
 
 // localStorage value 'dismissed' = the student ticked "don't show again". Any other value (incl. absent)
 // means the tour auto-runs on every entry.
@@ -49,6 +50,8 @@ export default function Portal() {
   const [disciplines, setDisciplines] = useState<StudentDiscipline[]>([]);
   const [promotions, setPromotions] = useState<BeltPromotion[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [paymentOptions, setPaymentOptions] = useState<PaymentOptions | null>(null);
+  const [curriculum, setCurriculum] = useState<TechniqueCurriculum[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [expandedDisc, setExpandedDisc] = useState<number | null>(null);
 
@@ -82,18 +85,24 @@ export default function Portal() {
     setDetailLoading(true);
     setExpandedDisc(null);
     try {
-      const [d, p, pay] = await Promise.all([
+      const [d, p, pay, tech, opts] = await Promise.all([
         portalApi.disciplines(id),
         portalApi.beltPromotions(id),
         portalApi.payments(id),
+        portalApi.techniques(id).catch(() => [] as TechniqueCurriculum[]),
+        portalApi.paymentOptions(id).catch(() => null),
       ]);
       setDisciplines(d);
       setPromotions(p);
       setPayments(pay);
+      setCurriculum(tech);
+      setPaymentOptions(opts);
     } catch {
       setDisciplines([]);
       setPromotions([]);
       setPayments([]);
+      setCurriculum([]);
+      setPaymentOptions(null);
     } finally {
       setDetailLoading(false);
     }
@@ -163,6 +172,33 @@ export default function Portal() {
     }
   };
 
+  // Optimistically flip a technique's learned flag (and the running counts), then persist.
+  const handleToggleTechnique = useCallback((techniqueId: number, learned: boolean) => {
+    if (selectedId == null) return;
+    setCurriculum((prev) =>
+      prev.map((disc) => {
+        let discDelta = 0;
+        const belts = disc.belts.map((g) => {
+          let found = false;
+          const techniques = g.techniques.map((t) => {
+            if (t.id !== techniqueId || !!t.learned === learned) return t;
+            found = true;
+            return { ...t, learned };
+          });
+          if (!found) return g;
+          const delta = learned ? 1 : -1;
+          discDelta += delta;
+          return { ...g, techniques, learnedCount: g.learnedCount + delta };
+        });
+        return discDelta === 0 ? disc : { ...disc, belts, learnedCount: disc.learnedCount + discDelta };
+      }),
+    );
+    portalApi.setTechniqueLearned(selectedId, techniqueId, learned).catch(() => {
+      // Revert on failure by reloading the curriculum for the selected profile.
+      portalApi.techniques(selectedId).then(setCurriculum).catch(() => undefined);
+    });
+  }, [selectedId]);
+
   const student = profiles.find((p) => p.id === selectedId) ?? null;
 
   const runTour = () => {
@@ -209,16 +245,23 @@ export default function Portal() {
       detailLoading={detailLoading}
       expandedDisc={expandedDisc}
       setExpandedDisc={setExpandedDisc}
+      curriculum={curriculum}
+      onToggleTechnique={handleToggleTechnique}
     />
   );
-  const pagos = <PagosSection payments={payments} detailLoading={detailLoading} />;
+  const pagos = student && (
+    <PagosSection payments={payments} detailLoading={detailLoading} studentId={student.id} options={paymentOptions} />
+  );
   const entreno = student && (
-    <TrainingSection
-      studentId={student.id}
-      disciplines={disciplines}
-      studentName={student.name}
-      academyName={student.academyName}
-    />
+    <div className="space-y-6">
+      <TrainingSection
+        studentId={student.id}
+        disciplines={disciplines}
+        studentName={student.name}
+        academyName={student.academyName}
+      />
+      <UpcomingClassesCard studentId={student.id} />
+    </div>
   );
   const retos = student && <DuelsSection studentId={student.id} />;
 

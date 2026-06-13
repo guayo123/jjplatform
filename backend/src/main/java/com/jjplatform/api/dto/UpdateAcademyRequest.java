@@ -14,4 +14,8 @@ public class UpdateAcademyRequest {
     private String wpAccessToken;
     private String wpVerifyToken;
     private String wpAdminPhones;
+    private String bankDetails;
+    private String mpAccessToken;
+    private String khipuApiKey;
+    private Boolean paymentRemindersEnabled;
 }

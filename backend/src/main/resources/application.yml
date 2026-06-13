@@ -50,6 +50,7 @@ app:
   file:
     upload-dir: ${FILE_UPLOAD_DIR:./uploads}
   base-url: ${APP_BASE_URL:http://localhost:8081}
+  portal-url: ${PORTAL_URL:http://localhost:5173/portal}
   anthropic:
     api-key: ${ANTHROPIC_API_KEY:}
   gemini:

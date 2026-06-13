@@ -1,6 +1,7 @@
-import type { StudentDiscipline, BeltPromotion } from '../../../types';
+import type { StudentDiscipline, BeltPromotion, TechniqueCurriculum } from '../../../types';
 import BeltImage from '../../../components/BeltImage';
 import { formatDate, BeltBadge, Spinner, TYPE_CONFIG } from './shared';
+import CurriculumCard from './CurriculumCard';
 
 interface Props {
   disciplines: StudentDiscipline[];
@@ -8,11 +9,14 @@ interface Props {
   detailLoading: boolean;
   expandedDisc: number | null;
   setExpandedDisc: (id: number | null) => void;
+  curriculum: TechniqueCurriculum[];
+  onToggleTechnique: (techniqueId: number, learned: boolean) => void;
 }
 
-/** "Fichas técnicas" — per-discipline belt/grade history and competition results. */
-export default function FichasSection({ disciplines, promotions, detailLoading, expandedDisc, setExpandedDisc }: Props) {
+/** "Fichas técnicas" — per-discipline belt/grade history, competition results & technique program. */
+export default function FichasSection({ disciplines, promotions, detailLoading, expandedDisc, setExpandedDisc, curriculum, onToggleTechnique }: Props) {
   return (
+    <div className="space-y-6">
     <div className="bg-white rounded-xl shadow-sm">
       <div className="p-5 border-b border-gray-100">
         <h2 className="font-bold text-gray-900">Fichas técnicas</h2>
@@ -114,6 +118,9 @@ export default function FichasSection({ disciplines, promotions, detailLoading, 
           })
         )}
       </div>
+    </div>
+
+    <CurriculumCard curriculum={curriculum} loading={detailLoading} onToggle={onToggleTechnique} />
     </div>
   );
 }

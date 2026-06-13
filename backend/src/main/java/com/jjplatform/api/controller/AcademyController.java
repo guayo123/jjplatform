@@ -1,6 +1,7 @@
 package com.jjplatform.api.controller;
 
 import com.jjplatform.api.dto.DisciplineAgeCategoryDto;
+import com.jjplatform.api.dto.ReservationRosterDto;
 import com.jjplatform.api.dto.UpdateAcademyRequest;
 import com.jjplatform.api.model.Academy;
 import com.jjplatform.api.model.ClassSchedule;
@@ -14,12 +15,15 @@ import com.jjplatform.api.repository.DisciplineRepository;
 import com.jjplatform.api.repository.PlanRepository;
 import com.jjplatform.api.repository.ProfessorRepository;
 import com.jjplatform.api.service.AcademyChatService;
+import com.jjplatform.api.service.ClassReservationService;
 import com.jjplatform.api.service.DisciplineBeltService;
 import com.jjplatform.api.service.SecurityHelper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.List;
@@ -39,6 +43,7 @@ public class AcademyController {
     private final SecurityHelper securityHelper;
     private final AcademyChatService academyChatService;
     private final DisciplineBeltService disciplineBeltService;
+    private final ClassReservationService classReservationService;
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> getMyAcademy() {
@@ -69,6 +74,10 @@ public class AcademyController {
         if (request.getWpAccessToken() != null) academy.setWpAccessToken(request.getWpAccessToken().isBlank() ? null : request.getWpAccessToken().trim());
         if (request.getWpVerifyToken() != null) academy.setWpVerifyToken(request.getWpVerifyToken().isBlank() ? null : request.getWpVerifyToken().trim());
         if (request.getWpAdminPhones() != null) academy.setWpAdminPhones(request.getWpAdminPhones().isBlank() ? null : request.getWpAdminPhones().trim());
+        if (request.getBankDetails() != null) academy.setBankDetails(request.getBankDetails().isBlank() ? null : request.getBankDetails().trim());
+        if (request.getMpAccessToken() != null) academy.setMpAccessToken(request.getMpAccessToken().isBlank() ? null : request.getMpAccessToken().trim());
+        if (request.getKhipuApiKey() != null) academy.setKhipuApiKey(request.getKhipuApiKey().isBlank() ? null : request.getKhipuApiKey().trim());
+        if (request.getPaymentRemindersEnabled() != null) academy.setPaymentRemindersEnabled(request.getPaymentRemindersEnabled());
 
         academy = academyRepository.save(academy);
         return ResponseEntity.ok(toMap(academy));
@@ -171,6 +180,7 @@ public class AcademyController {
                 .className(className)
                 .plan(plan)
                 .professor(professor)
+                .capacity(req.capacity())
                 .build();
         s = classScheduleRepository.save(s);
         return ResponseEntity.ok(scheduleToMap(s));
@@ -205,9 +215,19 @@ public class AcademyController {
         } else {
             s.setProfessor(null);
         }
+        s.setCapacity(req.capacity());
 
         s = classScheduleRepository.save(s);
         return ResponseEntity.ok(scheduleToMap(s));
+    }
+
+    /** Roster of students who reserved a given class occurrence (date in ISO yyyy-MM-dd). */
+    @GetMapping("/schedules/{sid}/reservations")
+    public ResponseEntity<List<ReservationRosterDto>> reservations(
+            @PathVariable Long sid,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        Long academyId = securityHelper.getCurrentAcademyId();
+        return ResponseEntity.ok(classReservationService.roster(academyId, sid, date));
     }
 
     @DeleteMapping("/schedules/{sid}")
@@ -336,6 +356,7 @@ public class AcademyController {
         m.put("professorId", s.getProfessor() != null ? s.getProfessor().getId() : null);
         m.put("professorName", prof != null ? prof.getName() : null);
         m.put("professorPhotoUrl", prof != null ? prof.getPhotoUrl() : null);
+        m.put("capacity", s.getCapacity());
         return m;
     }
 
@@ -352,6 +373,10 @@ public class AcademyController {
         map.put("wpAccessToken", a.getWpAccessToken() != null ? a.getWpAccessToken() : "");
         map.put("wpVerifyToken", a.getWpVerifyToken() != null ? a.getWpVerifyToken() : "");
         map.put("wpAdminPhones", a.getWpAdminPhones() != null ? a.getWpAdminPhones() : "");
+        map.put("bankDetails", a.getBankDetails() != null ? a.getBankDetails() : "");
+        map.put("mpAccessToken", a.getMpAccessToken() != null ? a.getMpAccessToken() : "");
+        map.put("khipuApiKey", a.getKhipuApiKey() != null ? a.getKhipuApiKey() : "");
+        map.put("paymentRemindersEnabled", Boolean.TRUE.equals(a.getPaymentRemindersEnabled()));
         return map;
     }
 
@@ -377,5 +402,5 @@ public class AcademyController {
                        Integer displayOrder, Long disciplineId, Long professorId) {}
 
     record ScheduleRequest(String dayOfWeek, String startTime, String endTime,
-                           String className, Long planId, Long professorId) {}
+                           String className, Long planId, Long professorId, Integer capacity) {}
 }

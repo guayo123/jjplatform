@@ -33,6 +33,7 @@ interface FormState {
   className: string;
   startTime: string;
   endTime: string;
+  capacity: string;
 }
 
 const emptyForm = (): FormState => ({
@@ -43,6 +44,7 @@ const emptyForm = (): FormState => ({
   className: '',
   startTime: '18:00',
   endTime: '19:30',
+  capacity: '',
 });
 
 type ModalState =
@@ -100,6 +102,7 @@ export default function Schedules() {
       className: s.className,
       startTime: s.startTime.slice(0, 5),
       endTime: s.endTime.slice(0, 5),
+      capacity: s.capacity != null ? String(s.capacity) : '',
     });
     setModal({ mode: 'edit', schedule: s });
   };
@@ -138,6 +141,7 @@ export default function Schedules() {
           endTime: form.endTime,
           planId: form.planId,
           professorId: form.professorId,
+          capacity: form.capacity ? Number(form.capacity) : null,
         });
         setSchedules((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
         toast.success('Clase actualizada');
@@ -151,6 +155,7 @@ export default function Schedules() {
               endTime: form.endTime,
               planId: form.planId,
               professorId: form.professorId,
+              capacity: form.capacity ? Number(form.capacity) : null,
             })
           )
         );
@@ -424,6 +429,21 @@ export default function Schedules() {
                   <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Fin</label>
                   <FormInput required type="time" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
+                  Cupo
+                  <span className="text-gray-600 font-normal ml-1 normal-case">(opcional — vacío = sin límite)</span>
+                </label>
+                <FormInput
+                  type="number"
+                  min={1}
+                  value={form.capacity}
+                  onChange={(e) => setForm({ ...form, capacity: e.target.value })}
+                  placeholder="Sin límite"
+                />
+                <p className="text-xs text-gray-500 mt-1">Si pones un cupo, los alumnos podrán reservar su lugar desde la app.</p>
               </div>
 
               <div className="flex gap-3 pt-2 border-t border-gray-800">
