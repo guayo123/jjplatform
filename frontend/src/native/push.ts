@@ -12,9 +12,18 @@ import { getPlatformInfo } from './usePlatform';
  *
  * TODO(fase 2): when the endpoint exists, send `token` from the 'registration'
  * listener to the backend so the server can target this device.
+ *
+ * Disabled by default: on Android, PushNotifications.register() calls into
+ * FirebaseMessaging on a native background thread, which throws
+ * IllegalStateException("Default FirebaseApp is not initialized") and crashes
+ * the whole app (an uncaught native exception a JS try/catch cannot stop) when
+ * no google-services.json / Firebase project is configured. Until FCM/APNs are
+ * wired up, gate registration behind VITE_ENABLE_PUSH so the app never registers
+ * against a missing Firebase config.
  */
 export async function registerPush(): Promise<void> {
   if (!getPlatformInfo().isNative) return;
+  if (import.meta.env.VITE_ENABLE_PUSH !== 'true') return;
   try {
     const perm = await PushNotifications.requestPermissions();
     if (perm.receive !== 'granted') return;
