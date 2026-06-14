@@ -523,7 +523,7 @@ function ProgressCard({ summary, trainedToday, onChangeGoal, savingGoal, onShare
   const monthHours = Math.round((summary.monthMinutes / 60) * 10) / 10;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-5">
+    <div className="bg-white rounded-xl shadow-sm p-5 pl-6 jjp-accent-bar">
       <div className="flex items-center gap-5">
         <Ring pct={pct} />
         <div className="flex-1 min-w-0">
@@ -565,11 +565,25 @@ function ProgressCard({ summary, trainedToday, onChangeGoal, savingGoal, onShare
         </div>
       </div>
       {summary.monthSessions > 0 && (
-        <p className="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-400">
-          Este mes: <span className="font-semibold text-gray-600">{summary.monthSessions} entreno{summary.monthSessions === 1 ? '' : 's'}</span>
-          {monthHours > 0 && <> · <span className="font-semibold text-gray-600">{monthHours} h</span></>}
-          {summary.monthRounds > 0 && <> · <span className="font-semibold text-gray-600">{summary.monthRounds} rounds</span></>}
-        </p>
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <p className="jjp-label mb-2.5">Este mes</p>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { v: summary.monthSessions, l: summary.monthSessions === 1 ? 'entreno' : 'entrenos', c: 'var(--c-blue, #4D8DFF)' },
+              { v: monthHours, l: 'horas', c: 'var(--c-green, #34D399)' },
+              { v: summary.monthRounds, l: 'rounds', c: 'var(--c-purple, #A78BFA)' },
+            ].map((s) => (
+              <div
+                key={s.l}
+                className="rounded-xl py-2.5 text-center border border-gray-100"
+                style={{ background: 'var(--surface-2, #f3f4f6)' }}
+              >
+                <div className="text-xl font-extrabold leading-none" style={{ color: s.c }}>{s.v}</div>
+                <div className="text-[10px] text-gray-400 mt-1 font-semibold">{s.l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
       {editing && (
         <div className="mt-4 pt-4 border-t border-gray-100">
@@ -600,7 +614,7 @@ function Ring({ pct }: { pct: number }) {
   const offset = c - (pct / 100) * c;
   return (
     <svg width="76" height="76" viewBox="0 0 76 76" className="flex-shrink-0">
-      <circle cx="38" cy="38" r={r} fill="none" stroke="#e5e7eb" strokeWidth="7" />
+      <circle cx="38" cy="38" r={r} fill="none" strokeWidth="7" style={{ stroke: 'var(--surface-2, #e5e7eb)' }} />
       <circle
         cx="38" cy="38" r={r} fill="none" stroke="currentColor" strokeWidth="7" strokeLinecap="round"
         className="text-primary-600"
@@ -608,7 +622,7 @@ function Ring({ pct }: { pct: number }) {
         transform="rotate(-90 38 38)"
         style={{ transition: 'stroke-dashoffset 0.4s ease' }}
       />
-      <text x="38" y="43" textAnchor="middle" className="fill-gray-700 font-bold" fontSize="16">{pct}%</text>
+      <text x="38" y="43" textAnchor="middle" className="font-bold" fontSize="16" style={{ fill: 'var(--text, #374151)' }}>{pct}%</text>
     </svg>
   );
 }

@@ -50,10 +50,13 @@
        neutral/primary subset so semantic accent colors (green/red/amber) stay. --- */
 .portal-theme .bg-white,
 .portal-theme .bg-gray-50 { background-color: var(--surface) !important; }
-.portal-theme .bg-gray-100,
-.portal-theme .bg-gray-200\/60 { background-color: var(--bg) !important; }
+.portal-theme .bg-gray-100 { background-color: var(--bg) !important; }
 .portal-theme .bg-gray-200,
-.portal-theme .bg-gray-300 { background-color: var(--surface-2) !important; }
+.portal-theme .bg-gray-300,
+.portal-theme .bg-gray-200\/50,
+.portal-theme .bg-gray-200\/60,
+.portal-theme .bg-gray-200\/70 { background-color: var(--surface-2) !important; }
+.portal-theme .bg-primary-50 { background-color: var(--acc-soft) !important; }
 
 .portal-theme .text-gray-900,
 .portal-theme .text-gray-800,
