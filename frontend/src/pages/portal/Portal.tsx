@@ -266,7 +266,7 @@ export default function Portal() {
   const retos = student && <DuelsSection studentId={student.id} />;
 
   const content = (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 portal-theme" data-theme="ember">
       <header
         className="relative overflow-hidden bg-gray-900 text-white pt-safe"
         style={banner && !isImageBanner(banner) ? bannerStyle(banner) : undefined}
