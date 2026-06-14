@@ -516,6 +516,39 @@ function StreakChip({ streak, trainedToday }: { streak: number; trainedToday: bo
 }
 
 /** Hero card: weekly ring + streak + month totals in one block, with share/goal tucked into the corner. */
+// Custom JJPlatform icons (stroke style, tint with currentColor) — matches the
+// hand-drawn martial-arts icon set in the tab bar instead of generic emojis.
+const ICON = {
+  width: 18,
+  height: 18,
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.8,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+  'aria-hidden': true,
+};
+
+function ShareIcon() {
+  return (
+    <svg {...ICON}>
+      <path d="M12 3.5v10.5" />
+      <path d="M8 7l4-3.5L16 7" />
+      <path d="M5 13.5v4A2.5 2.5 0 0 0 7.5 20h9a2.5 2.5 0 0 0 2.5-2.5v-4" />
+    </svg>
+  );
+}
+
+function EditGoalIcon() {
+  return (
+    <svg {...ICON}>
+      <path d="M4 20h4L18.5 9.5a2 2 0 0 0-2.8-2.8L5 17.2 4 20z" />
+      <path d="M14.2 8l1.8 1.8" />
+    </svg>
+  );
+}
+
 function ProgressCard({ summary, trainedToday, onChangeGoal, savingGoal, onShare }: { summary: TrainingSummary; trainedToday: boolean; onChangeGoal: (n: number) => void; savingGoal: boolean; onShare?: () => void }) {
   const goal = summary.weeklyGoal ?? 1;
   const pct = Math.min(100, Math.round((summary.thisWeekCount / goal) * 100));
@@ -539,28 +572,28 @@ function ProgressCard({ summary, trainedToday, onChangeGoal, savingGoal, onShare
             )}
           </div>
         </div>
-        <div className="self-start flex items-center gap-1.5">
+        <div className="self-start flex items-center gap-2.5">
           {onShare && (
             <button
               onClick={onShare}
               aria-label="Compartir mi semana"
               title="Compartir mi semana"
-              className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:border-primary-300 hover:text-primary-600 transition-colors"
+              className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:border-primary-300 hover:text-primary-600 transition-colors"
             >
-              📤
+              <ShareIcon />
             </button>
           )}
           <button
             onClick={() => setEditing((v) => !v)}
             aria-label="Cambiar meta semanal"
             title="Cambiar meta semanal"
-            className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors ${
+            className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-colors ${
               editing
                 ? 'border-primary-300 bg-primary-50 text-primary-600'
                 : 'border-gray-200 text-gray-500 hover:border-primary-300 hover:text-primary-600'
             }`}
           >
-            ✏️
+            <EditGoalIcon />
           </button>
         </div>
       </div>
