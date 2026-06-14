@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import BeltImage from '../../../components/BeltImage';
+import BeltEmblem from './BeltEmblem';
 import ImageUpload from '../../../components/ImageUpload';
 import { useToast } from '../../../components/ToastContext';
 import { trainingApi } from '../../../api/training';
@@ -14,6 +14,7 @@ import type { Student } from '../../../types';
 import { computeAchievements, type Achievement } from '../achievements';
 import { formatDate, Field } from './shared';
 import { useThemeStore, THEME_OPTIONS } from '../theme';
+import { isSoundEnabled, setSoundEnabled, playOss } from '../../../native/sound';
 
 interface Props {
   student: Student;
@@ -37,6 +38,7 @@ function SettingsSection({ studentId }: { studentId: number }) {
   const { toast } = useToast();
   const themePref = useThemeStore((s) => s.pref);
   const setThemePref = useThemeStore((s) => s.setPref);
+  const [soundOn, setSoundOn] = useState(isSoundEnabled());
   const [goal, setGoal] = useState<number | null>(null);
   const [savingGoal, setSavingGoal] = useState(false);
   const [prefs, setPrefs] = useState<ReminderPrefs>(() => getReminderPrefs());
@@ -142,6 +144,24 @@ function SettingsSection({ studentId }: { studentId: number }) {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      {/* Sounds */}
+      <div className="mt-5 pt-5 border-t border-gray-100">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-700">Sonidos 🥋</p>
+            <p className="text-xs text-gray-400">Un "oss" al registrar entreno o subir de grado.</p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={soundOn}
+            onClick={() => { const next = !soundOn; setSoundOn(next); setSoundEnabled(next); if (next) playOss(); }}
+            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${soundOn ? 'bg-primary-600' : 'bg-gray-300'}`}
+          >
+            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${soundOn ? 'left-[22px]' : 'left-0.5'}`} />
+          </button>
         </div>
       </div>
 
@@ -272,11 +292,16 @@ export default function PerfilSection({ student, uploading, uploadProgress, onPh
               <p className="text-xs text-gray-400 mt-2">📅 Ingresó el {formatDate(student.joinDate)}</p>
             )}
             {(student.disciplineBelts ?? []).length > 0 && (
-              <div className="mt-4 space-y-2" data-tour="cinturon">
+              <div className="mt-4 space-y-2.5" data-tour="cinturon">
                 {student.disciplineBelts!.map((d) => (
-                  <div key={d.disciplineId} className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400 w-20 flex-shrink-0 truncate">{d.disciplineName}</span>
-                    <BeltImage belt={d.belt} stripes={d.stripes} colorHex={d.beltColorHex ?? undefined} className="max-w-[180px]" />
+                  <div key={d.disciplineId} className="flex items-center gap-3">
+                    <BeltEmblem colorHex={d.beltColorHex ?? null} belt={d.belt} stripes={d.stripes} size={46} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">
+                        {d.belt}{d.stripes ? ` · ${d.stripes}° grado` : ''}
+                      </p>
+                      <p className="text-xs text-gray-400 truncate">{d.disciplineName}</p>
+                    </div>
                   </div>
                 ))}
               </div>

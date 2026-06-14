@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Classmate, LeaderboardEntry, StudentDiscipline, TrainingModality, TrainingSession, TrainingSessionForm, TrainingSummary } from '../../../types';
 import { trainingApi } from '../../../api/training';
 import { notifySuccess } from '../../../native/haptics';
+import { playOss } from '../../../native/sound';
 import { scheduleStreakReminders } from '../../../native/notifications';
 import TrainingForm from '../TrainingForm';
 import Celebration, { type CelebrationContent, streakMessage } from '../Celebration';
@@ -115,6 +116,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     const prevGoalMet = summary?.weeklyGoalMet ?? false;
     await trainingApi.create(studentId, data);
     void notifySuccess();
+    playOss();
     // Fetch fresh stats directly (load()'s state update isn't visible in this closure)
     // so we can tell whether this session hit a milestone.
     const [sum, list] = await Promise.all([trainingApi.summary(studentId), trainingApi.list(studentId)]);

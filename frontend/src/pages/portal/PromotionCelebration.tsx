@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import BeltImage from '../../components/BeltImage';
 import { notifySuccess } from '../../native/haptics';
+import { playOss } from '../../native/sound';
 import type { BeltPromotion } from '../../types';
 
 const CONFETTI_COLORS = ['#F59E0B', '#EF4444', '#3B82F6', '#22C55E', '#8B5CF6', '#FCD34D', '#EC4899'];
@@ -16,7 +17,7 @@ interface Props {
  * smooth inside the Android WebView on mid-range phones.
  */
 export default function PromotionCelebration({ promotion, onClose }: Props) {
-  useEffect(() => { void notifySuccess(); }, []);
+  useEffect(() => { void notifySuccess(); playOss(); }, []);
 
   // Stable random confetti pieces for this mount.
   const pieces = useMemo(

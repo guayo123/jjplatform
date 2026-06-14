@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Display font for the portal — Oswald (condensed, "martial" feel for titles).
+   Bundled offline in public/fonts so it works inside the native app. */
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/oswald-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/oswald-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/oswald-700.woff2') format('woff2');
+}
+
 @layer base {
   body {
     @apply min-h-screen;
@@ -64,6 +88,7 @@
   --gradient-acc: linear-gradient(135deg, var(--acc-1), var(--acc-2));
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 16px -8px rgba(16, 24, 40, 0.12);
   --skeleton-hi: rgba(15, 23, 42, 0.05);
+  --texture: rgba(15, 23, 42, 0.022);
 }
 
 /* Classic theme — the app's original light + blue look, kept as an option. */
@@ -89,12 +114,24 @@
   --gradient-acc: linear-gradient(135deg, var(--acc-1), var(--acc-2));
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 16px -8px rgba(16, 24, 40, 0.12);
   --skeleton-hi: rgba(15, 23, 42, 0.05);
+  --texture: rgba(15, 23, 42, 0.022);
 }
 
-/* Base surface + text for the portal shell */
+/* Base surface + text for the portal shell, with a faint "tatami weave" texture. */
 .portal-theme {
   background-color: var(--bg);
   color: var(--text);
+  background-image:
+    repeating-linear-gradient(45deg, var(--texture, rgba(255, 255, 255, 0.013)) 0 1.5px, transparent 1.5px 9px),
+    repeating-linear-gradient(-45deg, var(--texture, rgba(255, 255, 255, 0.013)) 0 1.5px, transparent 1.5px 9px);
+}
+
+/* Martial display font for portal titles. */
+.portal-theme h1,
+.portal-theme h2,
+.portal-theme .jjp-display {
+  font-family: 'Oswald', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: 0.012em;
 }
 
 /* --- Scoped utility re-mapping: turns the existing light Tailwind classes into
