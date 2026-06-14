@@ -1,21 +1,23 @@
-import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 
 /**
  * Portal appearance theme. A theme is just a set of CSS tokens applied via
  * `data-theme` on the portal root (see index.css `.portal-theme[data-theme=…]`),
  * so switching is instant and components don't need to change. The user's choice
- * is persisted in localStorage; "system" follows the OS light/dark preference.
+ * is persisted in localStorage.
+ *
+ *  - ember:   dark "dojo" theme with the crimson/ember accent (default)
+ *  - light:   light, airy surfaces, same ember accent
+ *  - classic: the original light + blue look, kept as an option
  */
-export type ThemePref = 'system' | 'ember' | 'light';
-export type ResolvedTheme = 'ember' | 'light';
+export type ThemePref = 'ember' | 'light' | 'classic';
 
 const KEY = 'jjp_portal_theme';
 
 function loadPref(): ThemePref {
   try {
     const v = localStorage.getItem(KEY);
-    if (v === 'ember' || v === 'light' || v === 'system') return v;
+    if (v === 'ember' || v === 'light' || v === 'classic') return v;
   } catch { /* ignore */ }
   return 'ember';
 }
@@ -33,24 +35,9 @@ export const useThemeStore = create<ThemeState>((set) => ({
   },
 }));
 
-function systemResolved(): ResolvedTheme {
-  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches
-    ? 'light'
-    : 'ember';
-}
-
-/** The theme actually applied — resolves "system" against the OS, live. */
-export function useResolvedTheme(): ResolvedTheme {
-  const pref = useThemeStore((s) => s.pref);
-  const [sys, setSys] = useState<ResolvedTheme>(systemResolved);
-  useEffect(() => {
-    if (pref !== 'system' || typeof window === 'undefined' || !window.matchMedia) return;
-    const mq = window.matchMedia('(prefers-color-scheme: light)');
-    const onChange = () => setSys(systemResolved());
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, [pref]);
-  return pref === 'system' ? sys : pref;
+/** The theme currently applied (just the saved preference). */
+export function useResolvedTheme(): ThemePref {
+  return useThemeStore((s) => s.pref);
 }
 
 /** Picker metadata: label, blurb and a mini preview swatch per option. */
@@ -63,13 +50,6 @@ export const THEME_OPTIONS: {
   swatchDot?: string;
 }[] = [
   {
-    key: 'system',
-    label: 'Sistema',
-    desc: 'Sigue el tema de tu teléfono',
-    swatchBg: 'linear-gradient(135deg,#EEF1F6 50%,#12141b 50%)',
-    swatchAccent: 'linear-gradient(135deg,#FF4133,#FF8A1E)',
-  },
-  {
     key: 'ember',
     label: 'Ember · Oscuro',
     desc: 'Dojo oscuro, acento carmesí 🔥',
@@ -80,9 +60,17 @@ export const THEME_OPTIONS: {
   {
     key: 'light',
     label: 'Claro',
-    desc: 'Limpio y aireado',
+    desc: 'Limpio y aireado, acento ember',
     swatchBg: '#EEF1F6',
     swatchAccent: 'linear-gradient(135deg,#FF4133,#FF8A1E)',
+    swatchDot: '#c9d2e0',
+  },
+  {
+    key: 'classic',
+    label: 'Clásico · Azul',
+    desc: 'El azul original de la app',
+    swatchBg: '#EEF1F6',
+    swatchAccent: 'linear-gradient(135deg,#3B82F6,#2563EB)',
     swatchDot: '#c9d2e0',
   },
 ];
