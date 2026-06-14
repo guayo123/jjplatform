@@ -3,7 +3,7 @@ import type { UpcomingClass } from '../../../types';
 import { portalApi } from '../../../api/portal';
 import { tapLight, notifySuccess } from '../../../native/haptics';
 import { scheduleClassReminder, cancelClassReminder } from '../../../native/notifications';
-import { Spinner } from './shared';
+import { CardSkeleton } from './shared';
 
 /** "Próximas clases" — reserve a spot in upcoming classes; sets a local reminder ~2h before. */
 export default function UpcomingClassesCard({ studentId }: { studentId: number }) {
@@ -46,9 +46,7 @@ export default function UpcomingClassesCard({ studentId }: { studentId: number }
   };
 
   if (loading) {
-    return (
-      <div className="bg-white rounded-xl shadow-sm p-5"><Spinner /></div>
-    );
+    return <CardSkeleton lines={2} />;
   }
   if (classes.length === 0) return null;
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Payment, PaymentOptions } from '../../../types';
 import { portalApi } from '../../../api/portal';
-import { formatDate, money, Spinner, MONTHS } from './shared';
+import { formatDate, money, SkeletonRows, MONTHS } from './shared';
 import { tapLight } from '../../../native/haptics';
 
 interface Props {
@@ -94,7 +94,7 @@ export default function PagosSection({ payments, detailLoading, studentId, optio
 
       <div className="p-5">
         {detailLoading ? (
-          <Spinner />
+          <SkeletonRows rows={4} />
         ) : payments.length === 0 ? (
           <p className="text-center text-gray-400 text-sm py-4">Sin pagos registrados</p>
         ) : (

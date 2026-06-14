@@ -1,6 +1,6 @@
 import type { StudentDiscipline, BeltPromotion, TechniqueCurriculum } from '../../../types';
 import BeltImage from '../../../components/BeltImage';
-import { formatDate, BeltBadge, Spinner, TYPE_CONFIG } from './shared';
+import { formatDate, BeltBadge, SkeletonRows, TYPE_CONFIG } from './shared';
 import CurriculumCard from './CurriculumCard';
 
 interface Props {
@@ -24,7 +24,7 @@ export default function FichasSection({ disciplines, promotions, detailLoading, 
       </div>
       <div className="p-5 space-y-4">
         {detailLoading ? (
-          <Spinner />
+          <SkeletonRows rows={4} />
         ) : disciplines.length === 0 ? (
           <p className="text-center text-gray-400 text-sm py-4">Sin disciplinas registradas</p>
         ) : (

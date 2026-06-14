@@ -28,7 +28,7 @@ import PagosSection from './sections/PagosSection';
 import TrainingSection from './sections/TrainingSection';
 import UpcomingClassesCard from './sections/UpcomingClassesCard';
 import DuelsSection from './sections/DuelsSection';
-import { Spinner } from './sections/shared';
+import { ProgressSkeleton, CardSkeleton } from './sections/shared';
 import type { Student, StudentDiscipline, BeltPromotion, Payment, TechniqueCurriculum, PaymentOptions } from '../../types';
 
 // localStorage value 'dismissed' = the student ticked "don't show again". Any other value (incl. absent)
@@ -333,7 +333,11 @@ export default function Portal() {
 
       <main className={`max-w-3xl mx-auto px-4 py-6 space-y-6 ${tabbed ? 'pb-28' : ''}`}>
         {loading ? (
-          <Spinner />
+          <div className="space-y-6 jjp-fade-up">
+            <ProgressSkeleton />
+            <CardSkeleton lines={2} />
+            <CardSkeleton lines={3} />
+          </div>
         ) : error ? (
           <div className="bg-red-50 text-red-600 text-sm p-4 rounded-xl">{error}</div>
         ) : !student ? (
@@ -381,11 +385,13 @@ export default function Portal() {
 
             {/* Web: everything in one scroll. App (or ?native=1 preview): only the active tab. */}
             {tabbed ? (
-              tab === 'entreno' ? entreno
-                : tab === 'retos' ? retos
-                : tab === 'fichas' ? fichas
-                : tab === 'pagos' ? pagos
-                : perfil
+              <div key={tab} className="jjp-fade-up space-y-6">
+                {tab === 'entreno' ? entreno
+                  : tab === 'retos' ? retos
+                  : tab === 'fichas' ? fichas
+                  : tab === 'pagos' ? pagos
+                  : perfil}
+              </div>
             ) : (
               <>
                 {entreno}

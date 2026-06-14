@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { TechniqueCurriculum, TechniqueBeltGroup, Technique } from '../../../types';
 import { tapLight, notifySuccess } from '../../../native/haptics';
-import { Spinner } from './shared';
+import { SkeletonRows } from './shared';
 
 interface Props {
   curriculum: TechniqueCurriculum[];
@@ -25,7 +25,7 @@ export default function CurriculumCard({ curriculum, loading, onToggle }: Props)
       </div>
       <div className="p-5 space-y-6">
         {loading ? (
-          <Spinner />
+          <SkeletonRows rows={4} />
         ) : curriculum.length === 0 ? (
           <div className="text-center py-6">
             <p className="text-3xl mb-2">📚</p>

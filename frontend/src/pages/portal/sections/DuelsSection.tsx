@@ -5,7 +5,7 @@ import { trainingApi } from '../../../api/training';
 import { useToast } from '../../../components/ToastContext';
 import { notifyNow } from '../../../native/notifications';
 import { tapLight, notifySuccess } from '../../../native/haptics';
-import { formatDate, Spinner } from './shared';
+import { formatDate, CardSkeleton } from './shared';
 
 interface Props {
   studentId: number;
@@ -107,7 +107,7 @@ export default function DuelsSection({ studentId }: Props) {
     }
   };
 
-  if (loading) return <Spinner />;
+  if (loading) return <CardSkeleton lines={3} />;
 
   const incoming = duels.filter((d) => d.opponentId === studentId && d.status === 'PENDING');
   const outgoing = duels.filter((d) => d.challengerId === studentId && d.status === 'PENDING');

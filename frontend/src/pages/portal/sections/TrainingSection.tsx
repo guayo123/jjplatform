@@ -8,7 +8,7 @@ import Celebration, { type CelebrationContent, streakMessage } from '../Celebrat
 import { computeAchievements, takeNewlyUnlocked, type Achievement } from '../achievements';
 import { buildWeekCardData, drawWeekCard, shareCard } from '../shareWeekCard';
 import { computeInsights, type Insight } from './trainingInsights';
-import { formatDate, Spinner } from './shared';
+import { formatDate, ProgressSkeleton, CardSkeleton } from './shared';
 
 interface Props {
   studentId: number;
@@ -220,7 +220,12 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     }
   };
 
-  if (loading) return <Spinner />;
+  if (loading) return (
+    <div className="space-y-6">
+      <ProgressSkeleton />
+      <CardSkeleton lines={2} />
+    </div>
+  );
 
   const goal = summary?.weeklyGoal ?? null;
 
