@@ -13,6 +13,7 @@ import {
 import type { Student } from '../../../types';
 import { computeAchievements, type Achievement } from '../achievements';
 import { formatDate, Field } from './shared';
+import { useThemeStore, THEME_OPTIONS } from '../theme';
 
 interface Props {
   student: Student;
@@ -34,6 +35,8 @@ const HOUR_LABELS = Array.from({ length: 24 }, (_, h) => ({
 function SettingsSection({ studentId }: { studentId: number }) {
   const { isNative } = usePlatform();
   const { toast } = useToast();
+  const themePref = useThemeStore((s) => s.pref);
+  const setThemePref = useThemeStore((s) => s.setPref);
   const [goal, setGoal] = useState<number | null>(null);
   const [savingGoal, setSavingGoal] = useState(false);
   const [prefs, setPrefs] = useState<ReminderPrefs>(() => getReminderPrefs());
@@ -98,6 +101,47 @@ function SettingsSection({ studentId }: { studentId: number }) {
               {n}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Appearance / theme picker */}
+      <div className="mt-5 pt-5 border-t border-gray-100">
+        <p className="text-sm font-semibold text-gray-700">Apariencia 🎨</p>
+        <p className="text-xs text-gray-400 mb-3">Elige el diseño del portal. Se guarda en este dispositivo.</p>
+        <div className="space-y-2">
+          {THEME_OPTIONS.map((opt) => {
+            const active = themePref === opt.key;
+            return (
+              <button
+                key={opt.key}
+                onClick={() => setThemePref(opt.key)}
+                className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-colors text-left ${
+                  active ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <span
+                  className="w-10 h-10 rounded-lg border border-gray-200 flex-shrink-0 relative overflow-hidden"
+                  style={{ background: opt.swatchBg }}
+                >
+                  <span className="absolute left-1.5 bottom-1.5 w-4 h-4 rounded" style={{ background: opt.swatchAccent }} />
+                  {opt.swatchDot && (
+                    <span className="absolute right-1.5 top-1.5 w-2 h-2 rounded-sm" style={{ background: opt.swatchDot }} />
+                  )}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-semibold text-gray-800">{opt.label}</span>
+                  <span className="block text-xs text-gray-400">{opt.desc}</span>
+                </span>
+                <span
+                  className={`w-5 h-5 rounded-full border-2 flex-shrink-0 grid place-items-center ${
+                    active ? 'border-primary-500' : 'border-gray-300'
+                  }`}
+                >
+                  {active && <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--acc, #FF5436)' }} />}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

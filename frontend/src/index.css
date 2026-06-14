@@ -37,6 +37,32 @@
   --c-gold: #F5B731;
   --pro: #8B5CF6;
   --gradient-acc: linear-gradient(135deg, var(--acc-1), var(--acc-2));
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.8);
+}
+
+/* Light theme ("Claro") — same Ember accent, light surfaces. The scoped skin is
+   token-driven, so components adapt automatically; only the tokens change here. */
+.portal-theme[data-theme='light'] {
+  --bg: #EEF1F6;
+  --surface: #FFFFFF;
+  --surface-2: #F1F4F9;
+  --line: #E4E8EF;
+  --text: #1A2030;
+  --muted: #6B7280;
+  --muted-2: #9AA1AD;
+  --acc-1: #FF4133;
+  --acc-2: #FF8A1E;
+  --acc: #E5482F;
+  --acc-soft: rgba(255, 84, 54, 0.10);
+  --acc-border: rgba(255, 84, 54, 0.45);
+  --c-blue: #2F6BFF;
+  --c-green: #10B981;
+  --c-purple: #7C5CFF;
+  --c-orange: #EA8A2E;
+  --c-gold: #D99A00;
+  --pro: #7C5CFF;
+  --gradient-acc: linear-gradient(135deg, var(--acc-1), var(--acc-2));
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 16px -8px rgba(16, 24, 40, 0.12);
 }
 
 /* Base surface + text for the portal shell */
@@ -75,7 +101,7 @@
 .portal-theme .shadow-sm,
 .portal-theme .shadow,
 .portal-theme .shadow-md,
-.portal-theme .shadow-lg { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.8) !important; }
+.portal-theme .shadow-lg { box-shadow: var(--shadow) !important; }
 
 /* Primary (blue) → Ember accent */
 .portal-theme .bg-primary-500,

@@ -18,6 +18,7 @@ import { registerPush } from '../../native/push';
 import { tapLight, notifySuccess } from '../../native/haptics';
 import PullToRefresh from '../../native/PullToRefresh';
 import PortalTabs, { type PortalTab } from './PortalTabs';
+import { useResolvedTheme } from './theme';
 import PortalGuideNative from './PortalGuideNative';
 import PromotionCelebration from './PromotionCelebration';
 import { beltSwatchColor } from '../../components/BeltImage';
@@ -38,6 +39,7 @@ export default function Portal() {
   const navigate = useNavigate();
   const { email, logout } = useAuthStore();
   const { isNative } = usePlatform();
+  const theme = useResolvedTheme();
   // Layout flag: true in the real app, or in a browser when previewing with ?native=1.
   // Only drives presentation (tabs vs scroll); real native features stay gated on isNative.
   const tabbed = isNative || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('native'));
@@ -266,7 +268,7 @@ export default function Portal() {
   const retos = student && <DuelsSection studentId={student.id} />;
 
   const content = (
-    <div className="min-h-screen bg-gray-100 portal-theme" data-theme="ember">
+    <div className="min-h-screen bg-gray-100 portal-theme" data-theme={theme}>
       <header
         className="relative overflow-hidden bg-gray-900 text-white pt-safe"
         style={banner && !isImageBanner(banner) ? bannerStyle(banner) : undefined}
