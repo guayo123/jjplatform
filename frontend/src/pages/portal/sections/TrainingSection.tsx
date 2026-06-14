@@ -9,6 +9,7 @@ import { computeAchievements, takeNewlyUnlocked, type Achievement } from '../ach
 import { buildWeekCardData, drawWeekCard, shareCard } from '../shareWeekCard';
 import { computeInsights, type Insight } from './trainingInsights';
 import { formatDate, ProgressSkeleton, CardSkeleton } from './shared';
+import TrainingCharts from './TrainingCharts';
 
 interface Props {
   studentId: number;
@@ -304,6 +305,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
         <>
           {/* Narrative insights — the "at a glance" read of your game */}
           <InsightsCard insights={insights} hasSessions={sessions.length > 0} />
+          <TrainingCharts sessions={sessions} />
           <LeaderboardCard board={board} meId={studentId} />
         </>
       ) : (
