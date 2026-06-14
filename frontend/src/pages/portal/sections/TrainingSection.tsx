@@ -296,12 +296,13 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
       </div>
 
       {view === 'resumen' ? (
-        <LeaderboardCard board={board} meId={studentId} />
+        <>
+          {/* Narrative insights — the "at a glance" read of your game */}
+          <InsightsCard insights={insights} hasSessions={sessions.length > 0} />
+          <LeaderboardCard board={board} meId={studentId} />
+        </>
       ) : (
         <>
-          {/* Narrative insights */}
-          <InsightsCard insights={insights} hasSessions={sessions.length > 0} />
-
           {/* Session-type filter */}
           {sessions.length > 0 && (
             <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-0.5">
