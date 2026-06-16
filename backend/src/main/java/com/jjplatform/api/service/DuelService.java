@@ -41,10 +41,13 @@ public class DuelService {
             throw new IllegalArgumentException("Solo puedes retar a compañeros de tu academia.");
         }
 
+        Student referee = resolveReferee(req.getRefereeStudentId(), challenger, opponent);
+
         Duel duel = Duel.builder()
                 .academy(challenger.getAcademy())
                 .challenger(challenger)
                 .opponent(opponent)
+                .referee(referee)
                 .status(Duel.Status.PENDING)
                 .modality(parseModality(req.getModality()))
                 .message(trim(req.getMessage()))
@@ -69,7 +72,12 @@ public class DuelService {
     @Transactional
     public DuelDto reportResult(Student me, Long duelId, DuelResultRequest req) {
         Duel duel = require(duelId);
-        if (!isParticipant(duel, me.getId())) {
+        if (duel.getReferee() != null) {
+            // Refereed duel: only the impartial judge declares the winner.
+            if (!duel.getReferee().getId().equals(me.getId())) {
+                throw new IllegalArgumentException("Solo el árbitro puede registrar el resultado de este duelo.");
+            }
+        } else if (!isParticipant(duel, me.getId())) {
             throw new IllegalArgumentException("Solo un participante puede registrar el resultado.");
         }
         if (duel.getStatus() != Duel.Status.ACCEPTED) {
@@ -133,6 +141,21 @@ public class DuelService {
         return d.getChallenger().getId().equals(studentId) || d.getOpponent().getId().equals(studentId);
     }
 
+    /** Validates the optional referee: a third classmate of the same academy, not a participant. */
+    private Student resolveReferee(Long refereeId, Student challenger, Student opponent) {
+        if (refereeId == null) return null;
+        if (refereeId.equals(challenger.getId()) || refereeId.equals(opponent.getId())) {
+            throw new IllegalArgumentException("El árbitro debe ser una tercera persona, no un participante.");
+        }
+        Student referee = studentRepository.findById(refereeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Árbitro no encontrado"));
+        if (referee.getAcademy() == null
+                || !referee.getAcademy().getId().equals(challenger.getAcademy().getId())) {
+            throw new IllegalArgumentException("El árbitro debe ser de tu academia.");
+        }
+        return referee;
+    }
+
     private DuelDto toDto(Duel d) {
         DuelDto dto = new DuelDto();
         dto.setId(d.getId());
@@ -146,6 +169,11 @@ public class DuelService {
         dto.setOpponentId(o.getId());
         dto.setOpponentName(o.getName());
         dto.setOpponentPhotoUrl(o.getPhotoUrl());
+
+        if (d.getReferee() != null) {
+            dto.setRefereeId(d.getReferee().getId());
+            dto.setRefereeName(d.getReferee().getName());
+        }
 
         dto.setModality(d.getModality());
         dto.setMessage(d.getMessage());

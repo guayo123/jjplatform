@@ -2,6 +2,7 @@ package com.jjplatform.api.service;
 
 import com.jjplatform.api.dto.BeltPromotionDto;
 import com.jjplatform.api.dto.ClassmateDto;
+import com.jjplatform.api.dto.CompetitionResultDto;
 import com.jjplatform.api.dto.CreateDuelRequest;
 import com.jjplatform.api.dto.DuelDto;
 import com.jjplatform.api.dto.DuelResultRequest;
@@ -95,6 +96,18 @@ public class PortalService {
     public List<StudentDisciplineDto> getDisciplines(Long studentId) {
         requireOwnedStudent(studentId);
         return studentDisciplineService.getByStudent(studentId);
+    }
+
+    /** Portal self-service: student adds a competition result to one of their own disciplines. */
+    public CompetitionResultDto addCompetitionResult(Long studentId, Long studentDisciplineId, CompetitionResultDto dto) {
+        Student s = requireOwnedStudent(studentId);
+        return studentDisciplineService.addResultForStudent(studentDisciplineId, s.getAcademy().getId(), studentId, dto);
+    }
+
+    /** Portal self-service: student edits one of their own competition results. */
+    public CompetitionResultDto updateCompetitionResult(Long studentId, Long resultId, CompetitionResultDto dto) {
+        Student s = requireOwnedStudent(studentId);
+        return studentDisciplineService.updateResultForStudent(resultId, s.getAcademy().getId(), studentId, dto);
     }
 
     public List<BeltPromotionDto> getBeltPromotions(Long studentId) {
@@ -207,6 +220,12 @@ public class PortalService {
     public List<ClassmateDto> getClassmates(Long studentId) {
         Student s = requireOwnedStudent(studentId);
         return studentService.getAcademyClassmates(s.getAcademy().getId(), studentId);
+    }
+
+    /** Birthdays of the student's academy that fall in the current month. */
+    public List<com.jjplatform.api.dto.BirthdayDto> getBirthdaysThisMonth(Long studentId) {
+        Student s = requireOwnedStudent(studentId);
+        return studentService.getAcademyBirthdays(s.getAcademy().getId(), java.time.LocalDate.now().getMonthValue());
     }
 
     // --- Duels (challenges between classmates) -----------------------------

@@ -10,8 +10,9 @@ import java.util.List;
 
 public interface DuelRepository extends JpaRepository<Duel, Long> {
 
-    /** Duels involving the student (as challenger or opponent), newest activity first. */
-    @Query("select d from Duel d where d.challenger.id = :studentId or d.opponent.id = :studentId order by d.updatedAt desc")
+    /** Duels involving the student (as challenger, opponent or referee), newest activity first. */
+    @Query("select d from Duel d where d.challenger.id = :studentId or d.opponent.id = :studentId "
+            + "or d.referee.id = :studentId order by d.updatedAt desc")
     List<Duel> findInvolving(@Param("studentId") Long studentId);
 
     /** Academy feed: duels in the given academy with one of the statuses, newest activity first. */

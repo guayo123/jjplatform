@@ -2,34 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Display font for the portal — Oswald (condensed, "martial" feel for titles).
-   Bundled offline in public/fonts so it works inside the native app. */
-@font-face {
-  font-family: 'Oswald';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('/fonts/oswald-500.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Oswald';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url('/fonts/oswald-600.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Oswald';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('/fonts/oswald-700.woff2') format('woff2');
-}
-
 @layer base {
   body {
     @apply min-h-screen;
   }
+}
+
+/* Tailwind's preflight resets button backgrounds with a rule that uses `:where()`
+   (`button, input:where([type=button])…{background-color:transparent}`). Old Android WebViews
+   (Chrome 83, still on many emulators/devices) don't understand `:where()`, so they DROP that whole
+   rule and every <button> falls back to the UA's light-grey background. Under the dark portal theme
+   the near-white button text then turns into the unreadable "white-on-grey smear" (the × close, the
+   collapsible "Próximas clases" header, day chips, etc. — all are <button>s). Re-apply the reset in
+   legacy-safe syntax so buttons without an explicit bg utility stay transparent everywhere. */
+button {
+  background-color: transparent;
+  background-image: none;
 }
 
 /* ============================================================================
@@ -121,24 +109,35 @@
 .portal-theme {
   background-color: var(--bg);
   color: var(--text);
+  /* Kill Android's grey tap-flash box (shows up behind ×/buttons when pressed). */
+  -webkit-tap-highlight-color: transparent;
   background-image:
     repeating-linear-gradient(45deg, var(--texture, rgba(255, 255, 255, 0.013)) 0 1.5px, transparent 1.5px 9px),
     repeating-linear-gradient(-45deg, var(--texture, rgba(255, 255, 255, 0.013)) 0 1.5px, transparent 1.5px 9px);
 }
 
-/* Martial display font for portal titles. */
+/* Display font for portal titles. The previous bundled Oswald woff2 rendered as a blurry
+   white smear inside the Android WebView, so titles now use the platform's native UI font
+   (San Francisco / Roboto / Segoe UI) which is crisp everywhere. A touch of weight + tight
+   tracking keeps the strong "martial" feel without a custom webfont. */
 .portal-theme h1,
 .portal-theme h2,
 .portal-theme .jjp-display {
-  font-family: 'Oswald', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  letter-spacing: 0.012em;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, 'Helvetica Neue', Arial, sans-serif;
+  letter-spacing: -0.01em;
 }
 
 /* --- Scoped utility re-mapping: turns the existing light Tailwind classes into
        the dark Ember palette without rewriting every component. Limited to the
        neutral/primary subset so semantic accent colors (green/red/amber) stay. --- */
 .portal-theme .bg-white,
-.portal-theme .bg-gray-50 { background-color: var(--surface) !important; }
+.portal-theme .bg-gray-50,
+/* Opacity variants (e.g. sticky headers `bg-gray-50/95` with backdrop-blur) must be remapped
+   too — otherwise they keep Tailwind's light gray and the near-white title text on them turns
+   into an unreadable white-on-gray smear in the dark theme. */
+.portal-theme .bg-gray-50\/95,
+.portal-theme .bg-gray-50\/90,
+.portal-theme .bg-gray-50\/80 { background-color: var(--surface) !important; }
 .portal-theme .bg-gray-100 { background-color: var(--bg) !important; }
 .portal-theme .bg-gray-200,
 .portal-theme .bg-gray-300,
@@ -195,12 +194,21 @@
 .portal-theme .bg-amber-50,
 .portal-theme .bg-yellow-50 { background-color: rgba(245, 183, 49, 0.13) !important; }
 
-/* Form fields */
-.portal-theme input,
+/* Form fields. The text is forced to the theme's near-white, so the field MUST also get a dark
+   surface + border — otherwise the input keeps the browser's light default and you get the
+   classic white-text-on-light-gray smear while typing. Covers inputs, selects and textareas
+   regardless of the Tailwind bg/border utilities the component happens to use. */
+.portal-theme input:not([type='checkbox']):not([type='radio']):not([type='range']),
 .portal-theme select,
-.portal-theme textarea { color: var(--text); }
+.portal-theme textarea {
+  color: var(--text);
+  background-color: var(--surface-2) !important;
+  border-color: var(--line) !important;
+}
 .portal-theme input::placeholder,
 .portal-theme textarea::placeholder { color: var(--muted-2); }
+/* Native date/time pickers render their glyphs dark by default — invert so they read on dark. */
+.portal-theme input[type='date']::-webkit-calendar-picker-indicator { filter: invert(0.8); }
 
 /* --- Reusable portal primitives (Ember) — opt-in classes for refined elements --- */
 .portal-theme .jjp-label {
@@ -238,14 +246,18 @@
   .portal-theme .jjp-skeleton { animation: none; }
 }
 
-/* Tab/content entrance — a subtle fade + rise so screens don't pop in flat. */
+/* Tab/content entrance — a subtle fade + rise so screens don't pop in flat.
+   IMPORTANT: no lingering transform/will-change once the animation ends. A persistent
+   transform (or will-change: transform) turns this element into the containing block for
+   any `position: fixed` descendant — which would anchor the FAB and modals to this div
+   instead of the viewport. `backwards` reverts to the natural (transform: none) state on
+   finish, so fixed children stay pinned to the screen. */
 @keyframes jjp-fade-up {
   0%   { opacity: 0; transform: translateY(8px); }
   100% { opacity: 1; transform: translateY(0); }
 }
 .portal-theme .jjp-fade-up {
-  animation: jjp-fade-up 0.28s ease-out both;
-  will-change: transform, opacity;
+  animation: jjp-fade-up 0.28s ease-out backwards;
 }
 @media (prefers-reduced-motion: reduce) {
   .portal-theme .jjp-fade-up { animation: none; }

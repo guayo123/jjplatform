@@ -164,11 +164,11 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
         repairAvailable: sum.repairAvailable,
       });
       celebrate({
-        eyebrow: '¡Racha recuperada!',
-        emoji: '🚑',
+        eyebrow: '¡Racha reavivada!',
+        emoji: '🔥',
         count: sum.currentStreak,
         unit: sum.currentStreak === 1 ? 'día de racha' : 'días de racha',
-        message: '¡Salvaste tu racha! Entrena hoy para seguir sumando 🔥',
+        message: '¡Reavivaste tu racha! Entrena hoy para seguir sumando 🔥',
         buttonLabel: '¡A entrenar!',
       });
       // A revived streak can retro-unlock streak badges (maxStreak may have grown).
@@ -236,24 +236,24 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     <div className="space-y-6">
       {/* Broken streak still within the repair window — rescue banner */}
       {summary?.repairAvailable && summary.lostStreak > 0 && (
-        <div className="rounded-xl border border-orange-200 bg-orange-50 p-5">
-          <div className="flex items-start gap-3">
-            <span className="text-3xl leading-none">💔</span>
+        <div className="rounded-2xl border border-orange-300/70 bg-gradient-to-br from-orange-50 to-amber-50 p-5 shadow-sm">
+          <div className="flex items-start gap-3.5">
+            <span className="text-3xl leading-none mt-0.5 grayscale opacity-80" aria-hidden>🔥</span>
             <div className="flex-1 min-w-0">
-              <h2 className="font-bold text-gray-900">
-                Perdiste tu racha de {summary.lostStreak} {summary.lostStreak === 1 ? 'día' : 'días'}
+              <h2 className="font-bold text-orange-900">
+                Tu racha de {summary.lostStreak} {summary.lostStreak === 1 ? 'día' : 'días'} se apagó
               </h2>
-              <p className="text-sm text-gray-600 mt-0.5">
-                Aún estás a tiempo de salvarla. Te queda {summary.repairsLeft}{' '}
-                recuperación este mes.
+              <p className="text-sm text-orange-800/80 mt-0.5">
+                Aún estás a tiempo de reavivarla. Te {summary.repairsLeft === 1 ? 'queda' : 'quedan'}{' '}
+                {summary.repairsLeft} {summary.repairsLeft === 1 ? 'recuperación' : 'recuperaciones'} este mes.
               </p>
               {repairError && <p className="text-sm text-red-600 mt-1">{repairError}</p>}
               <button
                 onClick={handleRepair}
                 disabled={repairing}
-                className="mt-3 w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors disabled:opacity-50"
+                className="mt-3 w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-xl shadow-sm shadow-orange-500/30 transition-colors disabled:opacity-50"
               >
-                {repairing ? 'Recuperando…' : '🚑 Recuperar mi racha'}
+                {repairing ? 'Reavivando…' : '🔥 Reavivar mi racha'}
               </button>
             </div>
           </div>
@@ -262,7 +262,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
 
       {/* Goal not set yet — onboarding step */}
       {goal == null ? (
-        <div className="bg-white rounded-xl shadow-sm p-5">
+        <div className="bg-white rounded-xl shadow-sm p-5 pl-6 jjp-accent-bar">
           <h2 className="font-bold text-gray-900 mb-1">Define tu meta semanal</h2>
           <p className="text-sm text-gray-500 mb-4">¿Cuántas veces quieres entrenar por semana?</p>
           <div className="flex flex-wrap gap-2">
@@ -332,7 +332,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
           )}
 
           {/* Recent sessions */}
-          <div className="bg-white rounded-xl shadow-sm">
+          <div className="bg-white rounded-xl shadow-sm jjp-accent-bar">
             <div className="p-5">
               {sessions.length === 0 ? (
                 <div className="text-center py-8">
@@ -358,7 +358,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
         onClick={() => setFormOpen(true)}
         aria-label="Registrar entrenamiento"
         title="Registrar entrenamiento"
-        className="fixed bottom-24 right-5 z-40 w-14 h-14 rounded-full bg-primary-600 hover:bg-primary-700 text-white shadow-xl shadow-primary-600/40 flex items-center justify-center transition-transform active:scale-95"
+        className="fixed bottom-24 right-5 z-50 w-14 h-14 rounded-full bg-primary-600 hover:bg-primary-700 text-white shadow-xl shadow-primary-600/40 flex items-center justify-center transition-transform active:scale-95"
       >
         <span className="text-3xl leading-none -mt-0.5">+</span>
       </button>
@@ -431,7 +431,7 @@ function LeaderboardCard({ board, meId }: { board: LeaderboardEntry[]; meId: num
   const myIndex = board.findIndex((e) => e.studentId === meId);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm">
+    <div className="bg-white rounded-xl shadow-sm jjp-accent-bar">
       <div className="p-5 border-b border-gray-100">
         <h2 className="font-bold text-gray-900">Ranking de la semana 🏆</h2>
         <p className="text-xs text-gray-400 mt-0.5">Entrenos registrados esta semana en tu academia</p>
@@ -572,9 +572,12 @@ function ProgressCard({ summary, trainedToday, onChangeGoal, savingGoal, onShare
         <div className="flex-1 min-w-0">
           <p className="text-sm text-gray-500">Esta semana</p>
           <p className="text-2xl font-bold text-gray-900">{summary.thisWeekCount}<span className="text-base font-medium text-gray-400"> / {goal}</span></p>
-          <div className="flex items-center gap-4 mt-2 flex-wrap">
+          <div className="flex items-center gap-x-3 gap-y-1.5 mt-2 flex-wrap">
             <StreakChip streak={summary.currentStreak} trainedToday={trainedToday} />
-            <span className="text-xs text-gray-400">Récord: {summary.maxStreak}</span>
+            <span className="inline-flex items-center gap-1.5 text-xs text-gray-400">
+              <span className="w-1 h-1 rounded-full bg-gray-300" aria-hidden />
+              Récord: {summary.maxStreak}
+            </span>
             {summary.weeklyGoalMet && (
               <span className="text-xs font-semibold text-green-600" title="¡Cumpliste tu meta semanal!">
                 ✅ Meta semanal cumplida
@@ -582,13 +585,13 @@ function ProgressCard({ summary, trainedToday, onChangeGoal, savingGoal, onShare
             )}
           </div>
         </div>
-        <div className="self-start flex items-center gap-2.5">
+        <div className="self-start flex items-center gap-4">
           {onShare && (
             <button
               onClick={onShare}
               aria-label="Compartir mi semana"
               title="Compartir mi semana"
-              className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:border-primary-300 hover:text-primary-600 transition-colors"
+              className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-600 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600 transition-colors"
             >
               <ShareIcon />
             </button>
@@ -600,7 +603,7 @@ function ProgressCard({ summary, trainedToday, onChangeGoal, savingGoal, onShare
             className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-colors ${
               editing
                 ? 'border-primary-300 bg-primary-50 text-primary-600'
-                : 'border-gray-200 text-gray-500 hover:border-primary-300 hover:text-primary-600'
+                : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600'
             }`}
           >
             <EditGoalIcon />
@@ -675,7 +678,7 @@ function InsightsCard({ insights, hasSessions }: { insights: Insight[]; hasSessi
   if (insights.length === 0) {
     if (!hasSessions) return null; // history empty state already covers the very first run
     return (
-      <div className="bg-white rounded-xl shadow-sm p-5">
+      <div className="bg-white rounded-xl shadow-sm p-5 pl-6 jjp-accent-bar">
         <h2 className="font-bold text-gray-900 mb-1">Tus tendencias</h2>
         <p className="text-sm text-gray-400">
           Registra modalidad, sumisiones (logradas/recibidas) y técnicas, y aquí verás insights de tu juego.
@@ -691,7 +694,7 @@ function InsightsCard({ insights, hasSessions }: { insights: Insight[]; hasSessi
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-5">
+    <div className="bg-white rounded-xl shadow-sm p-5 pl-6 jjp-accent-bar">
       <h2 className="font-bold text-gray-900 mb-3">Tus tendencias</h2>
       <ul className="space-y-2.5">
         {insights.map((ins, i) => (

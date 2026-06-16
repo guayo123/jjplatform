@@ -18,6 +18,10 @@ public class DuelDto {
     private String opponentName;
     private String opponentPhotoUrl;
 
+    /** Impartial judge (null when the duel has no referee). */
+    private Long refereeId;
+    private String refereeName;
+
     private String modality;
     private String message;
 

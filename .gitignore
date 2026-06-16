@@ -19,6 +19,14 @@ frontend/.env
 frontend/.env.local
 frontend/.env.production
 
+# === Mobile build artifacts (Capacitor/Android) — never commit these ===
+frontend/*.apk
+frontend/*.zip
+frontend/android/app/build/
+frontend/android/build/
+frontend/android/.gradle/
+frontend/test-evidence/
+
 # === IDE ===
 .idea/
 .vscode/

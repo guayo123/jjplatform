@@ -201,6 +201,7 @@ export default function Students() {
       phone: student.phone,
       emergencyPhone: student.emergencyPhone,
       joinDate: student.joinDate,
+      birthDate: student.birthDate,
       age: student.age,
       weight: student.weight,
       photoUrl: student.photoUrl,

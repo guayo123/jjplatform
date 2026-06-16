@@ -11,6 +11,8 @@ export default function UpcomingClassesCard({ studentId }: { studentId: number }
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [activeDate, setActiveDate] = useState('');
+  // Collapsed by default — it's a secondary block, kept off the main Resumen scroll.
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     portalApi.upcomingClasses(studentId).then(setClasses).catch(() => setClasses([])).finally(() => setLoading(false));
@@ -58,16 +60,38 @@ export default function UpcomingClassesCard({ studentId }: { studentId: number }
   }
   const selectedDate = groups.find((g) => g.date === activeDate)?.date ?? groups[0]?.date;
   const selectedItems = groups.find((g) => g.date === selectedDate)?.items ?? [];
+  const reservedCount = classes.filter((c) => c.mineReserved).length;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm">
-      <div className="p-5 pb-3 border-b border-gray-100">
-        <h2 className="font-bold text-gray-900">Próximas clases</h2>
-        <p className="text-xs text-gray-400 mt-0.5">Reserva tu cupo y te avisamos antes de la clase</p>
-      </div>
+    <div className="bg-white rounded-xl shadow-sm jjp-accent-bar">
+      {/* Collapsed header — tap to expand. Shows a one-line summary so it stays informative folded. */}
+      <button
+        onClick={() => { void tapLight(); setOpen((v) => !v); }}
+        aria-expanded={open}
+        className={`w-full flex items-center gap-3 p-5 pl-6 text-left ${open ? 'border-b border-gray-100' : ''}`}
+      >
+        <span className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center bg-orange-50 text-orange-500">
+          <CalendarIcon />
+        </span>
+        <div className="flex-1 min-w-0">
+          <h2 className="font-semibold text-gray-800">Próximas clases</h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {reservedCount > 0
+              ? `${reservedCount} ${reservedCount === 1 ? 'reservada' : 'reservadas'} · ${classes.length} para reservar`
+              : `${classes.length} ${classes.length === 1 ? 'clase disponible' : 'clases disponibles'} · reserva tu cupo`}
+          </p>
+        </div>
+        <svg
+          className={`w-5 h-5 text-gray-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
 
+      {open && (<>
       {/* Day selector — horizontal calendar chips */}
-      <div className="flex gap-2 overflow-x-auto px-5 pt-3 pb-1">
+      <div className="flex gap-2 overflow-x-auto px-5 pl-6 pt-3 pb-1">
         {groups.map((g) => {
           const on = g.date === selectedDate;
           const mine = g.items.some((c) => c.mineReserved);
@@ -90,7 +114,7 @@ export default function UpcomingClassesCard({ studentId }: { studentId: number }
       </div>
 
       {/* Classes for the selected day */}
-      <div className="p-5 pt-3 space-y-2">
+      <div className="p-5 pl-6 pt-3 space-y-2">
         {selectedItems.map((c) => {
           const full = c.spotsLeft === 0 && !c.mineReserved;
           return (
@@ -122,7 +146,19 @@ export default function UpcomingClassesCard({ studentId }: { studentId: number }
           );
         })}
       </div>
+      </>)}
     </div>
+  );
+}
+
+// Calendar icon (stroke style, tints with currentColor) — matches the portal's hand-drawn icon set.
+function CalendarIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3.5" y="5" width="17" height="16" rx="2.5" />
+      <path d="M3.5 9.5 H20.5" />
+      <path d="M8 3.5 V6.5 M16 3.5 V6.5" />
+    </svg>
   );
 }
 

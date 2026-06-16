@@ -65,7 +65,7 @@ export default function StudentForm() {
 
   const [form, setForm] = useState<StudentFormType>({
     name: '', nickname: null, rut: null, email: null, phone: null,
-    emergencyPhone: null, joinDate: null, age: null, weight: null,
+    emergencyPhone: null, joinDate: null, birthDate: null, age: null, weight: null,
     photoUrl: null, address: null, medicalNotes: null,
     bloodType: null, healthInsuranceType: null, healthInsuranceCompany: null,
     active: true, planIds: [],
@@ -108,7 +108,7 @@ export default function StudentForm() {
         setForm({
           name: s.name, nickname: s.nickname, rut: s.rut, email: s.email,
           phone: s.phone, emergencyPhone: s.emergencyPhone, joinDate: s.joinDate,
-          age: s.age, weight: s.weight, photoUrl: s.photoUrl,
+          birthDate: s.birthDate, age: s.age, weight: s.weight, photoUrl: s.photoUrl,
           address: s.address, medicalNotes: s.medicalNotes, bloodType: s.bloodType,
           healthInsuranceType: s.healthInsuranceType, healthInsuranceCompany: s.healthInsuranceCompany,
           active: s.active, planIds: s.enrolledPlans?.map(p => p.id) || [],
@@ -293,6 +293,16 @@ export default function StudentForm() {
             }}
           />
           {errors.joinDate && <p className={err}>{errors.joinDate}</p>}
+        </div>
+
+        <div>
+          <label className={lbl}>Fecha de nacimiento</label>
+          <DatePicker
+            value={form.birthDate ?? ''}
+            max={todayYMD()}
+            onChange={(v) => setForm((f) => ({ ...f, birthDate: v || null }))}
+          />
+          <p className="text-xs text-gray-500 mt-1">Opcional. Habilita la tarjeta "Cumpleaños del mes" en el portal del alumno.</p>
         </div>
 
         <div className={isEdit ? '' : 'grid grid-cols-2 gap-4'}>

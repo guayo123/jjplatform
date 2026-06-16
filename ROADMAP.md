@@ -1,44 +1,52 @@
 # Roadmap — JJPlatform
 
-Estado del trabajo reciente y lo que viene. Última actualización: 2026-06-13.
+Estado del trabajo y lo que viene. Última actualización: 2026-06-14.
 
 ---
 
-## ✅ Hecho (en `main`, **sin commitear** todavía)
+## ✅ Hecho y desplegado en producción
 
 ### 1. Programa técnico por cinturón
 - Entidades `Technique` (atada a un `DisciplineBelt`) y `StudentTechnique` (marca "aprendida").
-- **Admin**: gestión de técnicas por cinturón desde la página *Disciplinas* (botón 📋 en cada cinturón → modal `TechniqueManager`).
-- **Alumno**: en la pestaña *Fichas*, tarjeta "Programa técnico" con barra de progreso, cinturones en acordeón y check para marcar lo aprendido + enlace a video.
-- Endpoints: `/api/disciplines/belts/{beltId}/techniques`, `/api/techniques/{id}`, `/api/portal/students/{id}/techniques`.
+- **Admin**: gestión de técnicas por cinturón desde *Disciplinas* (botón 📋 en cada cinturón → modal `TechniqueManager`).
+- **Alumno**: en *Fichas*, tarjeta "Programa técnico" con barra de progreso, cinturones en acordeón y check para marcar lo aprendido + enlace a video.
 
 ### 2. Pagos en línea (Khipu + Mercado Pago)
-- Ambos son **pasarelas con confirmación automática por webhook** (no comprobante manual).
-- **Alumno**: en *Pagos*, botones "Pagar con Khipu" / "Pagar con Mercado Pago" (según lo configurado) + datos de transferencia opcionales.
-- **Backend**: `PaymentGatewayService` crea el checkout; webhooks públicos `/api/public/webhooks/khipu/{paymentId}` y `/mp/{paymentId}` re-consultan la pasarela y marcan PAID.
-- `Payment` con nuevo `status` (default `PAID`, así los pagos viejos quedan intactos), `method`, `gatewayPaymentId`.
+- Pasarelas con **confirmación automática por webhook** (no comprobante manual).
+- **Alumno**: en *Pagos*, botones "Pagar con Khipu" / "Pagar con Mercado Pago" según lo configurado + datos de transferencia opcionales.
+- **Backend**: `PaymentGatewayService` crea el checkout; webhooks públicos re-consultan la pasarela y marcan PAID.
+- ⚠️ Falta pegar credenciales para que los botones aparezcan (ver "Pendiente").
 
 ### 3. Retención + recordatorio WhatsApp automático
 - Detecta alumnos en riesgo: ≥21 días sin entrenar **o** mes sin pagar.
-- Job diario (`PaymentReminderJob`) envía recordatorio por WhatsApp una vez al mes a los morosos — **solo si la academia activa el toggle** (apagado por defecto).
+- Job diario que envía recordatorio por WhatsApp una vez al mes a morosos — **solo si la academia activa el toggle** (apagado por defecto).
 - **Admin**: panel "Alumnos en riesgo" en el Dashboard con botón *Recordar* manual.
 
 ### 4. Reservas de clases con cupo + recordatorio
-- `ClassSchedule` ahora tiene **cupo** (opcional; vacío = sin límite), editable en *Horarios*.
-- **Alumno**: tarjeta "Próximas clases" (pestaña *Entreno*) — reserva/cancela su lugar en las clases de los próximos 7 días; al reservar se agenda una **notificación local** ~2h antes (el push remoto sigue siendo solo andamiaje, requiere FCM/APNs).
-- Roster (quién reservó) tiene endpoint listo (`/api/academy/schedules/{id}/reservations?date=`); su UI admin quedó **pendiente**.
+- `ClassSchedule` con **cupo** opcional (vacío = sin límite), editable en *Horarios*.
+- **Alumno**: tarjeta "Próximas clases" (pestaña *Entreno*, ahora plegable) — reserva/cancela su lugar en los próximos 7 días; al reservar agenda una **notificación local** ~2h antes.
+- **Admin**: roster de reservas por clase en *Horarios* (quién reservó cada día).
+
+### 5. Diario de entrenamiento + data-viz (pestaña *Entreno*)
+- Diario con meta semanal, racha (con recuperación), logros y ranking de academia.
+- **Gráficos** computados en el cliente desde las sesiones del alumno: **horas por semana** (barras, 6 semanas), **asistencia** (heatmap estilo GitHub, 10 semanas) y **mapa de sumisiones** (logradas vs recibidas por técnica).
+
+### 6. Rediseño del portal — tema "Ember" (en curso, rama `feat/portal-redesign-ember`)
+- Tema oscuro Ember con sistema de tokens + selector de apariencia (Sistema · Ember · Claro · Clásico).
+- Iconos SVG marciales propios en la barra, portadas vectoriales, skeleton loaders, transición de entrada.
+- Toque premium: tipografía, textura, emblema de cinturón y sonido.
+- Pulido reciente: FAB flotante corregido, franja de acento uniforme en tarjetas, "Próximas clases" plegable con ícono. **Cambios de UI aún sin commitear.**
 
 ---
 
 ## 🔧 Pendiente para producción
 
-- [x] **Commiteado** en la rama `feat/portal-tecnicas-pagos-reservas` (aún **sin pushear** — pushear auto-despliega).
-- [ ] **Pushear / mergear** la rama cuando quieras desplegar.
+- [ ] **Commitear** el pulido de UI de la rama `feat/portal-redesign-ember`.
 - [ ] **Credenciales de pasarela**: obtener y pegar en *Ajustes* la API Key de Khipu y el Access Token de Mercado Pago. Sin ellas los botones de pago no aparecen.
-- [ ] **Probar los pagos de extremo a extremo** (en sandbox primero) — los flujos de pasarela aún no se han verificado por falta de credenciales.
-- [ ] **Variable de entorno `PORTAL_URL`** en Railway (URL de retorno tras pagar). Tiene default, pero conviene fijarla.
-- [ ] **CORS Capacitor** (pendiente previo): agregar `capacitor://localhost,https://localhost,http://localhost` a `CORS_ORIGINS` en Railway o falla el login en la app.
+- [ ] **Probar los pagos de extremo a extremo** (sandbox primero) — los flujos de pasarela aún no se han verificado por falta de credenciales.
+- [ ] **`PORTAL_URL`** en Railway (URL de retorno tras pagar). Tiene default, pero conviene fijarla.
 - [ ] Configurar la **URL de notificación** en los paneles de Khipu/Mercado Pago si lo requieren (apunta a `APP_BASE_URL`).
+- [x] CORS Capacitor — `capacitor://localhost,https://localhost,http://localhost` agregado a `CORS_ORIGINS` en Railway.
 
 ---
 
@@ -46,11 +54,15 @@ Estado del trabajo reciente y lo que viene. Última actualización: 2026-06-13.
 
 | Idea | Valor | Notas |
 |------|-------|-------|
-| **Check-in por QR** | Alto | El alumno escanea un QR en el dojo → asistencia automática que alimenta racha/diario. Ya está la librería `qrcode`. |
-| **Reportes de ingresos** | Alto | Ahora que hay pagos online: ingresos del mes, % morosidad, conciliación por método. |
+| **Check-in por QR** | Alto | El alumno escanea un QR en el dojo → asistencia automática que alimenta racha/diario. La librería `qrcode` ya está. |
+| **Reportes de ingresos** | Alto | Ahora que hay pagos online: ingresos del mes, % morosidad, conciliación por método. Trabajo de admin/web. |
 | **Recibo automático de pago** | Medio | Al confirmar un pago, enviar comprobante por email/WhatsApp. |
-| **Push remoto (FCM/APNs)** | Medio | Los recordatorios hoy son notificaciones locales; el push remoto necesita Firebase/APNs + endpoint de tokens. |
-| **Roster admin de reservas** | Bajo | UI para ver quién reservó cada clase (el endpoint ya existe). |
-| **Mapa de sumisiones / stats** | Medio | Heatmap de sumisiones logradas/recibidas (ya se registran en el diario). |
+| **Push remoto (FCM/APNs)** | Medio | Los recordatorios hoy son notificaciones locales; el remoto necesita Firebase/APNs + endpoint de tokens. |
 | **Social entre alumnos** | Medio | Perfiles, reacciones a entrenamientos, ranking ampliado. |
 | **Cumpleaños / hitos** | Bajo | Avisar al profe de cumpleaños y aniversarios de cinturón. |
+
+---
+
+## ✔️ Completado de la lista de ideas original
+- **Mapa de sumisiones / data-viz** (era "Medio") → hecho en `abfb3bd`.
+- **Roster admin de reservas** (era "Bajo") → hecho en `94206fd` + `4db2dcf`.

@@ -40,6 +40,14 @@ public class Duel {
     @JoinColumn(name = "opponent_id", nullable = false)
     private Student opponent;
 
+    /**
+     * Optional impartial third student who judges the bout. When set, only the referee may
+     * report the result (so a loser can't claim the win); when null, either participant can.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "referee_id")
+    private Student referee;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 12)
     @Builder.Default

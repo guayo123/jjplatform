@@ -50,7 +50,7 @@ function HoursPerWeek({ sessions }: { sessions: TrainingSession[] }) {
   const totalH = Math.round((buckets.reduce((a, b) => a + b.minutes, 0) / 60) * 10) / 10;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-5">
+    <div className="bg-white rounded-xl shadow-sm p-5 pl-6 jjp-accent-bar">
       <div className="flex items-baseline justify-between">
         <h2 className="font-bold text-gray-900">Horas por semana</h2>
         <span className="text-xs text-gray-400">{totalH} h en 6 semanas</span>
@@ -125,7 +125,7 @@ function AttendanceHeatmap({ sessions }: { sessions: TrainingSession[] }) {
   });
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-5">
+    <div className="bg-white rounded-xl shadow-sm p-5 pl-6 jjp-accent-bar">
       <div className="flex items-baseline justify-between">
         <h2 className="font-bold text-gray-900">Asistencia</h2>
         <span className="text-xs text-gray-400">{trainedDays} días en 10 semanas</span>
@@ -182,7 +182,7 @@ function SubmissionsMap({ sessions }: { sessions: TrainingSession[] }) {
   const RED = '#EF4444';
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-5">
+    <div className="bg-white rounded-xl shadow-sm p-5 pl-6 jjp-accent-bar">
       <div className="flex items-baseline justify-between">
         <h2 className="font-bold text-gray-900">Sumisiones</h2>
         <span className="text-xs text-gray-400">

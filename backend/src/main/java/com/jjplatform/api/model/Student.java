@@ -44,6 +44,9 @@ public class Student {
 
     private LocalDate joinDate;
 
+    /** Date of birth — drives the "birthdays this month" card in the student portal. Optional. */
+    private LocalDate birthDate;
+
     private Integer age;
 
     private Double weight;

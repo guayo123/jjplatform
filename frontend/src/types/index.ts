@@ -81,6 +81,7 @@ export interface Student {
   phone: string | null;
   emergencyPhone: string | null;
   joinDate: string | null;
+  birthDate: string | null;
   age: number | null;
   weight: number | null;
   belt: string | null;
@@ -133,6 +134,15 @@ export interface BeltPromotionForm {
 }
 
 export type StudentForm = Omit<Student, 'id' | 'belt' | 'stripes'>;
+
+/** A classmate's birthday in the current month (portal "Cumpleaños del mes" card). Year is omitted by design. */
+export interface Birthday {
+  id: number;
+  name: string;
+  photoUrl: string | null;
+  day: number;
+  month: number;
+}
 
 // ─── Discipline belt configuration ───
 export interface DisciplineBelt {
@@ -537,6 +547,8 @@ export interface Duel {
   opponentId: number;
   opponentName: string;
   opponentPhotoUrl: string | null;
+  refereeId: number | null;
+  refereeName: string | null;
   modality: TrainingModality | null;
   message: string | null;
   winnerStudentId: number | null;
@@ -551,6 +563,7 @@ export interface Duel {
 
 export interface CreateDuelRequest {
   opponentStudentId: number;
+  refereeStudentId?: number | null;
   modality?: TrainingModality | null;
   message?: string | null;
 }

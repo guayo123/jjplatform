@@ -2,6 +2,7 @@ package com.jjplatform.api.controller;
 
 import com.jjplatform.api.dto.BeltPromotionDto;
 import com.jjplatform.api.dto.ClassmateDto;
+import com.jjplatform.api.dto.CompetitionResultDto;
 import com.jjplatform.api.dto.CreateDuelRequest;
 import com.jjplatform.api.dto.DuelDto;
 import com.jjplatform.api.dto.DuelResultRequest;
@@ -57,6 +58,23 @@ public class PortalController {
     @GetMapping("/students/{studentId}/belt-promotions")
     public ResponseEntity<List<BeltPromotionDto>> beltPromotions(@PathVariable Long studentId) {
         return ResponseEntity.ok(portalService.getBeltPromotions(studentId));
+    }
+
+    /** The student adds a competition result (torneo) to one of their own disciplines. */
+    @PostMapping("/students/{studentId}/disciplines/{studentDisciplineId}/results")
+    public ResponseEntity<CompetitionResultDto> addCompetitionResult(@PathVariable Long studentId,
+                                                                     @PathVariable Long studentDisciplineId,
+                                                                     @RequestBody CompetitionResultDto dto) {
+        return ResponseEntity.status(201).body(
+                portalService.addCompetitionResult(studentId, studentDisciplineId, dto));
+    }
+
+    /** The student edits one of their own competition results. */
+    @PutMapping("/students/{studentId}/results/{resultId}")
+    public ResponseEntity<CompetitionResultDto> updateCompetitionResult(@PathVariable Long studentId,
+                                                                        @PathVariable Long resultId,
+                                                                        @RequestBody CompetitionResultDto dto) {
+        return ResponseEntity.ok(portalService.updateCompetitionResult(studentId, resultId, dto));
     }
 
     @GetMapping("/students/{studentId}/payments")
@@ -187,6 +205,12 @@ public class PortalController {
     @GetMapping("/students/{studentId}/classmates")
     public ResponseEntity<List<ClassmateDto>> classmates(@PathVariable Long studentId) {
         return ResponseEntity.ok(portalService.getClassmates(studentId));
+    }
+
+    /** Birthdays of the academy for the current month. */
+    @GetMapping("/students/{studentId}/birthdays")
+    public ResponseEntity<List<com.jjplatform.api.dto.BirthdayDto>> birthdays(@PathVariable Long studentId) {
+        return ResponseEntity.ok(portalService.getBirthdaysThisMonth(studentId));
     }
 
     // --- Duels (challenges) -----------------------------------------------

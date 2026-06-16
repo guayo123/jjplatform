@@ -60,6 +60,11 @@ export default function DuelsSection({ studentId }: Props) {
       } else if (d.opponentId === studentId && prev === undefined && d.status === 'PENDING') {
         toast.success(`${o.name} te retó a una lucha ⚔️`);
         void notifyNow('¡Nuevo reto! ⚔️', `${o.name} te retó a una lucha.`);
+      } else if (d.refereeId === studentId && prev === undefined) {
+        toast.success(`Te eligieron como árbitro ⚖️`);
+        void notifyNow('Eres árbitro ⚖️', `${d.challengerName} vs ${d.opponentName} — tú das el veredicto.`);
+      } else if (d.refereeId === studentId && prev === 'PENDING' && d.status === 'ACCEPTED') {
+        void notifyNow('Duelo listo para arbitrar ⚖️', `${d.challengerName} vs ${d.opponentName} — registra el resultado al terminar.`);
       }
     }
     localStorage.setItem(key, JSON.stringify(curMap));
@@ -109,9 +114,12 @@ export default function DuelsSection({ studentId }: Props) {
 
   if (loading) return <CardSkeleton lines={3} />;
 
+  const isParticipant = (d: Duel) => d.challengerId === studentId || d.opponentId === studentId;
   const incoming = duels.filter((d) => d.opponentId === studentId && d.status === 'PENDING');
   const outgoing = duels.filter((d) => d.challengerId === studentId && d.status === 'PENDING');
-  const accepted = duels.filter((d) => d.status === 'ACCEPTED');
+  const accepted = duels.filter((d) => d.status === 'ACCEPTED' && isParticipant(d));
+  // Duels I must judge as the impartial referee (I'm not a participant).
+  const toReferee = duels.filter((d) => d.status === 'ACCEPTED' && d.refereeId === studentId && !isParticipant(d));
 
   return (
     <div className="space-y-6">
@@ -149,18 +157,46 @@ export default function DuelsSection({ studentId }: Props) {
           <div className="space-y-2">
             {accepted.map((d) => {
               const o = other(d, studentId);
+              const refereed = d.refereeId != null;
               return (
                 <div key={d.id} className="flex items-center gap-3 p-3 rounded-lg border border-primary-200 bg-primary-50">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-900">vs <span className="font-semibold">{o.name}</span>
                       {d.modality && <span className="text-gray-500"> · {MODALITY_LABEL[d.modality]}</span>}
                     </p>
-                    <p className="text-xs text-gray-400">Aceptado · registra el resultado al terminar</p>
+                    <p className="text-xs text-gray-400">
+                      {refereed
+                        ? `Esperando el veredicto de ${d.refereeName} ⚖️`
+                        : 'Aceptado · registra el resultado al terminar'}
+                    </p>
                   </div>
-                  <button onClick={() => setResultFor(d)} className="bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium px-3 py-2 rounded-lg flex-shrink-0">Resultado</button>
+                  {/* With a referee, participants can't self-report — only the judge decides. */}
+                  {!refereed && (
+                    <button onClick={() => setResultFor(d)} className="bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium px-3 py-2 rounded-lg flex-shrink-0">Resultado</button>
+                  )}
                 </div>
               );
             })}
+          </div>
+        </Card>
+      )}
+
+      {/* Duels I must judge as the impartial referee */}
+      {toReferee.length > 0 && (
+        <Card title="Eres árbitro ⚖️">
+          <div className="space-y-2">
+            {toReferee.map((d) => (
+              <div key={d.id} className="flex items-center gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-900">
+                    <span className="font-semibold">{d.challengerName}</span> vs <span className="font-semibold">{d.opponentName}</span>
+                    {d.modality && <span className="text-gray-500"> · {MODALITY_LABEL[d.modality]}</span>}
+                  </p>
+                  <p className="text-xs text-gray-400">Tú das el veredicto al terminar</p>
+                </div>
+                <button onClick={() => setResultFor(d)} className="bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium px-3 py-2 rounded-lg flex-shrink-0">Veredicto</button>
+              </div>
+            ))}
           </div>
         </Card>
       )}
@@ -272,10 +308,12 @@ function ChallengeModal({
 }: {
   classmates: Classmate[];
   onClose: () => void;
-  onCreate: (req: { opponentStudentId: number; modality?: TrainingModality | null; message?: string | null }) => Promise<void>;
+  onCreate: (req: { opponentStudentId: number; refereeStudentId?: number | null; modality?: TrainingModality | null; message?: string | null }) => Promise<void>;
 }) {
   const [search, setSearch] = useState('');
   const [opponent, setOpponent] = useState<Classmate | null>(null);
+  const [refSearch, setRefSearch] = useState('');
+  const [referee, setReferee] = useState<Classmate | null>(null);
   const [modality, setModality] = useState<TrainingModality | null>(null);
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
@@ -283,11 +321,22 @@ function ChallengeModal({
   const q = search.trim().toLowerCase();
   const matches = q ? classmates.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 8) : [];
 
+  // Referee must be a third person — exclude whoever is already picked as the rival.
+  const rq = refSearch.trim().toLowerCase();
+  const refMatches = rq
+    ? classmates.filter((c) => c.id !== opponent?.id && c.name.toLowerCase().includes(rq)).slice(0, 8)
+    : [];
+
   const submit = async () => {
     if (!opponent || saving) return;
     setSaving(true);
     try {
-      await onCreate({ opponentStudentId: opponent.id, modality, message: message.trim() || null });
+      await onCreate({
+        opponentStudentId: opponent.id,
+        refereeStudentId: referee?.id ?? null,
+        modality,
+        message: message.trim() || null,
+      });
       onClose();
     } finally {
       setSaving(false);
@@ -341,6 +390,35 @@ function ChallengeModal({
         </div>
 
         <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Árbitro (opcional)</p>
+          {referee ? (
+            <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <span className="text-sm font-medium text-amber-700">⚖️ {referee.name}{referee.belt ? ` · ${referee.belt}` : ''}</span>
+              <button onClick={() => setReferee(null)} className="text-amber-500 hover:text-amber-700">quitar</button>
+            </div>
+          ) : (
+            <>
+              <input
+                value={refSearch}
+                onChange={(e) => setRefSearch(e.target.value)}
+                placeholder="Buscar árbitro…"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              {refMatches.length > 0 && (
+                <div className="mt-2 border border-gray-100 rounded-lg divide-y divide-gray-100">
+                  {refMatches.map((c) => (
+                    <button key={c.id} onClick={() => { setReferee(c); setRefSearch(''); }} className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                      {c.name}{c.belt && <span className="text-xs text-gray-400"> · {c.belt}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+          <p className="text-xs text-gray-400 mt-1.5">Si eliges árbitro, solo esa persona podrá publicar el resultado.</p>
+        </div>
+
+        <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Mensaje (opcional)</p>
           <textarea
             value={message}
@@ -368,8 +446,13 @@ function ResultModal({
   onClose: () => void;
   onSubmit: (data: { winnerStudentId?: number | null; method: DuelMethod; submissionName?: string | null; notes?: string | null }) => Promise<void>;
 }) {
-  const o = other(duel, me);
-  const [outcome, setOutcome] = useState<'me' | 'opp' | 'draw' | null>(null);
+  // Pick the winner by participant so the same modal works whether the reporter is a
+  // participant (their side reads "Gané yo") or the impartial referee (both read by name).
+  const firstName = (n: string) => n.split(' ')[0] || n;
+  const challengerLabel = duel.challengerId === me ? 'Gané yo' : `Ganó ${firstName(duel.challengerName)}`;
+  const opponentLabel = duel.opponentId === me ? 'Gané yo' : `Ganó ${firstName(duel.opponentName)}`;
+  const isReferee = duel.refereeId === me;
+  const [outcome, setOutcome] = useState<'challenger' | 'opponent' | 'draw' | null>(null);
   const [method, setMethod] = useState<DuelMethod>('SUBMISSION');
   const [submissionName, setSubmissionName] = useState('');
   const [notes, setNotes] = useState('');
@@ -382,7 +465,7 @@ function ResultModal({
       if (outcome === 'draw') {
         await onSubmit({ winnerStudentId: null, method: 'DRAW', notes: notes.trim() || null });
       } else {
-        const winnerStudentId = outcome === 'me' ? me : o.id;
+        const winnerStudentId = outcome === 'challenger' ? duel.challengerId : duel.opponentId;
         await onSubmit({
           winnerStudentId,
           method,
@@ -397,13 +480,13 @@ function ResultModal({
   };
 
   return (
-    <Sheet title="Resultado del duelo" onClose={onClose}>
+    <Sheet title={isReferee ? 'Veredicto del árbitro' : 'Resultado del duelo'} onClose={onClose}>
       <div className="p-5 space-y-5">
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">¿Cómo terminó?</p>
           <div className="grid grid-cols-3 gap-2">
-            <OutcomeBtn active={outcome === 'me'} onClick={() => setOutcome('me')}>Gané yo</OutcomeBtn>
-            <OutcomeBtn active={outcome === 'opp'} onClick={() => setOutcome('opp')}>Ganó {o.name.split(' ')[0]}</OutcomeBtn>
+            <OutcomeBtn active={outcome === 'challenger'} onClick={() => setOutcome('challenger')}>{challengerLabel}</OutcomeBtn>
+            <OutcomeBtn active={outcome === 'opponent'} onClick={() => setOutcome('opponent')}>{opponentLabel}</OutcomeBtn>
             <OutcomeBtn active={outcome === 'draw'} onClick={() => setOutcome('draw')}>Empate</OutcomeBtn>
           </div>
         </div>

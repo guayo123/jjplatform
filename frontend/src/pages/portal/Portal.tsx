@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { portalApi } from '../../api/portal';
 import { useAuthStore } from '../../stores/authStore';
-import { startPortalTour } from './portalTour';
+import { startPortalTour, startPortalTourNative } from './portalTour';
 import {
   SCENIC_BANNERS,
   IMAGE_BANNERS,
@@ -19,7 +19,6 @@ import { tapLight, notifySuccess } from '../../native/haptics';
 import PullToRefresh from '../../native/PullToRefresh';
 import PortalTabs, { type PortalTab } from './PortalTabs';
 import { useResolvedTheme } from './theme';
-import PortalGuideNative from './PortalGuideNative';
 import PromotionCelebration from './PromotionCelebration';
 import { beltSwatchColor } from '../../components/BeltImage';
 import PerfilSection from './sections/PerfilSection';
@@ -29,7 +28,7 @@ import TrainingSection from './sections/TrainingSection';
 import UpcomingClassesCard from './sections/UpcomingClassesCard';
 import DuelsSection from './sections/DuelsSection';
 import { ProgressSkeleton, CardSkeleton } from './sections/shared';
-import type { Student, StudentDiscipline, BeltPromotion, Payment, TechniqueCurriculum, PaymentOptions } from '../../types';
+import type { Student, StudentDiscipline, BeltPromotion, Payment, TechniqueCurriculum, PaymentOptions, Birthday, CompetitionResultForm } from '../../types';
 
 // localStorage value 'dismissed' = the student ticked "don't show again". Any other value (incl. absent)
 // means the tour auto-runs on every entry.
@@ -54,6 +53,7 @@ export default function Portal() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [paymentOptions, setPaymentOptions] = useState<PaymentOptions | null>(null);
   const [curriculum, setCurriculum] = useState<TechniqueCurriculum[]>([]);
+  const [birthdays, setBirthdays] = useState<Birthday[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [expandedDisc, setExpandedDisc] = useState<number | null>(null);
 
@@ -72,9 +72,6 @@ export default function Portal() {
 
   // Guided tour. Auto-runs once the data is loaded unless the student ticked "don't show again".
   const tourStartedRef = useRef(false);
-  // Native help: a self-contained walkthrough (the web Driver.js tour can't anchor to
-  // elements that live in inactive tabs). Web keeps using the element-anchored tour.
-  const [showGuide, setShowGuide] = useState(false);
 
   const loadProfiles = useCallback(async () => {
     const [list, b] = await Promise.all([portalApi.me(), portalApi.getBanner().catch(() => null)]);
@@ -87,24 +84,27 @@ export default function Portal() {
     setDetailLoading(true);
     setExpandedDisc(null);
     try {
-      const [d, p, pay, tech, opts] = await Promise.all([
+      const [d, p, pay, tech, opts, bdays] = await Promise.all([
         portalApi.disciplines(id),
         portalApi.beltPromotions(id),
         portalApi.payments(id),
         portalApi.techniques(id).catch(() => [] as TechniqueCurriculum[]),
         portalApi.paymentOptions(id).catch(() => null),
+        portalApi.birthdays(id).catch(() => [] as Birthday[]),
       ]);
       setDisciplines(d);
       setPromotions(p);
       setPayments(pay);
       setCurriculum(tech);
       setPaymentOptions(opts);
+      setBirthdays(bdays);
     } catch {
       setDisciplines([]);
       setPromotions([]);
       setPayments([]);
       setCurriculum([]);
       setPaymentOptions(null);
+      setBirthdays([]);
     } finally {
       setDetailLoading(false);
     }
@@ -201,26 +201,42 @@ export default function Portal() {
     });
   }, [selectedId]);
 
+  /** Add (resultId null) or edit a competition result on one of the student's own disciplines. */
+  const handleSaveResult = useCallback(async (
+    studentDisciplineId: number,
+    resultId: number | null,
+    form: CompetitionResultForm,
+  ) => {
+    if (selectedId == null) return;
+    if (resultId == null) await portalApi.addCompetitionResult(selectedId, studentDisciplineId, form);
+    else await portalApi.updateCompetitionResult(selectedId, resultId, form);
+    // Refresh disciplines only, so the open "Historial" stays expanded.
+    const d = await portalApi.disciplines(selectedId);
+    setDisciplines(d);
+  }, [selectedId]);
+
   const student = profiles.find((p) => p.id === selectedId) ?? null;
 
   const runTour = () => {
     if (!student) return;
-    // Native (tabbed) layout: element-anchored steps can't reach other tabs — use the guide.
-    if (tabbed) {
-      setShowGuide(true);
-      return;
-    }
-    startPortalTour({
+    const common = {
       firstName: student.name.split(' ')[0] || student.name,
       // Based on belts (available immediately from /me) so the tour can fire before the detail loads.
       hasDisciplines: (student.disciplineBelts?.length ?? 0) > 0,
       multiAcademy: profiles.length > 1,
       initialDismiss: localStorage.getItem(TOUR_KEY) === 'dismissed',
-      onFinish: (dismissForever) => {
+      onFinish: (dismissForever: boolean) => {
         if (dismissForever) localStorage.setItem(TOUR_KEY, 'dismissed');
         else localStorage.removeItem(TOUR_KEY);
       },
-    });
+    };
+    // Native (tabbed) layout: anchor to the always-mounted bottom tabs and switch tab per step,
+    // so the tour points to the real buttons. Web uses the single-scroll element-anchored tour.
+    if (tabbed) {
+      startPortalTourNative({ ...common, onNavigate: setTab });
+    } else {
+      startPortalTour(common);
+    }
   };
 
   // Auto-run the tour immediately once the profile is available, unless dismissed forever.
@@ -249,6 +265,8 @@ export default function Portal() {
       setExpandedDisc={setExpandedDisc}
       curriculum={curriculum}
       onToggleTechnique={handleToggleTechnique}
+      onSaveResult={handleSaveResult}
+      birthdays={birthdays}
     />
   );
   const pagos = student && (
@@ -298,6 +316,7 @@ export default function Portal() {
         <div className="relative max-w-3xl mx-auto px-4 min-h-[200px] flex flex-col">
           <div className="flex items-center justify-end gap-2 pt-4">
             <button
+              data-tour="portada-btn"
               onClick={() => { void tapLight(); setShowBannerPicker((v) => !v); }}
               title="Personalizar portada"
               aria-label="Personalizar portada"
@@ -306,6 +325,7 @@ export default function Portal() {
               🎨
             </button>
             <button
+              data-tour="ayuda-btn"
               onClick={runTour}
               title="Ayuda"
               aria-label="Ayuda"
@@ -407,19 +427,6 @@ export default function Portal() {
 
       {tabbed && student && (
         <PortalTabs active={tab} onChange={setTab} />
-      )}
-
-      {showGuide && student && (
-        <PortalGuideNative
-          firstName={student.name.split(' ')[0] || student.name}
-          multiAcademy={profiles.length > 1}
-          initialDismiss={localStorage.getItem(TOUR_KEY) === 'dismissed'}
-          onFinish={(dismissForever) => {
-            if (dismissForever) localStorage.setItem(TOUR_KEY, 'dismissed');
-            else localStorage.removeItem(TOUR_KEY);
-            setShowGuide(false);
-          }}
-        />
       )}
 
       {celebrate && (
