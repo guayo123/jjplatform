@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Classmate, Duel, DuelMethod, TrainingModality } from '../../../types';
+import type { Classmate, Duel, DuelMethod, DuelRankingEntry, TrainingModality } from '../../../types';
 import { duelsApi } from '../../../api/duels';
 import { trainingApi } from '../../../api/training';
 import { useToast } from '../../../components/ToastContext';
@@ -31,6 +31,7 @@ export default function DuelsSection({ studentId }: Props) {
   const { toast } = useToast();
   const [duels, setDuels] = useState<Duel[]>([]);
   const [feed, setFeed] = useState<Duel[]>([]);
+  const [ranking, setRanking] = useState<DuelRankingEntry[]>([]);
   const [classmates, setClassmates] = useState<Classmate[]>([]);
   const [loading, setLoading] = useState(true);
   const [challengeOpen, setChallengeOpen] = useState(false);
@@ -73,18 +74,21 @@ export default function DuelsSection({ studentId }: Props) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [mine, fed, mates] = await Promise.all([
+      const [mine, fed, rank, mates] = await Promise.all([
         duelsApi.mine(studentId),
         duelsApi.feed(studentId),
+        duelsApi.ranking(studentId).catch(() => [] as DuelRankingEntry[]),
         trainingApi.classmates(studentId).catch(() => [] as Classmate[]),
       ]);
       setDuels(mine);
       setFeed(fed);
+      setRanking(rank);
       setClassmates(mates);
       notifyChanges(mine);
     } catch {
       setDuels([]);
       setFeed([]);
+      setRanking([]);
     } finally {
       setLoading(false);
     }
@@ -215,6 +219,9 @@ export default function DuelsSection({ studentId }: Props) {
         </Card>
       )}
 
+      {/* Academy ranking (top 10 by record) */}
+      <DuelRankingCard ranking={ranking} meId={studentId} />
+
       {/* Academy feed */}
       <Card title="Resultados de la academia">
         {feed.length === 0 ? (
@@ -259,6 +266,70 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
     <div className="bg-white rounded-xl shadow-sm">
       <div className="p-4 border-b border-gray-100"><h2 className="font-bold text-gray-900">{title}</h2></div>
       <div className="p-4">{children}</div>
+    </div>
+  );
+}
+
+const MEDALS = ['🥇', '🥈', '🥉'];
+
+/** Top-10 academy duel ranking by record (W/L). Collapsed to 3; pins my row if I'm below. */
+function DuelRankingCard({ ranking, meId }: { ranking: DuelRankingEntry[]; meId: number }) {
+  const [expanded, setExpanded] = useState(false);
+  if (ranking.length < 2) return null; // a lone fighter isn't a ranking
+
+  const visibleCount = expanded ? 10 : 3;
+  const top = ranking.slice(0, visibleCount);
+  const myIndex = ranking.findIndex((e) => e.studentId === meId);
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm jjp-accent-bar">
+      <div className="p-5 pl-6 border-b border-gray-100">
+        <h2 className="font-bold text-gray-900">Ranking de duelos 🥋</h2>
+        <p className="text-xs text-gray-400 mt-0.5">Top 10 de tu academia · victorias / derrotas</p>
+      </div>
+      <div className="p-3">
+        {top.map((e, i) => (
+          <RankRow key={e.studentId} e={e} rank={i + 1} isMe={e.studentId === meId} />
+        ))}
+        {/* Pin my position at the bottom when I'm outside the visible rows. */}
+        {myIndex >= visibleCount && (
+          <div className="mt-1 pt-2 border-t border-dashed border-gray-200">
+            <RankRow e={ranking[myIndex]} rank={myIndex + 1} isMe />
+          </div>
+        )}
+        {ranking.length > 3 && (
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="w-full mt-1 py-2 text-xs font-semibold text-primary-600 hover:text-primary-700 transition-colors"
+          >
+            {expanded ? 'Ver menos' : `Ver todo (${Math.min(ranking.length, 10)})`}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RankRow({ e, rank, isMe }: { e: DuelRankingEntry; rank: number; isMe: boolean }) {
+  return (
+    <div className={`flex items-center gap-3 rounded-lg px-2 py-2 ${isMe ? 'bg-primary-50' : ''}`}>
+      <span className="w-7 text-center text-sm font-bold text-gray-500 flex-shrink-0">{MEDALS[rank - 1] ?? rank}</span>
+      {e.photoUrl ? (
+        <img src={e.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+      ) : (
+        <span className="w-8 h-8 rounded-full bg-gray-200 text-gray-500 text-xs font-bold flex items-center justify-center flex-shrink-0">
+          {e.name.charAt(0).toUpperCase()}
+        </span>
+      )}
+      <span className={`flex-1 min-w-0 truncate text-sm ${isMe ? 'font-bold text-primary-700' : 'text-gray-700'}`}>
+        {e.name} {isMe && <span className="text-[10px] font-semibold text-primary-500">(tú)</span>}
+      </span>
+      <span className="flex-shrink-0 text-sm font-bold tabular-nums">
+        <span className="text-green-600">{e.wins}</span>
+        <span className="text-gray-300"> / </span>
+        <span className="text-red-500">{e.losses}</span>
+        {e.draws > 0 && <span className="ml-1 text-xs font-normal text-gray-400">· {e.draws}E</span>}
+      </span>
     </div>
   );
 }

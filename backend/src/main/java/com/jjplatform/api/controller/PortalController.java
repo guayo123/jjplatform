@@ -225,6 +225,12 @@ public class PortalController {
         return ResponseEntity.ok(portalService.getDuelFeed(studentId));
     }
 
+    /** Top-10 academy duel ranking by win/loss record. */
+    @GetMapping("/students/{studentId}/duels/ranking")
+    public ResponseEntity<List<com.jjplatform.api.dto.DuelRankingDto>> duelRanking(@PathVariable Long studentId) {
+        return ResponseEntity.ok(portalService.getDuelRanking(studentId));
+    }
+
     @PostMapping("/students/{studentId}/duels")
     public ResponseEntity<DuelDto> createDuel(@PathVariable Long studentId, @RequestBody CreateDuelRequest req) {
         return ResponseEntity.ok(portalService.createDuel(studentId, req));

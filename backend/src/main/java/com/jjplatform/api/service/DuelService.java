@@ -2,6 +2,7 @@ package com.jjplatform.api.service;
 
 import com.jjplatform.api.dto.CreateDuelRequest;
 import com.jjplatform.api.dto.DuelDto;
+import com.jjplatform.api.dto.DuelRankingDto;
 import com.jjplatform.api.dto.DuelResultRequest;
 import com.jjplatform.api.exception.ResourceNotFoundException;
 import com.jjplatform.api.model.Duel;
@@ -13,7 +14,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Challenges ("retos") between classmates. All actions verify the acting student is a
@@ -128,6 +133,43 @@ public class DuelService {
                 .findByAcademyIdAndStatusInOrderByUpdatedAtDesc(
                         academyId, List.of(Duel.Status.COMPLETED, Duel.Status.REJECTED))
                 .stream().limit(40).map(this::toDto).toList();
+    }
+
+    /**
+     * Top-10 academy duel ranking by record. Tallies wins/losses/draws per participant across all
+     * COMPLETED duels, then ranks by wins (desc), fewer losses, more total bouts and finally name.
+     */
+    @Transactional(readOnly = true)
+    public List<DuelRankingDto> ranking(Long academyId) {
+        List<Duel> completed = duelRepository.findByAcademyIdAndStatusInOrderByUpdatedAtDesc(
+                academyId, List.of(Duel.Status.COMPLETED));
+
+        Map<Long, DuelRankingDto> byStudent = new LinkedHashMap<>();
+        for (Duel d : completed) {
+            Long winner = d.getWinnerStudentId(); // null = draw
+            tally(byStudent, d.getChallenger(), winner);
+            tally(byStudent, d.getOpponent(), winner);
+        }
+
+        List<DuelRankingDto> rows = new ArrayList<>(byStudent.values());
+        rows.sort(Comparator.comparingInt(DuelRankingDto::getWins).reversed()
+                .thenComparingInt(DuelRankingDto::getLosses)
+                .thenComparing(r -> -(r.getWins() + r.getLosses() + r.getDraws()))
+                .thenComparing(DuelRankingDto::getName, String.CASE_INSENSITIVE_ORDER));
+        return rows.stream().limit(10).toList();
+    }
+
+    private void tally(Map<Long, DuelRankingDto> byStudent, Student s, Long winnerId) {
+        DuelRankingDto row = byStudent.computeIfAbsent(s.getId(), id -> {
+            DuelRankingDto r = new DuelRankingDto();
+            r.setStudentId(s.getId());
+            r.setName(s.getName());
+            r.setPhotoUrl(s.getPhotoUrl());
+            return r;
+        });
+        if (winnerId == null) row.setDraws(row.getDraws() + 1);
+        else if (winnerId.equals(s.getId())) row.setWins(row.getWins() + 1);
+        else row.setLosses(row.getLosses() + 1);
     }
 
     // --- helpers ----------------------------------------------------------

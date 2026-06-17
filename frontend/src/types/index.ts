@@ -561,6 +561,15 @@ export interface Duel {
   completedAt: string | null;
 }
 
+export interface DuelRankingEntry {
+  studentId: number;
+  name: string;
+  photoUrl: string | null;
+  wins: number;
+  losses: number;
+  draws: number;
+}
+
 export interface CreateDuelRequest {
   opponentStudentId: number;
   refereeStudentId?: number | null;
