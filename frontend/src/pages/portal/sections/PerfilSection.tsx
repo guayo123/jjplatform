@@ -172,7 +172,7 @@ function SettingsSection({ studentId }: { studentId: number }) {
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-700">Sonido de duelos ⚔️</p>
-            <p className="text-xs text-gray-400">Un cue al enviar un reto a un compañero.</p>
+            <p className="text-xs text-gray-400">Un toque de sonido al enviar un reto a un compañero.</p>
           </div>
           <button
             role="switch"

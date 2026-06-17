@@ -37,7 +37,7 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register", "/api/auth/student-register").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register", "/api/auth/student-register", "/api/auth/forgot-password").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/public/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/public/webhooks/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/files/**").permitAll()

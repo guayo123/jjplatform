@@ -176,6 +176,43 @@ public class AuthService {
     }
 
     /**
+     * Forgot-password: issues a fresh temporary password for the account behind {@code rawEmail}
+     * and emails it, flagging the account to change it on next login (same mechanism as
+     * self-registration). Works for any role.
+     *
+     * <p>To avoid account enumeration, the caller always gets the same response: if no account
+     * matches, this returns silently without sending anything. If the email send fails, the
+     * surrounding transaction rolls back the password change so the user is never left locked out
+     * with a temp password they never received.
+     */
+    @Transactional
+    public void requestPasswordReset(String rawEmail) {
+        String email = rawEmail.trim().toLowerCase();
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            return;
+        }
+
+        String tempPassword = generateTempPassword(12);
+        user.setPassword(passwordEncoder.encode(tempPassword));
+        user.setMustChangePassword(true);
+        userRepository.save(user);
+
+        // Personalize with the student's name + academy when we have a student record for this email.
+        String name = null;
+        String academyName = null;
+        if (user.getRole() == User.Role.STUDENT) {
+            List<Student> students = studentRepository.findByEmailIgnoreCase(email);
+            if (!students.isEmpty()) {
+                Student student = students.get(0);
+                name = student.getName();
+                academyName = student.getAcademy() != null ? student.getAcademy().getName() : null;
+            }
+        }
+        emailService.sendPasswordResetEmail(email, tempPassword, name, academyName);
+    }
+
+    /**
      * Normalizes a Chilean RUT for comparison: drops dots, dash and any other separators, and upper-cases
      * the verifier "K". Returns "" for null/blank so it never matches a real RUT.
      */

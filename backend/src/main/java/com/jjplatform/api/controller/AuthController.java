@@ -1,6 +1,7 @@
 package com.jjplatform.api.controller;
 
 import com.jjplatform.api.dto.ChangePasswordRequest;
+import com.jjplatform.api.dto.ForgotPasswordRequest;
 import com.jjplatform.api.dto.LoginRequest;
 import com.jjplatform.api.dto.LoginResponse;
 import com.jjplatform.api.dto.RegisterRequest;
@@ -39,6 +40,16 @@ public class AuthController {
     public ResponseEntity<Void> registerStudent(@Valid @RequestBody StudentRegisterRequest request) {
         authService.registerStudent(request);
         return ResponseEntity.status(201).build();
+    }
+
+    /**
+     * Forgot-password: emails a fresh temporary password to the account, if the email exists.
+     * Always returns 204 — never reveals whether the email is registered (account enumeration).
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.requestPasswordReset(request.getEmail());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/change-password")

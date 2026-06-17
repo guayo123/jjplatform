@@ -68,6 +68,15 @@ public class EmailService {
         send(toEmail, subject, html, tempPassword);
     }
 
+    /**
+     * Sends a password-reset email with a freshly generated temporary password.
+     */
+    public void sendPasswordResetEmail(String toEmail, String tempPassword, String name, String academyName) {
+        String subject = "Restablecimos tu contraseña" + (academyName != null ? " · " + academyName : "");
+        String html = buildPasswordResetBody(toEmail, tempPassword, name);
+        send(toEmail, subject, html, tempPassword);
+    }
+
     private void send(String toEmail, String subject, String htmlContent, String tempPassword) {
         if (!enabled) {
             log.warn("[EMAIL DISABLED] Brevo API key not configured. Temp password for {}: {}",
@@ -113,6 +122,24 @@ public class EmailService {
                   <p style="font-size:12px;color:#6b7280">Si no esperabas este correo, puedes ignorarlo.</p>
                 </div>
                 """.formatted(name, academy, email, tempPassword, studentLoginUrl);
+    }
+
+    private String buildPasswordResetBody(String email, String tempPassword, String name) {
+        String greeting = name != null ? "¡Hola " + name + "!" : "¡Hola!";
+        return """
+                <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#1f2937">
+                  <h2 style="color:#111827">%s</h2>
+                  <p>Recibimos una solicitud para restablecer tu contraseña. Generamos una <strong>contraseña temporal</strong> para que puedas volver a ingresar:</p>
+                  <table style="background:#f3f4f6;border-radius:8px;padding:16px;margin:16px 0">
+                    <tr><td><strong>Email:</strong></td><td>%s</td></tr>
+                    <tr><td><strong>Contraseña temporal:</strong></td><td><code>%s</code></td></tr>
+                  </table>
+                  <p>Por seguridad, deberás cambiarla por una nueva al iniciar sesión.</p>
+                  <p><a href="%s" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Ingresar</a></p>
+                  <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
+                  <p style="font-size:12px;color:#6b7280">Si no solicitaste este cambio, ingresa con esta contraseña temporal y define una nueva, o contacta a tu academia.</p>
+                </div>
+                """.formatted(greeting, email, tempPassword, studentLoginUrl);
     }
 
     private String buildBody(String email, String tempPassword, String role, String academyName) {

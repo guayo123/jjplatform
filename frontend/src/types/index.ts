@@ -18,6 +18,10 @@ export interface StudentRegisterRequest {
   email: string;
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
 export interface LoginResponse {
   token: string;
   email: string;

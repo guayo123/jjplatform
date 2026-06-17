@@ -1,15 +1,18 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
 import StudentRoute from './components/StudentRoute';
 import { useAndroidBackButton } from './native/useAndroidBackButton';
+import { usePlatform } from './native/usePlatform';
+import { useAuthStore } from './stores/authStore';
 import Home from './pages/public/Home';
 import AcademyProfile from './pages/public/AcademyProfile';
 import Login from './pages/admin/Login';
 import StudentLogin from './pages/portal/StudentLogin';
 import StudentRegister from './pages/portal/StudentRegister';
+import StudentForgotPassword from './pages/portal/StudentForgotPassword';
 
 const Dashboard      = lazy(() => import('./pages/admin/Dashboard'));
 const Students       = lazy(() => import('./pages/admin/Students'));
@@ -32,16 +35,32 @@ const SuperAcademies = lazy(() => import('./pages/super/Academies'));
 const Portal          = lazy(() => import('./pages/portal/Portal'));
 const PortalChangePassword = lazy(() => import('./pages/admin/ChangePassword'));
 
+/**
+ * Root entry. On the website "/" is the public academy page. Inside the native app
+ * (APK/IPA) there is no academy marketing site — the app exists to be the student's
+ * portal — so we open straight on the student login (or the portal if a session is
+ * already restored), never on the academy web page.
+ */
+function RootEntry() {
+  const { isNative } = usePlatform();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  if (isNative) {
+    return <Navigate to={isAuthenticated ? '/portal' : '/portal/login'} replace />;
+  }
+  return <Home />;
+}
+
 export default function App() {
   useAndroidBackButton();
   return (
     <Routes>
       {/* Public routes */}
-      <Route path="/" element={<Home />} />
+      <Route path="/" element={<RootEntry />} />
       <Route path="/academies/:id" element={<AcademyProfile />} />
       <Route path="/login" element={<Login />} />
       <Route path="/portal/login" element={<StudentLogin />} />
       <Route path="/portal/registro" element={<StudentRegister />} />
+      <Route path="/portal/recuperar" element={<StudentForgotPassword />} />
 
       {/* Student portal — STUDENT role only */}
       <Route element={<StudentRoute />}>
