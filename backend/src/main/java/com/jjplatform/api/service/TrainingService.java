@@ -52,7 +52,11 @@ public class TrainingService {
     public TrainingSessionDto create(Student student, TrainingSessionDto dto) {
         TrainingSession s = new TrainingSession();
         s.setStudent(student);
-        s.setDate(dto.getDate() != null ? dto.getDate() : LocalDate.now());
+        s.setDate(resolveSessionDate(dto.getDate()));
+        // Late entry → doesn't extend the streak. Trust the client's flag, but also force it for
+        // any date clearly older than yesterday (the minusDays(1) absorbs client/server TZ skew).
+        s.setBackdated(Boolean.TRUE.equals(dto.getBackdated())
+                || s.getDate().isBefore(LocalDate.now().minusDays(1)));
         s.setModality(parseModality(dto.getModality()));
         s.setDurationMin(clampPositive(dto.getDurationMin()));
         s.setRoundsCount(clampPositive(dto.getRoundsCount()));
@@ -116,12 +120,13 @@ public class TrainingService {
         TrainingSummaryDto out = new TrainingSummaryDto();
         out.setWeeklyGoal(weeklyGoal);
 
-        // Distinct calendar days trained (for the day-streak) and sessions in the current ISO week.
-        Set<LocalDate> trainedDays = new HashSet<>();
+        // Days that count toward the day-streak + sessions in the current ISO week / month.
+        // Backdated (late) sessions still count for volume/history but NEVER extend the streak.
+        Set<LocalDate> streakDays = new HashSet<>();
         int thisWeekCount = 0, monthSessions = 0, monthMinutes = 0, monthRounds = 0;
         String currentWeek = weekKey(today);
         for (TrainingSession s : all) {
-            trainedDays.add(s.getDate());
+            if (!s.isBackdated()) streakDays.add(s.getDate());
             if (weekKey(s.getDate()).equals(currentWeek)) thisWeekCount++;
             if (s.getDate().getYear() == today.getYear() && s.getDate().getMonthValue() == today.getMonthValue()) {
                 monthSessions++;
@@ -136,7 +141,6 @@ public class TrainingService {
         out.setMonthRounds(monthRounds);
 
         // Repaired days count as trained for streak math only — never for session/volume stats.
-        Set<LocalDate> streakDays = new HashSet<>(trainedDays);
         for (StreakRepair r : repairs) streakDays.add(r.getRepairedDate());
 
         out.setCurrentStreak(currentDayStreak(streakDays, today));
@@ -163,7 +167,7 @@ public class TrainingService {
 
         Set<LocalDate> streakDays = new HashSet<>();
         for (TrainingSession s : sessionRepository.findByStudentIdOrderByDateDescCreatedAtDesc(student.getId())) {
-            streakDays.add(s.getDate());
+            if (!s.isBackdated()) streakDays.add(s.getDate()); // late entries never count for streak
         }
         for (StreakRepair r : repairs) streakDays.add(r.getRepairedDate());
 
@@ -327,6 +331,7 @@ public class TrainingService {
             dto.setDisciplineName(s.getDiscipline().getName());
         }
         dto.setDate(s.getDate());
+        dto.setBackdated(s.isBackdated());
         dto.setModality(s.getModality() != null ? s.getModality().name() : null);
         dto.setDurationMin(s.getDurationMin());
         dto.setRoundsCount(s.getRoundsCount());
@@ -390,5 +395,22 @@ public class TrainingService {
         String t = notes.trim();
         if (t.isEmpty()) return null;
         return t.length() > 500 ? t.substring(0, 500) : t;
+    }
+
+    /**
+     * Backdating window: a forgotten session may be logged for today or up to 2 days back only.
+     * The UI enforces exactly that; this is the tamper guard, with a ±1-day buffer for client/server
+     * timezone skew (the client picks a local calendar date).
+     */
+    private LocalDate resolveSessionDate(LocalDate date) {
+        LocalDate today = LocalDate.now();
+        if (date == null) return today;
+        if (date.isAfter(today.plusDays(1))) {
+            throw new IllegalArgumentException("No puedes registrar un entrenamiento en una fecha futura.");
+        }
+        if (date.isBefore(today.minusDays(3))) {
+            throw new IllegalArgumentException("Solo puedes registrar entrenamientos de hoy o hasta 2 días atrás.");
+        }
+        return date;
     }
 }

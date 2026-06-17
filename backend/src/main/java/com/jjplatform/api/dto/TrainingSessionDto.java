@@ -14,6 +14,8 @@ public class TrainingSessionDto {
     private Long disciplineId;
     private String disciplineName;
     private LocalDate date;
+    /** Client flag: the session is being logged late for a past day (won't extend the streak). */
+    private Boolean backdated;
     /** "GI" or "NOGI" (null for non-BJJ / unspecified). */
     private String modality;
     private Integer durationMin;

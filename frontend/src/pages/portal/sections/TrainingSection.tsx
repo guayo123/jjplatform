@@ -114,9 +114,11 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
   const handleSave = async (data: TrainingSessionForm) => {
     const prevStreak = summary?.currentStreak ?? 0;
     const prevGoalMet = summary?.weeklyGoalMet ?? false;
+    // Play the cue synchronously, still inside the tap's user-gesture window — after the
+    // `await` below the browser drops user activation and autoplay-blocks the audio.
+    playOss();
     await trainingApi.create(studentId, data);
     void notifySuccess();
-    playOss();
     // Fetch fresh stats directly (load()'s state update isn't visible in this closure)
     // so we can tell whether this session hit a milestone.
     const [sum, list] = await Promise.all([trainingApi.summary(studentId), trainingApi.list(studentId)]);

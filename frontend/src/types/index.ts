@@ -589,6 +589,7 @@ export interface TrainingSession {
   disciplineId: number | null;
   disciplineName: string | null;
   date: string; // YYYY-MM-DD
+  backdated: boolean; // logged late for a past day; excluded from the streak
   modality: TrainingModality | null;
   durationMin: number | null;
   roundsCount: number | null;
@@ -605,6 +606,8 @@ export interface TrainingSession {
 export interface TrainingSessionForm {
   disciplineId?: number | null;
   date?: string;
+  /** True for a late entry (Ayer/Anteayer) — recorded but excluded from the streak. */
+  backdated?: boolean;
   modality?: TrainingModality | null;
   durationMin?: number | null;
   roundsCount?: number | null;

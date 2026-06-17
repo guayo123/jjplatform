@@ -4,6 +4,7 @@ import ImageUpload from '../../../components/ImageUpload';
 import { useToast } from '../../../components/ToastContext';
 import { trainingApi } from '../../../api/training';
 import { usePlatform } from '../../../native/usePlatform';
+import { tapLight } from '../../../native/haptics';
 import {
   scheduleStreakReminders,
   getReminderPrefs,
@@ -14,7 +15,7 @@ import type { Student } from '../../../types';
 import { computeAchievements, type Achievement } from '../achievements';
 import { formatDate, Field } from './shared';
 import { useThemeStore, THEME_OPTIONS } from '../theme';
-import { isSoundEnabled, setSoundEnabled, playOss } from '../../../native/sound';
+import { isSoundEnabled, setSoundEnabled, playOss, isDuelSoundEnabled, setDuelSoundEnabled, playDuelo } from '../../../native/sound';
 
 interface Props {
   student: Student;
@@ -39,6 +40,7 @@ function SettingsSection({ studentId }: { studentId: number }) {
   const themePref = useThemeStore((s) => s.pref);
   const setThemePref = useThemeStore((s) => s.setPref);
   const [soundOn, setSoundOn] = useState(isSoundEnabled());
+  const [duelSoundOn, setDuelSoundOn] = useState(isDuelSoundEnabled());
   const [goal, setGoal] = useState<number | null>(null);
   const [savingGoal, setSavingGoal] = useState(false);
   const [prefs, setPrefs] = useState<ReminderPrefs>(() => getReminderPrefs());
@@ -165,6 +167,24 @@ function SettingsSection({ studentId }: { studentId: number }) {
         </div>
       </div>
 
+      {/* Duel sound */}
+      <div className="mt-5 pt-5 border-t border-gray-100">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-700">Sonido de duelos ⚔️</p>
+            <p className="text-xs text-gray-400">Un cue al enviar un reto a un compañero.</p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={duelSoundOn}
+            onClick={() => { const next = !duelSoundOn; setDuelSoundOn(next); setDuelSoundEnabled(next); if (next) playDuelo(); }}
+            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${duelSoundOn ? 'bg-primary-600' : 'bg-gray-300'}`}
+          >
+            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${duelSoundOn ? 'left-[22px]' : 'left-0.5'}`} />
+          </button>
+        </div>
+      </div>
+
       {/* Daily motivation reminder — native only (local notifications no-op on web) */}
       {isNative && (
         <div className="mt-5 pt-5 border-t border-gray-100">
@@ -207,6 +227,8 @@ function SettingsSection({ studentId }: { studentId: number }) {
 /** "Logros" — badge vitrina computed from the student's own journal. */
 function AchievementsCard({ studentId }: { studentId: number }) {
   const [achievements, setAchievements] = useState<Achievement[] | null>(null);
+  // Tapped badge → detail sheet (mobile has no hover, so a native `title` tooltip never shows).
+  const [selected, setSelected] = useState<Achievement | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -223,16 +245,19 @@ function AchievementsCard({ studentId }: { studentId: number }) {
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-5">
-      <div className="flex items-baseline justify-between gap-2 mb-4">
+      <div className="flex items-baseline justify-between gap-2">
         <h2 className="font-bold text-gray-900">Logros</h2>
         <span className="text-xs text-gray-400">{unlockedCount} de {achievements.length}</span>
       </div>
+      <p className="text-xs text-gray-400 mt-0.5 mb-4">Toca un logro para ver cómo conseguirlo</p>
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
         {achievements.map((a) => (
-          <div
+          <button
             key={a.id}
+            type="button"
             title={a.description}
-            className={`rounded-xl border p-3 text-center ${
+            onClick={() => { void tapLight(); setSelected(a); }}
+            className={`rounded-xl border p-3 text-center transition-transform active:scale-95 ${
               a.unlocked ? 'border-amber-200 bg-amber-50' : 'border-gray-100 bg-gray-50'
             }`}
           >
@@ -253,8 +278,41 @@ function AchievementsCard({ studentId }: { studentId: number }) {
                 <p className="mt-0.5 text-[10px] text-gray-400">{a.current} / {a.target}</p>
               </>
             )}
-          </div>
+          </button>
         ))}
+      </div>
+
+      {selected && <AchievementDetail a={selected} onClose={() => setSelected(null)} />}
+    </div>
+  );
+}
+
+/** Detail sheet for a tapped achievement: what it is, how to get it, and current progress. */
+function AchievementDetail({ a, onClose }: { a: Achievement; onClose: () => void }) {
+  const pct = Math.round((a.current / a.target) * 100);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-5 pt-safe pb-safe">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl text-center jjp-pop">
+        <button onClick={onClose} className="absolute right-3 top-3 text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
+        <div className={`text-5xl ${a.unlocked ? '' : 'grayscale opacity-40'}`}>{a.emoji}</div>
+        <h3 className="mt-2 text-lg font-extrabold text-gray-900">{a.title}</h3>
+        <p className="mt-1 text-sm text-gray-600">{a.description}</p>
+
+        {a.unlocked ? (
+          <p className="mt-4 inline-block rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-600">
+            ✓ Desbloqueado
+          </p>
+        ) : (
+          <div className="mt-4">
+            <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+              <div className="h-full rounded-full bg-primary-600" style={{ width: `${pct}%` }} />
+            </div>
+            <p className="mt-1.5 text-xs text-gray-500">
+              <span className="font-bold text-gray-800">{a.current}</span> / {a.target} {a.unit} · {pct}%
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

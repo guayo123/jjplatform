@@ -5,6 +5,7 @@ import { trainingApi } from '../../../api/training';
 import { useToast } from '../../../components/ToastContext';
 import { notifyNow } from '../../../native/notifications';
 import { tapLight, notifySuccess } from '../../../native/haptics';
+import { playDuelo } from '../../../native/sound';
 import { formatDate, CardSkeleton } from './shared';
 
 interface Props {
@@ -98,6 +99,7 @@ export default function DuelsSection({ studentId }: Props) {
 
   const respond = async (d: Duel, accept: boolean) => {
     void tapLight();
+    if (accept) playDuelo(); // duel cue on accepting, within the tap gesture
     try {
       await duelsApi.respond(studentId, d.id, accept);
       if (accept) void notifySuccess();
@@ -238,6 +240,7 @@ export default function DuelsSection({ studentId }: Props) {
           classmates={classmates}
           onClose={() => setChallengeOpen(false)}
           onCreate={async (req) => {
+            playDuelo(); // fire within the tap gesture, before the await (autoplay policy)
             await duelsApi.create(studentId, req);
             void notifySuccess();
             await load();

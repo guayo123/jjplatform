@@ -3,9 +3,8 @@
  * a belt/degree promotion). Gated by a user toggle (Ajustes → Sonidos) and
  * stored in localStorage. Drops the cue silently if audio can't play.
  *
- * The real cue lives at /sounds/oss.mp3 (bundled in public/sounds). If it's
- * missing or blocked, a short synthesized "thunk" plays as a fallback so there's
- * still feedback.
+ * The cue lives at /sounds/oss3.mp3 (bundled in public/sounds). If it's missing or
+ * blocked, a short synthesized "thunk" plays as a fallback so there's still feedback.
  */
 const KEY = 'jjp_sound';
 
@@ -54,7 +53,7 @@ export function playOss(): void {
   if (!isSoundEnabled()) return;
   try {
     if (!audio) {
-      audio = new Audio('/sounds/oss.mp3');
+      audio = new Audio('/sounds/oss3.mp3');
       audio.preload = 'auto';
     }
     audio.currentTime = 0;
@@ -62,5 +61,42 @@ export function playOss(): void {
     if (p && typeof p.then === 'function') p.catch(() => synthThunk());
   } catch {
     synthThunk();
+  }
+}
+
+// --- Duel cue (separate file + its own on/off toggle) ---------------------------
+const DUEL_KEY = 'jjp_sound_duel';
+
+export function isDuelSoundEnabled(): boolean {
+  try {
+    return localStorage.getItem(DUEL_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function setDuelSoundEnabled(on: boolean): void {
+  try {
+    localStorage.setItem(DUEL_KEY, on ? 'on' : 'off');
+  } catch {
+    /* ignore */
+  }
+}
+
+let duelAudio: HTMLAudioElement | null = null;
+
+/** Play the duel cue when a challenge is sent. Must run from a user gesture; own toggle. */
+export function playDuelo(): void {
+  if (!isDuelSoundEnabled()) return;
+  try {
+    if (!duelAudio) {
+      duelAudio = new Audio('/sounds/duelo.mp3');
+      duelAudio.preload = 'auto';
+    }
+    duelAudio.currentTime = 0;
+    const p = duelAudio.play();
+    if (p && typeof p.then === 'function') p.catch(() => {});
+  } catch {
+    /* ignore */
   }
 }

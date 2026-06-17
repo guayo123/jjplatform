@@ -26,6 +26,19 @@ const DEFAULT_SUBMISSIONS = [
 
 const DURATIONS = [30, 45, 60, 90];
 
+// Backdating: a forgotten session can be logged for today or the two previous days only
+// (record-keeping). Uses the device's LOCAL date so it matches the streak's day boundaries.
+function ymdOffset(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+const DATE_OPTIONS = [
+  { label: 'Hoy', days: 0 },
+  { label: 'Ayer', days: 1 },
+  { label: 'Anteayer', days: 2 },
+];
+
 interface Props {
   disciplines: StudentDiscipline[];
   recentSessions: TrainingSession[];
@@ -40,6 +53,8 @@ interface Props {
  */
 export default function TrainingForm({ disciplines, recentSessions, classmates, onClose, onSave }: Props) {
   const bjjDisc = disciplines.find((d) => isBjj(d.disciplineName));
+  const dateOptions = useMemo(() => DATE_OPTIONS.map((o) => ({ ...o, value: ymdOffset(o.days) })), []);
+  const [date, setDate] = useState<string>(dateOptions[0].value);
   const [disciplineId, setDisciplineId] = useState<number | null>(
     bjjDisc?.disciplineId ?? disciplines[0]?.disciplineId ?? null,
   );
@@ -123,6 +138,9 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
     try {
       await onSave({
         disciplineId,
+        date,
+        // Anything other than "Hoy" is a late entry → recorded, but won't extend the streak.
+        backdated: date !== dateOptions[0].value,
         modality: showModality ? modality : null,
         durationMin,
         roundsCount: roundsCount > 0 ? roundsCount : null,
@@ -150,6 +168,22 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
         </div>
 
         <div className="p-5 space-y-5">
+          {/* Date — defaults to today; allows logging a forgotten session up to 2 days back */}
+          <Group label="Fecha">
+            <div className="flex flex-wrap gap-2">
+              {dateOptions.map((o) => (
+                <Chip key={o.days} active={date === o.value} onClick={() => { void tapLight(); setDate(o.value); }}>
+                  {o.label}
+                </Chip>
+              ))}
+            </div>
+            {date !== dateOptions[0].value && (
+              <p className="text-xs text-amber-600 mt-2">
+                Registro atrasado: queda en tu historial pero <b>no suma a la racha</b>.
+              </p>
+            )}
+          </Group>
+
           {/* Discipline (only if more than one) */}
           {disciplines.length > 1 && (
             <Group label="Disciplina">
@@ -302,12 +336,21 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
           </Group>
         </div>
 
-        {/* Save bar */}
-        <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur px-5 py-3 border-t border-gray-200">
+        {/* Save bar — Cancelar lives here too so closing is always within reach
+            (the header × can sit far up the top of a long form). */}
+        <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur px-5 py-3 border-t border-gray-200 flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="px-5 py-3 rounded-xl border border-gray-300 text-gray-600 font-semibold transition-colors hover:bg-gray-100 disabled:opacity-50"
+          >
+            Cancelar
+          </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50"
+            className="flex-1 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50"
           >
             {saving ? 'Guardando…' : 'Guardar entrenamiento'}
           </button>
