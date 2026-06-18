@@ -18,8 +18,24 @@ const METHOD_LABEL: Record<DuelMethod, string> = {
   POINTS: 'Puntos',
   DECISION: 'Decisión',
   DRAW: 'Empate',
+  DISQUALIFICATION: 'Descalificación',
 };
 const SUBMISSION_CHIPS = ['Mataleón', 'Llave de brazo', 'Triángulo', 'Kimura', 'Guillotina', 'Americana'];
+
+/** "📅 sáb 21 jun, 18:30 · 📍 Tatami 2" — omits whichever piece wasn't set. */
+function formatSchedule(scheduledAt: string | null, location: string | null): string | null {
+  const parts: string[] = [];
+  if (scheduledAt) {
+    const d = new Date(scheduledAt);
+    if (!Number.isNaN(d.getTime())) {
+      parts.push('📅 ' + d.toLocaleString('es-CL', {
+        weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+      }));
+    }
+  }
+  if (location) parts.push('📍 ' + location);
+  return parts.length ? parts.join(' · ') : null;
+}
 
 function other(d: Duel, me: number) {
   return d.challengerId === me
@@ -72,6 +88,41 @@ export default function DuelsSection({ studentId }: Props) {
     localStorage.setItem(key, JSON.stringify(curMap));
   }, [studentId, toast]);
 
+  // Broadcast academy-wide: announce duel milestones (confirmed bout + result) to the whole academy
+  // as a local notification on each device's next refresh — we have no server push. A status map
+  // (id → last-seen status) fires once per transition: once when ACCEPTED, once when COMPLETED.
+  const notifyFeedResults = useCallback((current: Duel[]) => {
+    const key = `jjp_duel_feed_seen_${studentId}`;
+    const relevant = current.filter((d) => d.status === 'ACCEPTED' || d.status === 'COMPLETED');
+    const curMap: Record<string, string> = {};
+    relevant.forEach((d) => { curMap[d.id] = d.status; });
+    const storedRaw = localStorage.getItem(key);
+    if (storedRaw == null) {
+      localStorage.setItem(key, JSON.stringify(curMap)); // baseline, don't replay history
+      return;
+    }
+    const stored: Record<string, string> = JSON.parse(storedRaw);
+    for (const d of relevant) {
+      if (stored[d.id] === d.status) continue; // already announced this state
+      if (d.status === 'ACCEPTED') {
+        // Duel confirmed — tell the academy. Participants & referee get their own (richer) alerts.
+        if (d.challengerId === studentId || d.opponentId === studentId || d.refereeId === studentId) continue;
+        const sched = formatSchedule(d.scheduledAt, d.location);
+        void notifyNow('⚔️ Duelo confirmado', `${d.challengerName} vs ${d.opponentName}${sched ? ` — ${sched}` : ''}`);
+      } else {
+        // COMPLETED — skip the reporter, who already knows.
+        if (d.reportedBy === studentId) continue;
+        if (d.winnerStudentId == null) {
+          void notifyNow('🤝 Duelo en la academia', `${d.challengerName} y ${d.opponentName} terminaron en empate.`);
+        } else {
+          const loser = d.winnerStudentId === d.challengerId ? d.opponentName : d.challengerName;
+          void notifyNow('🏆 ¡Victoria en la academia!', `${d.winnerName} venció a ${loser}.`);
+        }
+      }
+    }
+    localStorage.setItem(key, JSON.stringify(curMap));
+  }, [studentId]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -86,6 +137,7 @@ export default function DuelsSection({ studentId }: Props) {
       setRanking(rank);
       setClassmates(mates);
       notifyChanges(mine);
+      notifyFeedResults(fed);
     } catch {
       setDuels([]);
       setFeed([]);
@@ -93,7 +145,7 @@ export default function DuelsSection({ studentId }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [studentId, notifyChanges]);
+  }, [studentId, notifyChanges, notifyFeedResults]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -126,6 +178,9 @@ export default function DuelsSection({ studentId }: Props) {
   const accepted = duels.filter((d) => d.status === 'ACCEPTED' && isParticipant(d));
   // Duels I must judge as the impartial referee (I'm not a participant).
   const toReferee = duels.filter((d) => d.status === 'ACCEPTED' && d.refereeId === studentId && !isParticipant(d));
+  // The feed also carries ACCEPTED duels (for the academy-wide "confirmed" notification); the
+  // visible results card shows only resolved ones.
+  const results = feed.filter((d) => d.status !== 'ACCEPTED');
 
   return (
     <div className="space-y-6">
@@ -146,6 +201,7 @@ export default function DuelsSection({ studentId }: Props) {
                   <span className="font-semibold">{d.challengerName}</span> te retó
                   {d.modality && <span className="text-gray-500"> · {MODALITY_LABEL[d.modality]}</span>}
                 </p>
+                <ScheduleLine d={d} />
                 {d.message && <p className="text-xs text-gray-500 italic mt-0.5">"{d.message}"</p>}
                 <div className="flex gap-2 mt-2">
                   <button onClick={() => respond(d, true)} className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 rounded-lg">Aceptar</button>
@@ -175,6 +231,7 @@ export default function DuelsSection({ studentId }: Props) {
                         ? `Esperando el veredicto de ${d.refereeName} ⚖️`
                         : 'Aceptado · registra el resultado al terminar'}
                     </p>
+                    <ScheduleLine d={d} />
                   </div>
                   {/* With a referee, participants can't self-report — only the judge decides. */}
                   {!refereed && (
@@ -199,6 +256,7 @@ export default function DuelsSection({ studentId }: Props) {
                     {d.modality && <span className="text-gray-500"> · {MODALITY_LABEL[d.modality]}</span>}
                   </p>
                   <p className="text-xs text-gray-400">Tú das el veredicto al terminar</p>
+                  <ScheduleLine d={d} />
                 </div>
                 <button onClick={() => setResultFor(d)} className="bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium px-3 py-2 rounded-lg flex-shrink-0">Veredicto</button>
               </div>
@@ -213,7 +271,10 @@ export default function DuelsSection({ studentId }: Props) {
           <div className="space-y-2">
             {outgoing.map((d) => (
               <div key={d.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50">
-                <p className="flex-1 text-sm text-gray-700">Retaste a <span className="font-semibold">{d.opponentName}</span> — pendiente</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-700">Retaste a <span className="font-semibold">{d.opponentName}</span> — pendiente</p>
+                  <ScheduleLine d={d} />
+                </div>
                 <button onClick={() => cancel(d)} className="text-xs text-gray-400 hover:text-red-500 flex-shrink-0">Cancelar</button>
               </div>
             ))}
@@ -226,11 +287,11 @@ export default function DuelsSection({ studentId }: Props) {
 
       {/* Academy feed */}
       <Card title="Resultados de la academia">
-        {feed.length === 0 ? (
+        {results.length === 0 ? (
           <p className="text-center text-gray-400 text-sm py-6">Aún no hay duelos resueltos. ¡Sé el primero en retar! ⚔️</p>
         ) : (
           <div className="space-y-2">
-            {feed.map((d) => <FeedRow key={d.id} d={d} />)}
+            {results.map((d) => <FeedRow key={d.id} d={d} />)}
           </div>
         )}
       </Card>
@@ -271,6 +332,12 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
       <div className="p-4">{children}</div>
     </div>
   );
+}
+
+/** Renders the agreed date/place under a duel card, or nothing if neither was set. */
+function ScheduleLine({ d }: { d: Duel }) {
+  const s = formatSchedule(d.scheduledAt, d.location);
+  return s ? <p className="text-xs text-gray-500 mt-0.5">{s}</p> : null;
 }
 
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -382,7 +449,7 @@ function ChallengeModal({
 }: {
   classmates: Classmate[];
   onClose: () => void;
-  onCreate: (req: { opponentStudentId: number; refereeStudentId?: number | null; modality?: TrainingModality | null; message?: string | null }) => Promise<void>;
+  onCreate: (req: { opponentStudentId: number; refereeStudentId?: number | null; modality?: TrainingModality | null; message?: string | null; scheduledAt?: string | null; location?: string | null }) => Promise<void>;
 }) {
   const [search, setSearch] = useState('');
   const [opponent, setOpponent] = useState<Classmate | null>(null);
@@ -390,6 +457,8 @@ function ChallengeModal({
   const [referee, setReferee] = useState<Classmate | null>(null);
   const [modality, setModality] = useState<TrainingModality | null>(null);
   const [message, setMessage] = useState('');
+  const [scheduledAt, setScheduledAt] = useState('');
+  const [location, setLocation] = useState('');
   const [saving, setSaving] = useState(false);
 
   const q = search.trim().toLowerCase();
@@ -410,6 +479,8 @@ function ChallengeModal({
         refereeStudentId: referee?.id ?? null,
         modality,
         message: message.trim() || null,
+        scheduledAt: scheduledAt || null,
+        location: location.trim() || null,
       });
       onClose();
     } finally {
@@ -461,6 +532,22 @@ function ChallengeModal({
               </button>
             ))}
           </div>
+        </div>
+
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Cuándo y dónde (opcional)</p>
+          <input
+            type="datetime-local"
+            value={scheduledAt}
+            onChange={(e) => setScheduledAt(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+          />
+          <input
+            value={location}
+            onChange={(e) => setLocation(e.target.value.slice(0, 120))}
+            placeholder="Lugar — ej. Tatami 2, academia central"
+            className="w-full mt-2 px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+          />
         </div>
 
         <div>
@@ -570,7 +657,7 @@ function ResultModal({
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Método</p>
               <div className="flex flex-wrap gap-2">
-                {(['SUBMISSION', 'POINTS', 'DECISION'] as const).map((m) => (
+                {(['SUBMISSION', 'POINTS', 'DECISION', 'DISQUALIFICATION'] as const).map((m) => (
                   <button
                     key={m}
                     onClick={() => setMethod(m)}

@@ -21,8 +21,8 @@ public class Duel {
 
     public enum Status { PENDING, ACCEPTED, REJECTED, CANCELLED, COMPLETED }
 
-    /** How the duel finished. */
-    public enum Method { SUBMISSION, POINTS, DECISION, DRAW }
+    /** How the duel finished. DISQUALIFICATION = the other participant was disqualified. */
+    public enum Method { SUBMISSION, POINTS, DECISION, DRAW, DISQUALIFICATION }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -61,13 +61,20 @@ public class Duel {
     @Column(columnDefinition = "TEXT")
     private String message;
 
+    /** Optional agreed date/time for the bout (challenger's local time). */
+    private LocalDateTime scheduledAt;
+
+    /** Optional agreed place for the bout (e.g. "Tatami 2", "Academia central"). */
+    @Column(length = 120)
+    private String location;
+
     // --- Result (set when COMPLETED) -------------------------------------
 
     /** Winner's student id; null means a draw. Always one of challenger/opponent otherwise. */
     private Long winnerStudentId;
 
     @Enumerated(EnumType.STRING)
-    @Column(length = 12)
+    @Column(length = 20)
     private Method method;
 
     /** Submission name when method = SUBMISSION. */

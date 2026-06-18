@@ -52,11 +52,12 @@ public class TrainingService {
     public TrainingSessionDto create(Student student, TrainingSessionDto dto) {
         TrainingSession s = new TrainingSession();
         s.setStudent(student);
-        s.setDate(resolveSessionDate(dto.getDate()));
-        // Late entry → doesn't extend the streak. Trust the client's flag, but also force it for
-        // any date clearly older than yesterday (the minusDays(1) absorbs client/server TZ skew).
-        s.setBackdated(Boolean.TRUE.equals(dto.getBackdated())
-                || s.getDate().isBefore(LocalDate.now().minusDays(1)));
+        // The device sends its own local calendar date and whether it's a late entry; we trust both.
+        // Railway runs in another timezone (Europe/UTC), so any server-clock comparison here would
+        // shift Chile's evening sessions into the next day. Fall back to the server date only if none
+        // was sent.
+        s.setDate(dto.getDate() != null ? dto.getDate() : LocalDate.now());
+        s.setBackdated(Boolean.TRUE.equals(dto.getBackdated()));
         s.setModality(parseModality(dto.getModality()));
         s.setDurationMin(clampPositive(dto.getDurationMin()));
         s.setRoundsCount(clampPositive(dto.getRoundsCount()));
@@ -397,20 +398,4 @@ public class TrainingService {
         return t.length() > 500 ? t.substring(0, 500) : t;
     }
 
-    /**
-     * Backdating window: a forgotten session may be logged for today or up to 2 days back only.
-     * The UI enforces exactly that; this is the tamper guard, with a ±1-day buffer for client/server
-     * timezone skew (the client picks a local calendar date).
-     */
-    private LocalDate resolveSessionDate(LocalDate date) {
-        LocalDate today = LocalDate.now();
-        if (date == null) return today;
-        if (date.isAfter(today.plusDays(1))) {
-            throw new IllegalArgumentException("No puedes registrar un entrenamiento en una fecha futura.");
-        }
-        if (date.isBefore(today.minusDays(3))) {
-            throw new IllegalArgumentException("Solo puedes registrar entrenamientos de hoy o hasta 2 días atrás.");
-        }
-        return date;
-    }
 }

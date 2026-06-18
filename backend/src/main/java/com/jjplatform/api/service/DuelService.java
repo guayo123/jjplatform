@@ -56,6 +56,8 @@ public class DuelService {
                 .status(Duel.Status.PENDING)
                 .modality(parseModality(req.getModality()))
                 .message(trim(req.getMessage()))
+                .scheduledAt(req.getScheduledAt())
+                .location(trim(req.getLocation()))
                 .build();
         return toDto(duelRepository.save(duel));
     }
@@ -127,11 +129,16 @@ public class DuelService {
         return duelRepository.findInvolving(studentId).stream().map(this::toDto).toList();
     }
 
+    /**
+     * Academy activity: completed + rejected duels (the visible "results" feed) plus accepted ones,
+     * which clients use to broadcast a "duel confirmed" notification to the whole academy. The UI
+     * filters accepted out of the results card; only the notifier reads them.
+     */
     @Transactional(readOnly = true)
     public List<DuelDto> feed(Long academyId) {
         return duelRepository
                 .findByAcademyIdAndStatusInOrderByUpdatedAtDesc(
-                        academyId, List.of(Duel.Status.COMPLETED, Duel.Status.REJECTED))
+                        academyId, List.of(Duel.Status.COMPLETED, Duel.Status.REJECTED, Duel.Status.ACCEPTED))
                 .stream().limit(40).map(this::toDto).toList();
     }
 
@@ -219,6 +226,8 @@ public class DuelService {
 
         dto.setModality(d.getModality());
         dto.setMessage(d.getMessage());
+        dto.setScheduledAt(d.getScheduledAt());
+        dto.setLocation(d.getLocation());
 
         dto.setWinnerStudentId(d.getWinnerStudentId());
         if (d.getWinnerStudentId() != null) {
@@ -227,6 +236,7 @@ public class DuelService {
         dto.setMethod(d.getMethod() != null ? d.getMethod().name() : null);
         dto.setSubmissionName(d.getSubmissionName());
         dto.setResultNotes(d.getResultNotes());
+        dto.setReportedBy(d.getReportedBy());
 
         dto.setCreatedAt(d.getCreatedAt());
         dto.setRespondedAt(d.getRespondedAt());
@@ -250,7 +260,7 @@ public class DuelService {
         try {
             return Duel.Method.valueOf(v.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Método no válido (SUBMISSION/POINTS/DECISION/DRAW).");
+            throw new IllegalArgumentException("Método no válido (SUBMISSION/POINTS/DECISION/DRAW/DISQUALIFICATION).");
         }
     }
 

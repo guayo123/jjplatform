@@ -24,12 +24,16 @@ public class DuelDto {
 
     private String modality;
     private String message;
+    private LocalDateTime scheduledAt;
+    private String location;
 
     private Long winnerStudentId;
     private String winnerName;
     private String method;
     private String submissionName;
     private String resultNotes;
+    /** Who reported the result (so clients can avoid self-notifying the reporter). */
+    private Long reportedBy;
 
     private LocalDateTime createdAt;
     private LocalDateTime respondedAt;

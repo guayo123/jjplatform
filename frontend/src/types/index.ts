@@ -540,7 +540,7 @@ export interface Classmate {
 
 // ─── Duels (challenges between classmates) ───
 export type DuelStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'COMPLETED';
-export type DuelMethod = 'SUBMISSION' | 'POINTS' | 'DECISION' | 'DRAW';
+export type DuelMethod = 'SUBMISSION' | 'POINTS' | 'DECISION' | 'DRAW' | 'DISQUALIFICATION';
 
 export interface Duel {
   id: number;
@@ -555,11 +555,14 @@ export interface Duel {
   refereeName: string | null;
   modality: TrainingModality | null;
   message: string | null;
+  scheduledAt: string | null;
+  location: string | null;
   winnerStudentId: number | null;
   winnerName: string | null;
   method: DuelMethod | null;
   submissionName: string | null;
   resultNotes: string | null;
+  reportedBy: number | null;
   createdAt: string;
   respondedAt: string | null;
   completedAt: string | null;
@@ -579,6 +582,9 @@ export interface CreateDuelRequest {
   refereeStudentId?: number | null;
   modality?: TrainingModality | null;
   message?: string | null;
+  /** Agreed date/time, local ISO without offset (e.g. "2026-06-20T18:30"). */
+  scheduledAt?: string | null;
+  location?: string | null;
 }
 
 export interface DuelResultRequest {

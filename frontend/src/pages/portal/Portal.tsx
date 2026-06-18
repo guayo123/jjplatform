@@ -13,6 +13,7 @@ import {
   BannerArt,
   BannerThumb,
 } from './portalBanners';
+import { App } from '@capacitor/app';
 import { usePlatform } from '../../native/usePlatform';
 import { registerPush } from '../../native/push';
 import { tapLight, notifySuccess } from '../../native/haptics';
@@ -44,6 +45,8 @@ export default function Portal() {
   const tabbed = isNative || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('native'));
   const [profiles, setProfiles] = useState<Student[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  // App version stamp (so QA can confirm at a glance they're on the right build).
+  const [appVersion, setAppVersion] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -121,6 +124,14 @@ export default function Portal() {
   useEffect(() => {
     if (!isNative) return;
     void registerPush();
+  }, [isNative]);
+
+  // Read the native app version (versionName + versionCode) for the QA-visible build stamp.
+  useEffect(() => {
+    if (!isNative) return;
+    App.getInfo()
+      .then((info) => setAppVersion(`v${info.version} (${info.build})`))
+      .catch(() => { /* not available — leave unstamped */ });
   }, [isNative]);
 
   const chooseBanner = async (key: string | null) => {
@@ -341,7 +352,9 @@ export default function Portal() {
             </button>
           </div>
           <div className="mt-auto pb-5 pt-10 min-w-0">
-            <p className="text-xs text-white/80 [text-shadow:_0_1px_4px_rgb(0_0_0_/_60%)]">Portal del alumno</p>
+            <p className="text-xs text-white/80 [text-shadow:_0_1px_4px_rgb(0_0_0_/_60%)]">
+              Portal del alumno{appVersion && <span className="text-white/50"> · {appVersion}</span>}
+            </p>
             {/* Greet by first name — the email reads like a debug screen, not an app. */}
             <p className="jjp-display font-bold text-2xl truncate [text-shadow:_0_1px_4px_rgb(0_0_0_/_60%)]">
               {student ? `Hola, ${student.name.trim().split(/\s+/)[0]} 👋` : email}
