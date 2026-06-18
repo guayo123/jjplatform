@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Classmate, Duel, DuelMethod, DuelRankingEntry, TrainingModality } from '../../../types';
+import type { Classmate, Duel, DuelFormat, DuelMethod, DuelRankingEntry, TrainingModality } from '../../../types';
 import { duelsApi } from '../../../api/duels';
 import { trainingApi } from '../../../api/training';
 import { useToast } from '../../../components/ToastContext';
@@ -13,6 +13,20 @@ interface Props {
 }
 
 const MODALITY_LABEL: Record<string, string> = { GI: 'Gi', NOGI: 'No-Gi' };
+const FORMAT_LABEL: Record<DuelFormat, string> = {
+  SUBMISSION: 'Sumisión',
+  COMBAT_JJ: 'Combat Jiu-Jitsu',
+  MMA: 'MMA',
+  NO_RULES: 'Sin reglas (ADCC)',
+};
+
+/** "Sumisión · Gi", "MMA", or just "Gi" for legacy duels with no explicit format. */
+function formatLabel(d: Duel): string | null {
+  const parts: string[] = [];
+  if (d.format) parts.push(FORMAT_LABEL[d.format]);
+  if (d.modality && (d.format === 'SUBMISSION' || d.format == null)) parts.push(MODALITY_LABEL[d.modality]);
+  return parts.length ? parts.join(' · ') : null;
+}
 const METHOD_LABEL: Record<DuelMethod, string> = {
   SUBMISSION: 'Sumisión',
   POINTS: 'Puntos',
@@ -199,7 +213,7 @@ export default function DuelsSection({ studentId }: Props) {
               <div key={d.id} className="p-3 rounded-lg border border-amber-200 bg-amber-50">
                 <p className="text-sm text-gray-900">
                   <span className="font-semibold">{d.challengerName}</span> te retó
-                  {d.modality && <span className="text-gray-500"> · {MODALITY_LABEL[d.modality]}</span>}
+                  {formatLabel(d) && <span className="text-gray-500"> · {formatLabel(d)}</span>}
                 </p>
                 <ScheduleLine d={d} />
                 {d.message && <p className="text-xs text-gray-500 italic mt-0.5">"{d.message}"</p>}
@@ -224,7 +238,7 @@ export default function DuelsSection({ studentId }: Props) {
                 <div key={d.id} className="flex items-center gap-3 p-3 rounded-lg border border-primary-200 bg-primary-50">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-900">vs <span className="font-semibold">{o.name}</span>
-                      {d.modality && <span className="text-gray-500"> · {MODALITY_LABEL[d.modality]}</span>}
+                      {formatLabel(d) && <span className="text-gray-500"> · {formatLabel(d)}</span>}
                     </p>
                     <p className="text-xs text-gray-400">
                       {refereed
@@ -253,7 +267,7 @@ export default function DuelsSection({ studentId }: Props) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-gray-900">
                     <span className="font-semibold">{d.challengerName}</span> vs <span className="font-semibold">{d.opponentName}</span>
-                    {d.modality && <span className="text-gray-500"> · {MODALITY_LABEL[d.modality]}</span>}
+                    {formatLabel(d) && <span className="text-gray-500"> · {formatLabel(d)}</span>}
                   </p>
                   <p className="text-xs text-gray-400">Tú das el veredicto al terminar</p>
                   <ScheduleLine d={d} />
@@ -435,7 +449,7 @@ function FeedRow({ d }: { d: Duel }) {
         </p>
         <div className="flex flex-wrap gap-x-2 mt-0.5 text-xs text-gray-400">
           {d.method && <span>{METHOD_LABEL[d.method]}{d.method === 'SUBMISSION' && d.submissionName ? ` · ${d.submissionName}` : ''}</span>}
-          {d.modality && <span>· {MODALITY_LABEL[d.modality]}</span>}
+          {formatLabel(d) && <span>· {formatLabel(d)}</span>}
           <span>· {formatDate((d.completedAt ?? d.createdAt).slice(0, 10))}</span>
         </div>
         {d.resultNotes && <p className="text-xs text-gray-400 italic mt-0.5">"{d.resultNotes}"</p>}
@@ -449,12 +463,13 @@ function ChallengeModal({
 }: {
   classmates: Classmate[];
   onClose: () => void;
-  onCreate: (req: { opponentStudentId: number; refereeStudentId?: number | null; modality?: TrainingModality | null; message?: string | null; scheduledAt?: string | null; location?: string | null }) => Promise<void>;
+  onCreate: (req: { opponentStudentId: number; refereeStudentId?: number | null; format?: DuelFormat | null; modality?: TrainingModality | null; message?: string | null; scheduledAt?: string | null; location?: string | null }) => Promise<void>;
 }) {
   const [search, setSearch] = useState('');
   const [opponent, setOpponent] = useState<Classmate | null>(null);
   const [refSearch, setRefSearch] = useState('');
   const [referee, setReferee] = useState<Classmate | null>(null);
+  const [format, setFormat] = useState<DuelFormat | null>(null);
   const [modality, setModality] = useState<TrainingModality | null>(null);
   const [message, setMessage] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
@@ -471,13 +486,15 @@ function ChallengeModal({
     : [];
 
   const submit = async () => {
-    if (!opponent || saving) return;
+    if (!opponent || !format || saving) return;
     setSaving(true);
     try {
       await onCreate({
         opponentStudentId: opponent.id,
         refereeStudentId: referee?.id ?? null,
-        modality,
+        format,
+        // Gi/No-Gi only matters for a submission bout.
+        modality: format === 'SUBMISSION' ? modality : null,
         message: message.trim() || null,
         scheduledAt: scheduledAt || null,
         location: location.trim() || null,
@@ -520,18 +537,35 @@ function ChallengeModal({
         </div>
 
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Modalidad (opcional)</p>
-          <div className="flex gap-2">
-            {(['GI', 'NOGI'] as const).map((m) => (
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Modo <span className="text-red-400">*</span></p>
+          <div className="flex flex-wrap gap-2">
+            {(['SUBMISSION', 'COMBAT_JJ', 'MMA', 'NO_RULES'] as const).map((f) => (
               <button
-                key={m}
-                onClick={() => setModality(modality === m ? null : m)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium border-2 transition-colors ${modality === m ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-500'}`}
+                key={f}
+                onClick={() => setFormat(f)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border-2 transition-colors ${format === f ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-500'}`}
               >
-                {MODALITY_LABEL[m]}
+                {FORMAT_LABEL[f]}
               </button>
             ))}
           </div>
+          {/* Gi/No-Gi only applies to a submission bout — nest it clearly under Sumisión. */}
+          {format === 'SUBMISSION' && (
+            <div className="mt-3 ml-1 pl-3 border-l-2 border-primary-300">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">¿Gi o No-Gi? (opcional)</p>
+              <div className="flex gap-2">
+                {(['GI', 'NOGI'] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setModality(modality === m ? null : m)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${modality === m ? 'border-primary-500 bg-primary-600 text-white' : 'border-gray-300 bg-white text-gray-600'}`}
+                  >
+                    {MODALITY_LABEL[m]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div>
@@ -591,8 +625,8 @@ function ChallengeModal({
         </div>
       </div>
       <SheetFooter>
-        <button onClick={submit} disabled={!opponent || saving} className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50">
-          {saving ? 'Enviando…' : 'Enviar reto'}
+        <button onClick={submit} disabled={!opponent || !format || saving} className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50">
+          {saving ? 'Enviando…' : !opponent ? 'Elige un rival' : !format ? 'Elige un modo' : 'Enviar reto'}
         </button>
       </SheetFooter>
     </Sheet>

@@ -19,6 +19,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Challenges ("retos") between classmates. All actions verify the acting student is a
@@ -48,13 +49,21 @@ public class DuelService {
 
         Student referee = resolveReferee(req.getRefereeStudentId(), challenger, opponent);
 
+        String format = parseFormat(req.getFormat());
+        if (format == null) {
+            throw new IllegalArgumentException("Debes elegir un modo para el duelo.");
+        }
+        // Gi/No-Gi only applies to a submission bout.
+        String modality = "SUBMISSION".equals(format) ? parseModality(req.getModality()) : null;
+
         Duel duel = Duel.builder()
                 .academy(challenger.getAcademy())
                 .challenger(challenger)
                 .opponent(opponent)
                 .referee(referee)
                 .status(Duel.Status.PENDING)
-                .modality(parseModality(req.getModality()))
+                .format(format)
+                .modality(modality)
                 .message(trim(req.getMessage()))
                 .scheduledAt(req.getScheduledAt())
                 .location(trim(req.getLocation()))
@@ -224,6 +233,7 @@ public class DuelService {
             dto.setRefereeName(d.getReferee().getName());
         }
 
+        dto.setFormat(d.getFormat());
         dto.setModality(d.getModality());
         dto.setMessage(d.getMessage());
         dto.setScheduledAt(d.getScheduledAt());
@@ -249,6 +259,17 @@ public class DuelService {
         String up = v.trim().toUpperCase();
         if (!up.equals("GI") && !up.equals("NOGI")) {
             throw new IllegalArgumentException("Modalidad no válida (GI/NOGI).");
+        }
+        return up;
+    }
+
+    private static final Set<String> FORMATS = Set.of("SUBMISSION", "COMBAT_JJ", "MMA", "NO_RULES");
+
+    private String parseFormat(String v) {
+        if (v == null || v.isBlank()) return null;
+        String up = v.trim().toUpperCase();
+        if (!FORMATS.contains(up)) {
+            throw new IllegalArgumentException("Modo no válido (SUBMISSION/COMBAT_JJ/MMA/NO_RULES).");
         }
         return up;
     }

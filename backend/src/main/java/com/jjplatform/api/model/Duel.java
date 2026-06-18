@@ -53,7 +53,11 @@ public class Duel {
     @Builder.Default
     private Status status = Status.PENDING;
 
-    /** "GI" / "NOGI" / null. */
+    /** Ruleset / bout format: "SUBMISSION" / "COMBAT_JJ" / "MMA" / "NO_RULES" / null. */
+    @Column(length = 20)
+    private String format;
+
+    /** "GI" / "NOGI" / null. Only meaningful when format = SUBMISSION. */
     @Column(length = 10)
     private String modality;
 

@@ -22,6 +22,7 @@ public class DuelDto {
     private Long refereeId;
     private String refereeName;
 
+    private String format;
     private String modality;
     private String message;
     private LocalDateTime scheduledAt;

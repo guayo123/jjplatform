@@ -9,7 +9,9 @@ public class CreateDuelRequest {
     private Long opponentStudentId;
     /** Optional impartial judge (a third classmate). When set, only they report the result. */
     private Long refereeStudentId;
-    /** "GI" / "NOGI" / null. */
+    /** Bout format: "SUBMISSION" / "COMBAT_JJ" / "MMA" / "NO_RULES" / null. */
+    private String format;
+    /** "GI" / "NOGI" / null. Only used when format = SUBMISSION. */
     private String modality;
     private String message;
     /** Optional agreed date/time for the bout (challenger's local time, ISO without offset). */

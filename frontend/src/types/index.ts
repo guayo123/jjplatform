@@ -541,6 +541,8 @@ export interface Classmate {
 // ─── Duels (challenges between classmates) ───
 export type DuelStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'COMPLETED';
 export type DuelMethod = 'SUBMISSION' | 'POINTS' | 'DECISION' | 'DRAW' | 'DISQUALIFICATION';
+/** Bout ruleset. Gi/No-Gi (modality) only applies to SUBMISSION. */
+export type DuelFormat = 'SUBMISSION' | 'COMBAT_JJ' | 'MMA' | 'NO_RULES';
 
 export interface Duel {
   id: number;
@@ -553,6 +555,7 @@ export interface Duel {
   opponentPhotoUrl: string | null;
   refereeId: number | null;
   refereeName: string | null;
+  format: DuelFormat | null;
   modality: TrainingModality | null;
   message: string | null;
   scheduledAt: string | null;
@@ -580,6 +583,7 @@ export interface DuelRankingEntry {
 export interface CreateDuelRequest {
   opponentStudentId: number;
   refereeStudentId?: number | null;
+  format?: DuelFormat | null;
   modality?: TrainingModality | null;
   message?: string | null;
   /** Agreed date/time, local ISO without offset (e.g. "2026-06-20T18:30"). */
