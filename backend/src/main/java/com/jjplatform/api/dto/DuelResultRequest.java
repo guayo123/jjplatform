@@ -9,5 +9,8 @@ public class DuelResultRequest {
     /** "SUBMISSION" / "POINTS" / "DECISION" / "DRAW". */
     private String method;
     private String submissionName;
+    /** Each fighter's score when method = POINTS. */
+    private Integer challengerScore;
+    private Integer opponentScore;
     private String notes;
 }

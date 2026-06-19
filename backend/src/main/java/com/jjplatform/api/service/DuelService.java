@@ -114,6 +114,9 @@ public class DuelService {
         duel.setMethod(method);
         duel.setWinnerStudentId(winner);
         duel.setSubmissionName(method == Duel.Method.SUBMISSION ? trim(req.getSubmissionName()) : null);
+        // Per-fighter score only for a points decision.
+        duel.setChallengerScore(method == Duel.Method.POINTS ? clampScore(req.getChallengerScore()) : null);
+        duel.setOpponentScore(method == Duel.Method.POINTS ? clampScore(req.getOpponentScore()) : null);
         duel.setResultNotes(trim(req.getNotes()));
         duel.setReportedBy(me.getId());
         duel.setCompletedAt(LocalDateTime.now());
@@ -245,6 +248,8 @@ public class DuelService {
         }
         dto.setMethod(d.getMethod() != null ? d.getMethod().name() : null);
         dto.setSubmissionName(d.getSubmissionName());
+        dto.setChallengerScore(d.getChallengerScore());
+        dto.setOpponentScore(d.getOpponentScore());
         dto.setResultNotes(d.getResultNotes());
         dto.setReportedBy(d.getReportedBy());
 
@@ -289,5 +294,11 @@ public class DuelService {
         if (s == null) return null;
         String t = s.trim();
         return t.isEmpty() ? null : t;
+    }
+
+    /** A bout score is a non-negative number; null stays null. */
+    private Integer clampScore(Integer v) {
+        if (v == null) return null;
+        return v < 0 ? 0 : v;
     }
 }

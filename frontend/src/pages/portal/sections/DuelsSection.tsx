@@ -329,6 +329,7 @@ export default function DuelsSection({ studentId }: Props) {
           me={studentId}
           onClose={() => setResultFor(null)}
           onSubmit={async (data) => {
+            playDuelo(); // fire within the tap gesture, before the await (autoplay policy)
             await duelsApi.reportResult(studentId, resultFor.id, data);
             void notifySuccess();
             await load();
@@ -448,7 +449,7 @@ function FeedRow({ d }: { d: Duel }) {
           )}
         </p>
         <div className="flex flex-wrap gap-x-2 mt-0.5 text-xs text-gray-400">
-          {d.method && <span>{METHOD_LABEL[d.method]}{d.method === 'SUBMISSION' && d.submissionName ? ` · ${d.submissionName}` : ''}</span>}
+          {d.method && <span>{METHOD_LABEL[d.method]}{d.method === 'SUBMISSION' && d.submissionName ? ` · ${d.submissionName}` : ''}{d.method === 'POINTS' && d.challengerScore != null ? ` · ${d.challengerScore}-${d.opponentScore}` : ''}</span>}
           {formatLabel(d) && <span>· {formatLabel(d)}</span>}
           <span>· {formatDate((d.completedAt ?? d.createdAt).slice(0, 10))}</span>
         </div>
@@ -639,7 +640,7 @@ function ResultModal({
   duel: Duel;
   me: number;
   onClose: () => void;
-  onSubmit: (data: { winnerStudentId?: number | null; method: DuelMethod; submissionName?: string | null; notes?: string | null }) => Promise<void>;
+  onSubmit: (data: { winnerStudentId?: number | null; method: DuelMethod; submissionName?: string | null; challengerScore?: number | null; opponentScore?: number | null; notes?: string | null }) => Promise<void>;
 }) {
   // Pick the winner by participant so the same modal works whether the reporter is a
   // participant (their side reads "Gané yo") or the impartial referee (both read by name).
@@ -650,8 +651,12 @@ function ResultModal({
   const [outcome, setOutcome] = useState<'challenger' | 'opponent' | 'draw' | null>(null);
   const [method, setMethod] = useState<DuelMethod>('SUBMISSION');
   const [submissionName, setSubmissionName] = useState('');
+  const [challengerScore, setChallengerScore] = useState('');
+  const [opponentScore, setOpponentScore] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const toScore = (v: string) => (v.trim() === '' ? null : Math.max(0, parseInt(v, 10) || 0));
 
   const submit = async () => {
     if (!outcome || saving) return;
@@ -665,6 +670,8 @@ function ResultModal({
           winnerStudentId,
           method,
           submissionName: method === 'SUBMISSION' ? submissionName.trim() || null : null,
+          challengerScore: method === 'POINTS' ? toScore(challengerScore) : null,
+          opponentScore: method === 'POINTS' ? toScore(opponentScore) : null,
           notes: notes.trim() || null,
         });
       }
@@ -723,6 +730,31 @@ function ResultModal({
                   placeholder="Otra…"
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
                 />
+              </div>
+            )}
+
+            {method === 'POINTS' && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Puntos de cada uno</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {([
+                    { name: duel.challengerName, value: challengerScore, set: setChallengerScore },
+                    { name: duel.opponentName, value: opponentScore, set: setOpponentScore },
+                  ] as const).map((f) => (
+                    <div key={f.name}>
+                      <label className="block text-xs text-gray-500 mb-1 truncate">{firstName(f.name)}</label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        value={f.value}
+                        onChange={(e) => f.set(e.target.value)}
+                        placeholder="0"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </>

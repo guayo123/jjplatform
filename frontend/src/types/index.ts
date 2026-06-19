@@ -564,6 +564,8 @@ export interface Duel {
   winnerName: string | null;
   method: DuelMethod | null;
   submissionName: string | null;
+  challengerScore: number | null;
+  opponentScore: number | null;
   resultNotes: string | null;
   reportedBy: number | null;
   createdAt: string;
@@ -595,6 +597,8 @@ export interface DuelResultRequest {
   winnerStudentId?: number | null;
   method: DuelMethod;
   submissionName?: string | null;
+  challengerScore?: number | null;
+  opponentScore?: number | null;
   notes?: string | null;
 }
 

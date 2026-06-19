@@ -84,6 +84,10 @@ public class Duel {
     /** Submission name when method = SUBMISSION. */
     private String submissionName;
 
+    /** Each fighter's score when method = POINTS (null otherwise). */
+    private Integer challengerScore;
+    private Integer opponentScore;
+
     @Column(columnDefinition = "TEXT")
     private String resultNotes;
 

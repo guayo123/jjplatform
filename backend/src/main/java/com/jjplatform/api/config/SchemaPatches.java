@@ -33,6 +33,11 @@ public class SchemaPatches {
         return args -> {
             // training_sessions.modality gained OPEN_MAT / COMPETITION after the table existed.
             dropConstraint("training_sessions", "training_sessions_modality_check");
+            // duels.method gained DISQUALIFICATION (16 chars) after the table existed: the stale CHECK
+            // rejects the new value AND the original VARCHAR(12) is too narrow for it. Both surface as a
+            // DataIntegrityViolation (HTTP 409) when reporting a "Descalificación" result.
+            dropConstraint("duels", "duels_method_check");
+            widenColumn("duels", "method", 20);
         };
     }
 
@@ -43,6 +48,16 @@ public class SchemaPatches {
         } catch (Exception e) {
             // Non-fatal: e.g. table not created yet on a brand-new DB, or a non-Postgres dialect.
             log.warn("SchemaPatches: could not drop {} on {}: {}", constraint, table, e.getMessage());
+        }
+    }
+
+    /** Widen a VARCHAR column when an enum's longest value outgrew the original length. Idempotent. */
+    private void widenColumn(String table, String column, int length) {
+        try {
+            jdbc.execute("ALTER TABLE " + table + " ALTER COLUMN " + column + " TYPE VARCHAR(" + length + ")");
+            log.info("SchemaPatches: ensured {}.{} is VARCHAR({})", table, column, length);
+        } catch (Exception e) {
+            log.warn("SchemaPatches: could not widen {}.{}: {}", table, column, e.getMessage());
         }
     }
 }

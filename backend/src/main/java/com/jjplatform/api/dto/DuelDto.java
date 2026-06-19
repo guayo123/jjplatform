@@ -32,6 +32,8 @@ public class DuelDto {
     private String winnerName;
     private String method;
     private String submissionName;
+    private Integer challengerScore;
+    private Integer opponentScore;
     private String resultNotes;
     /** Who reported the result (so clients can avoid self-notifying the reporter). */
     private Long reportedBy;
