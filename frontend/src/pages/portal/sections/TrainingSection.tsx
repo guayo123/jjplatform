@@ -47,6 +47,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
   const [classmates, setClassmates] = useState<Classmate[]>([]);
   const [board, setBoard] = useState<LeaderboardEntry[]>([]);
   const [cardFor, setCardFor] = useState<number | null>(null); // ranking → student info modal
+  const [detailFor, setDetailFor] = useState<TrainingSession | null>(null); // history → session detail
   const [shareView, setShareView] = useState<{ canvas: HTMLCanvasElement; dataUrl: string } | null>(null);
   const [sharing, setSharing] = useState(false);
   const [shareNote, setShareNote] = useState<string | null>(null);
@@ -349,7 +350,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {filteredSessions.map((s) => <SessionRow key={s.id} s={s} onDelete={() => handleDelete(s.id)} />)}
+                  {filteredSessions.map((s) => <SessionRow key={s.id} s={s} onDelete={() => handleDelete(s.id)} onOpen={() => setDetailFor(s)} />)}
                 </div>
               )}
             </div>
@@ -420,6 +421,8 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
       {cardFor != null && (
         <StudentInfoModal viewerId={studentId} targetId={cardFor} onClose={() => setCardFor(null)} />
       )}
+
+      {detailFor && <SessionDetail s={detailFor} onClose={() => setDetailFor(null)} />}
     </div>
   );
 }
@@ -717,12 +720,12 @@ function InsightsCard({ insights, hasSessions }: { insights: Insight[]; hasSessi
   );
 }
 
-function SessionRow({ s, onDelete }: { s: TrainingSession; onDelete: () => void }) {
+function SessionRow({ s, onDelete, onOpen }: { s: TrainingSession; onDelete: () => void; onOpen: () => void }) {
   const subsLogradas = s.submissions.filter((x) => x.direction === 'LOGRADA').length;
   const subsRecibidas = s.submissions.filter((x) => x.direction === 'RECIBIDA').length;
   return (
     <div className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50">
-      <div className="flex-1 min-w-0">
+      <button onClick={onOpen} className="flex-1 min-w-0 text-left">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-semibold text-gray-900">{formatDate(s.date)}</span>
           {s.modality && <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full font-medium">{MODALITY_LABEL[s.modality]}</span>}
@@ -740,8 +743,90 @@ function SessionRow({ s, onDelete }: { s: TrainingSession; onDelete: () => void 
           <p className="text-xs text-gray-400 mt-1 truncate">🤝 {s.partners.map((p) => p.name).join(', ')}</p>
         )}
         {s.notes && <p className="text-xs text-gray-400 italic mt-1 line-clamp-2">"{s.notes}"</p>}
-      </div>
+      </button>
       <button onClick={onDelete} className="text-gray-300 hover:text-red-500 px-1 flex-shrink-0" aria-label="Eliminar">🗑</button>
+    </div>
+  );
+}
+
+/** Full detail of a training session, opened from the history (styled like the achievement detail). */
+function SessionDetail({ s, onClose }: { s: TrainingSession; onClose: () => void }) {
+  const logradas = s.submissions.filter((x) => x.direction === 'LOGRADA');
+  const recibidas = s.submissions.filter((x) => x.direction === 'RECIBIDA');
+  const stats: Array<{ label: string; value: string }> = [];
+  if (s.durationMin != null) stats.push({ label: 'Duración', value: `${s.durationMin} min` });
+  if (s.roundsCount != null && s.roundsCount > 0) stats.push({ label: 'Rounds', value: String(s.roundsCount) });
+  if (s.energy != null) stats.push({ label: 'Energía', value: `⚡ ${s.energy}/5` });
+  if (s.performance != null) stats.push({ label: 'Desempeño', value: `⭐ ${s.performance}/5` });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-5 pt-safe pb-safe">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl jjp-pop max-h-[88vh] overflow-y-auto">
+        <button onClick={onClose} className="absolute right-3 top-3 text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
+
+        <div className="text-center">
+          <p className="text-lg font-extrabold text-gray-900">{formatDate(s.date)}</p>
+          <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+            {s.modality && <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full font-medium">{MODALITY_LABEL[s.modality]}</span>}
+            {s.disciplineName && <span className="text-xs text-gray-400">{s.disciplineName}</span>}
+            {s.backdated && <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded-full">Registrado tarde</span>}
+          </div>
+        </div>
+
+        {stats.length > 0 && (
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {stats.map((st) => (
+              <div key={st.label} className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2 text-center">
+                <p className="text-[11px] text-gray-400">{st.label}</p>
+                <p className="text-sm font-semibold text-gray-800">{st.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {s.techniques.length > 0 && (
+          <DetailBlock title="Técnicas">
+            <div className="flex flex-wrap gap-1.5">
+              {s.techniques.map((t, i) => (
+                <span key={i} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">{t}</span>
+              ))}
+            </div>
+          </DetailBlock>
+        )}
+
+        {(logradas.length > 0 || recibidas.length > 0) && (
+          <DetailBlock title="Sumisiones">
+            {logradas.length > 0 && <p className="text-sm text-green-600">✓ Logradas: {logradas.map((x) => x.name).join(', ')}</p>}
+            {recibidas.length > 0 && <p className="text-sm text-red-500 mt-0.5">✕ Recibidas: {recibidas.map((x) => x.name).join(', ')}</p>}
+          </DetailBlock>
+        )}
+
+        {s.partners.length > 0 && (
+          <DetailBlock title="Compañeros">
+            <ul className="space-y-0.5">
+              {s.partners.map((p, i) => (
+                <li key={i} className="text-sm text-gray-700">🤝 {p.name}{p.belt ? <span className="text-gray-400"> · {p.belt}</span> : null}</li>
+              ))}
+            </ul>
+          </DetailBlock>
+        )}
+
+        {s.notes && (
+          <DetailBlock title="Notas">
+            <p className="text-sm text-gray-600 italic whitespace-pre-wrap">"{s.notes}"</p>
+          </DetailBlock>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DetailBlock({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mt-4">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{title}</p>
+      {children}
     </div>
   );
 }
