@@ -119,12 +119,12 @@ export default function Portal() {
       .finally(() => setLoading(false));
   }, [loadProfiles]);
 
-  // Native-only: register for push (scaffolding). Runs once. The streak reminders are
-  // scheduled from TrainingSection, where the streak/session data lives.
+  // Native-only: register for push and sync this device's token for the active student, so the
+  // backend can target academy notifications. Re-runs if the selected student changes.
   useEffect(() => {
-    if (!isNative) return;
-    void registerPush();
-  }, [isNative]);
+    if (!isNative || selectedId == null) return;
+    void registerPush(selectedId);
+  }, [isNative, selectedId]);
 
   // Read the native app version (versionName + versionCode) for the QA-visible build stamp.
   useEffect(() => {

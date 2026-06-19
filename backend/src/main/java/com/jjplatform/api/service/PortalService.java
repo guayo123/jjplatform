@@ -60,6 +60,7 @@ public class PortalService {
     private final TechniqueService techniqueService;
     private final PaymentGatewayService paymentGatewayService;
     private final ClassReservationService classReservationService;
+    private final PushService pushService;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -283,6 +284,17 @@ public class PortalService {
     public void cancelDuel(Long studentId, Long duelId) {
         Student me = requireOwnedStudent(studentId);
         duelService.cancel(me, duelId);
+    }
+
+    /** Registers this device's FCM token for the owned student so it can receive academy pushes. */
+    public void registerDevice(Long studentId, String token, String platform) {
+        Student me = requireOwnedStudent(studentId);
+        pushService.registerToken(me, token, platform);
+    }
+
+    public void unregisterDevice(Long studentId, String token) {
+        requireOwnedStudent(studentId);
+        pushService.removeToken(token);
     }
 
     public TrainingSessionDto createTrainingSession(Long studentId, TrainingSessionDto dto) {

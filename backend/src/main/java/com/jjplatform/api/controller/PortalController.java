@@ -265,6 +265,20 @@ public class PortalController {
         return ResponseEntity.ok(portalService.reportDuelResult(studentId, duelId, req));
     }
 
+    /** Register this device's FCM token so it can receive academy push notifications. */
+    @PostMapping("/students/{studentId}/devices")
+    public ResponseEntity<Void> registerDevice(@PathVariable Long studentId, @RequestBody Map<String, String> body) {
+        portalService.registerDevice(studentId, body.get("token"), body.get("platform"));
+        return ResponseEntity.ok().build();
+    }
+
+    /** Drop this device's token (e.g. on logout). */
+    @DeleteMapping("/students/{studentId}/devices")
+    public ResponseEntity<Void> unregisterDevice(@PathVariable Long studentId, @RequestParam String token) {
+        portalService.unregisterDevice(studentId, token);
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/students/{studentId}/duels/{duelId}")
     public ResponseEntity<Void> cancelDuel(@PathVariable Long studentId, @PathVariable Long duelId) {
         portalService.cancelDuel(studentId, duelId);

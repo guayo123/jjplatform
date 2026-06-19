@@ -31,6 +31,7 @@ public class DuelService {
 
     private final DuelRepository duelRepository;
     private final StudentRepository studentRepository;
+    private final PushService pushService;
 
     @Transactional
     public DuelDto create(Student challenger, CreateDuelRequest req) {
@@ -82,7 +83,13 @@ public class DuelService {
         }
         duel.setStatus(accept ? Duel.Status.ACCEPTED : Duel.Status.REJECTED);
         duel.setRespondedAt(LocalDateTime.now());
-        return toDto(duelRepository.save(duel));
+        DuelDto dto = toDto(duelRepository.save(duel));
+        if (accept) {
+            // Tell the whole academy the bout is on — except whoever just accepted.
+            pushService.sendToAcademy(duel.getAcademy().getId(), "⚔️ Duelo confirmado",
+                    duel.getChallenger().getName() + " vs " + duel.getOpponent().getName(), me.getId());
+        }
+        return dto;
     }
 
     @Transactional
@@ -120,7 +127,22 @@ public class DuelService {
         duel.setResultNotes(trim(req.getNotes()));
         duel.setReportedBy(me.getId());
         duel.setCompletedAt(LocalDateTime.now());
-        return toDto(duelRepository.save(duel));
+        DuelDto dto = toDto(duelRepository.save(duel));
+
+        // Broadcast the result to the whole academy — except whoever reported it.
+        String title;
+        String body;
+        if (winner == null) {
+            title = "🤝 Duelo en la academia";
+            body = duel.getChallenger().getName() + " y " + duel.getOpponent().getName() + " terminaron en empate.";
+        } else {
+            Student winnerStudent = winner.equals(duel.getChallenger().getId()) ? duel.getChallenger() : duel.getOpponent();
+            Student loserStudent = winner.equals(duel.getChallenger().getId()) ? duel.getOpponent() : duel.getChallenger();
+            title = "🏆 ¡Victoria en la academia!";
+            body = winnerStudent.getName() + " venció a " + loserStudent.getName() + ".";
+        }
+        pushService.sendToAcademy(duel.getAcademy().getId(), title, body, me.getId());
+        return dto;
     }
 
     @Transactional

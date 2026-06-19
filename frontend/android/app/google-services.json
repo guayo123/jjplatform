@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "698232619297",
+    "project_id": "jjplatform-8582e",
+    "storage_bucket": "jjplatform-8582e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:698232619297:android:517e259de749d3c1fabe60",
+        "android_client_info": {
+          "package_name": "com.jjplatform.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBlIVS69dMfN7xDShxCrkz4JTcRBX8G1-E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
