@@ -8,6 +8,7 @@ import com.jjplatform.api.dto.DuelDto;
 import com.jjplatform.api.dto.DuelResultRequest;
 import com.jjplatform.api.dto.LeaderboardEntryDto;
 import com.jjplatform.api.dto.PaymentDto;
+import com.jjplatform.api.dto.StudentCardDto;
 import com.jjplatform.api.dto.StudentDisciplineDto;
 import com.jjplatform.api.dto.StudentDto;
 import com.jjplatform.api.dto.TechniqueCurriculumDto;
@@ -205,6 +206,22 @@ public class PortalController {
     @GetMapping("/students/{studentId}/classmates")
     public ResponseEntity<List<ClassmateDto>> classmates(@PathVariable Long studentId) {
         return ResponseEntity.ok(portalService.getClassmates(studentId));
+    }
+
+    /** Card of an academy mate (tapped from a ranking): name, rut, belt, age, photo. */
+    @GetMapping("/students/{studentId}/students/{targetId}/card")
+    public ResponseEntity<StudentCardDto> studentCard(@PathVariable Long studentId, @PathVariable Long targetId) {
+        return ResponseEntity.ok(portalService.getStudentCard(studentId, targetId));
+    }
+
+    /** The student updates their own weight (kg). Body: {"weight": 72.5} (null clears it). */
+    @PutMapping("/students/{studentId}/weight")
+    public ResponseEntity<Map<String, Double>> updateWeight(@PathVariable Long studentId,
+                                                            @RequestBody Map<String, Double> body) {
+        Double saved = portalService.updateWeight(studentId, body.get("weight"));
+        Map<String, Double> out = new HashMap<>();
+        out.put("weight", saved);
+        return ResponseEntity.ok(out);
     }
 
     /** Birthdays of the academy for the current month. */

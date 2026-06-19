@@ -6,6 +6,8 @@ import { useToast } from '../../../components/ToastContext';
 import { notifyNow } from '../../../native/notifications';
 import { tapLight, notifySuccess } from '../../../native/haptics';
 import { playDuelo } from '../../../native/sound';
+import BeltImage from '../../../components/BeltImage';
+import StudentInfoModal from './StudentInfoModal';
 import { formatDate, CardSkeleton } from './shared';
 
 interface Props {
@@ -67,6 +69,7 @@ export default function DuelsSection({ studentId }: Props) {
   const [loading, setLoading] = useState(true);
   const [challengeOpen, setChallengeOpen] = useState(false);
   const [resultFor, setResultFor] = useState<Duel | null>(null);
+  const [cardFor, setCardFor] = useState<number | null>(null); // ranking → student info modal
 
   // Fire toast + local notification for status changes the student hasn't seen yet.
   const notifyChanges = useCallback((current: Duel[]) => {
@@ -297,7 +300,7 @@ export default function DuelsSection({ studentId }: Props) {
       )}
 
       {/* Academy ranking (top 10 by record) */}
-      <DuelRankingCard ranking={ranking} meId={studentId} />
+      <DuelRankingCard ranking={ranking} meId={studentId} onOpen={setCardFor} />
 
       {/* Academy feed */}
       <Card title="Resultados de la academia">
@@ -336,6 +339,10 @@ export default function DuelsSection({ studentId }: Props) {
           }}
         />
       )}
+
+      {cardFor != null && (
+        <StudentInfoModal viewerId={studentId} targetId={cardFor} onClose={() => setCardFor(null)} />
+      )}
     </div>
   );
 }
@@ -349,6 +356,36 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
+/** Expanded card for a picked classmate (rival/referee): photo, full name, age and belt image. */
+function ClassmateCard({ c, accent, onClear, clearLabel }: {
+  c: Classmate; accent: 'primary' | 'amber'; onClear: () => void; clearLabel: string;
+}) {
+  const ring = accent === 'amber' ? 'bg-amber-50 border-amber-200' : 'bg-primary-50 border-primary-200';
+  const clear = accent === 'amber' ? 'text-amber-500 hover:text-amber-700' : 'text-primary-400 hover:text-primary-600';
+  return (
+    <div className={`rounded-xl border p-3 ${ring}`}>
+      <div className="flex items-center gap-3">
+        {c.photoUrl ? (
+          <img src={c.photoUrl} alt="" className="w-14 h-14 rounded-full object-cover flex-shrink-0" />
+        ) : (
+          <span className="w-14 h-14 rounded-full bg-gray-200 text-gray-500 text-lg font-bold flex items-center justify-center flex-shrink-0">
+            {c.name.trim().charAt(0).toUpperCase()}
+          </span>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-semibold text-gray-900 truncate">{c.name}</p>
+          {c.nickname && <p className="text-xs text-gray-500 italic truncate">"{c.nickname}"</p>}
+          <p className="text-xs text-gray-500">
+            {c.age != null ? `${c.age} años` : 'Edad no registrada'}{c.belt ? ` · ${c.belt}` : ''}
+          </p>
+        </div>
+        <button onClick={onClear} className={`text-xs flex-shrink-0 ${clear}`}>{clearLabel}</button>
+      </div>
+      {c.belt && <div className="mt-2.5 w-32"><BeltImage belt={c.belt} stripes={c.stripes ?? 0} /></div>}
+    </div>
+  );
+}
+
 /** Renders the agreed date/place under a duel card, or nothing if neither was set. */
 function ScheduleLine({ d }: { d: Duel }) {
   const s = formatSchedule(d.scheduledAt, d.location);
@@ -358,7 +395,7 @@ function ScheduleLine({ d }: { d: Duel }) {
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 /** Top-10 academy duel ranking by record (W/L). Collapsed to 3; pins my row if I'm below. */
-function DuelRankingCard({ ranking, meId }: { ranking: DuelRankingEntry[]; meId: number }) {
+function DuelRankingCard({ ranking, meId, onOpen }: { ranking: DuelRankingEntry[]; meId: number; onOpen: (studentId: number) => void }) {
   const [expanded, setExpanded] = useState(false);
   if (ranking.length < 2) return null; // a lone fighter isn't a ranking
 
@@ -374,12 +411,12 @@ function DuelRankingCard({ ranking, meId }: { ranking: DuelRankingEntry[]; meId:
       </div>
       <div className="p-3">
         {top.map((e, i) => (
-          <RankRow key={e.studentId} e={e} rank={i + 1} isMe={e.studentId === meId} />
+          <RankRow key={e.studentId} e={e} rank={i + 1} isMe={e.studentId === meId} onOpen={onOpen} />
         ))}
         {/* Pin my position at the bottom when I'm outside the visible rows. */}
         {myIndex >= visibleCount && (
           <div className="mt-1 pt-2 border-t border-dashed border-gray-200">
-            <RankRow e={ranking[myIndex]} rank={myIndex + 1} isMe />
+            <RankRow e={ranking[myIndex]} rank={myIndex + 1} isMe onOpen={onOpen} />
           </div>
         )}
         {ranking.length > 3 && (
@@ -395,9 +432,9 @@ function DuelRankingCard({ ranking, meId }: { ranking: DuelRankingEntry[]; meId:
   );
 }
 
-function RankRow({ e, rank, isMe }: { e: DuelRankingEntry; rank: number; isMe: boolean }) {
+function RankRow({ e, rank, isMe, onOpen }: { e: DuelRankingEntry; rank: number; isMe: boolean; onOpen: (studentId: number) => void }) {
   return (
-    <div className={`flex items-center gap-3 rounded-lg px-2 py-2 ${isMe ? 'bg-primary-50' : ''}`}>
+    <button onClick={() => onOpen(e.studentId)} className={`w-full text-left flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-50 transition-colors ${isMe ? 'bg-primary-50' : ''}`}>
       <span className="w-7 text-center text-sm font-bold text-gray-500 flex-shrink-0">{MEDALS[rank - 1] ?? rank}</span>
       {e.photoUrl ? (
         <img src={e.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
@@ -415,7 +452,7 @@ function RankRow({ e, rank, isMe }: { e: DuelRankingEntry; rank: number; isMe: b
         <span className="text-red-500">{e.losses}</span>
         {e.draws > 0 && <span className="ml-1 text-xs font-normal text-gray-400">· {e.draws}E</span>}
       </span>
-    </div>
+    </button>
   );
 }
 
@@ -512,10 +549,7 @@ function ChallengeModal({
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Rival</p>
           {opponent ? (
-            <div className="flex items-center justify-between bg-primary-50 border border-primary-200 rounded-lg px-3 py-2">
-              <span className="text-sm font-medium text-primary-700">{opponent.name}{opponent.belt ? ` · ${opponent.belt}` : ''}</span>
-              <button onClick={() => setOpponent(null)} className="text-primary-400 hover:text-primary-600">cambiar</button>
-            </div>
+            <ClassmateCard c={opponent} accent="primary" clearLabel="cambiar" onClear={() => setOpponent(null)} />
           ) : (
             <>
               <input
@@ -588,10 +622,7 @@ function ChallengeModal({
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Árbitro (opcional)</p>
           {referee ? (
-            <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              <span className="text-sm font-medium text-amber-700">⚖️ {referee.name}{referee.belt ? ` · ${referee.belt}` : ''}</span>
-              <button onClick={() => setReferee(null)} className="text-amber-500 hover:text-amber-700">quitar</button>
-            </div>
+            <ClassmateCard c={referee} accent="amber" clearLabel="quitar" onClear={() => setReferee(null)} />
           ) : (
             <>
               <input

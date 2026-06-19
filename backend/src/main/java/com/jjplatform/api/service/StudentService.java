@@ -2,6 +2,7 @@ package com.jjplatform.api.service;
 
 import com.jjplatform.api.dto.BirthdayDto;
 import com.jjplatform.api.dto.ClassmateDto;
+import com.jjplatform.api.dto.StudentCardDto;
 import com.jjplatform.api.dto.StudentDto;
 import com.jjplatform.api.exception.ResourceNotFoundException;
 import com.jjplatform.api.model.Academy;
@@ -101,13 +102,38 @@ public class StudentService {
             ClassmateDto dto = new ClassmateDto();
             dto.setId(s.getId());
             dto.setName(s.getName());
+            dto.setNickname(s.getNickname());
             dto.setPhotoUrl(s.getPhotoUrl());
+            dto.setAge(s.getAge());
             discsByStudent.getOrDefault(s.getId(), List.of()).stream()
                     .filter(sd -> sd.getBelt() != null)
                     .findFirst()
-                    .ifPresent(sd -> dto.setBelt(sd.getBelt()));
+                    .ifPresent(sd -> { dto.setBelt(sd.getBelt()); dto.setStripes(sd.getStripes()); });
             return dto;
         }).toList();
+    }
+
+    /** Card of one academy mate (tapped from a ranking): name, rut, belt, age, photo. */
+    @Transactional(readOnly = true)
+    public StudentCardDto getStudentCard(Long academyId, Long targetId) {
+        Student s = studentRepository.findById(targetId)
+                .orElseThrow(() -> new ResourceNotFoundException("Alumno no encontrado"));
+        if (s.getAcademy() == null || !s.getAcademy().getId().equals(academyId)
+                || !Boolean.TRUE.equals(s.getActive())) {
+            throw new ResourceNotFoundException("Alumno no encontrado");
+        }
+        StudentCardDto dto = new StudentCardDto();
+        dto.setId(s.getId());
+        dto.setName(s.getName());
+        dto.setNickname(s.getNickname());
+        dto.setAge(s.getAge());
+        dto.setWeight(s.getWeight());
+        dto.setPhotoUrl(s.getPhotoUrl());
+        studentDisciplineRepository.findByStudentIdInAndActiveTrue(List.of(s.getId())).stream()
+                .filter(sd -> sd.getBelt() != null)
+                .findFirst()
+                .ifPresent(sd -> { dto.setBelt(sd.getBelt()); dto.setStripes(sd.getStripes()); });
+        return dto;
     }
 
     /** Active students of the academy whose birthday falls in the given month, sorted by day. */

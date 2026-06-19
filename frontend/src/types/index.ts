@@ -534,7 +534,22 @@ export interface TrainingPartner {
 export interface Classmate {
   id: number;
   name: string;
+  nickname: string | null;
   belt: string | null;
+  stripes: number | null;
+  photoUrl: string | null;
+  age: number | null;
+}
+
+/** Card shown when tapping a name in a ranking. */
+export interface StudentCard {
+  id: number;
+  name: string;
+  nickname: string | null;
+  belt: string | null;
+  stripes: number | null;
+  age: number | null;
+  weight: number | null;
   photoUrl: string | null;
 }
 

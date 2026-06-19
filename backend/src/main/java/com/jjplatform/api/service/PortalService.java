@@ -2,6 +2,7 @@ package com.jjplatform.api.service;
 
 import com.jjplatform.api.dto.BeltPromotionDto;
 import com.jjplatform.api.dto.ClassmateDto;
+import com.jjplatform.api.dto.StudentCardDto;
 import com.jjplatform.api.dto.CompetitionResultDto;
 import com.jjplatform.api.dto.CreateDuelRequest;
 import com.jjplatform.api.dto.DuelDto;
@@ -220,6 +221,24 @@ public class PortalService {
     public List<ClassmateDto> getClassmates(Long studentId) {
         Student s = requireOwnedStudent(studentId);
         return studentService.getAcademyClassmates(s.getAcademy().getId(), studentId);
+    }
+
+    /** Card of an academy mate (tapped from a ranking). Both must share the owned student's academy. */
+    public StudentCardDto getStudentCard(Long studentId, Long targetId) {
+        Student s = requireOwnedStudent(studentId);
+        return studentService.getStudentCard(s.getAcademy().getId(), targetId);
+    }
+
+    /** The student updates their own weight (kg); null clears it. */
+    @Transactional
+    public Double updateWeight(Long studentId, Double weight) {
+        if (weight != null && (weight <= 0 || weight > 400)) {
+            throw new IllegalArgumentException("El peso debe estar entre 1 y 400 kg.");
+        }
+        Student s = requireOwnedStudent(studentId);
+        s.setWeight(weight);
+        studentRepository.save(s);
+        return weight;
     }
 
     /** Birthdays of the student's academy that fall in the current month. */

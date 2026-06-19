@@ -2,14 +2,15 @@ package com.jjplatform.api.dto;
 
 import lombok.Data;
 
-/** Minimal classmate info for the training-partner picker in the student portal. */
+/** Public-ish card of an academy mate, shown when tapping a name in a ranking. */
 @Data
-public class ClassmateDto {
+public class StudentCardDto {
     private Long id;
     private String name;
     private String nickname;
     private String belt;
     private Integer stripes;
-    private String photoUrl;
     private Integer age;
+    private Double weight;
+    private String photoUrl;
 }

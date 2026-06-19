@@ -185,6 +185,12 @@ export default function Portal() {
     }
   };
 
+  const handleSaveWeight = async (weight: number | null) => {
+    if (selectedId == null) return;
+    const saved = await portalApi.setWeight(selectedId, weight);
+    setProfiles((prev) => prev.map((p) => (p.id === selectedId ? { ...p, weight: saved } : p)));
+  };
+
   // Optimistically flip a technique's learned flag (and the running counts), then persist.
   const handleToggleTechnique = useCallback((techniqueId: number, learned: boolean) => {
     if (selectedId == null) return;
@@ -265,6 +271,7 @@ export default function Portal() {
       uploading={uploading}
       uploadProgress={uploadProgress}
       onPhotoUpload={handlePhotoUpload}
+      onSaveWeight={handleSaveWeight}
     />
   );
   const fichas = (

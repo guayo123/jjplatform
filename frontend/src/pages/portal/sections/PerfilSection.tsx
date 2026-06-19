@@ -22,6 +22,7 @@ interface Props {
   uploading: boolean;
   uploadProgress: number;
   onPhotoUpload: (file: File) => Promise<void>;
+  onSaveWeight: (weight: number | null) => Promise<void>;
 }
 
 const HOUR_LABELS = Array.from({ length: 24 }, (_, h) => ({
@@ -318,8 +319,61 @@ function AchievementDetail({ a, onClose }: { a: Achievement; onClose: () => void
   );
 }
 
+/** Editable weight field: the student can set/clear their own weight (kg). */
+function WeightField({ weight, onSave }: { weight: number | null; onSave: (w: number | null) => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const start = () => { setDraft(weight != null ? String(weight) : ''); setError(null); setEditing(true); };
+  const save = async () => {
+    const t = draft.trim().replace(',', '.');
+    const v = t === '' ? null : Math.max(0, parseFloat(t) || 0);
+    if (v != null && (v < 1 || v > 400)) {
+      setError('El peso debe estar entre 1 y 400 kg.');
+      return;
+    }
+    setSaving(true); setError(null);
+    try {
+      await onSave(v);
+      setEditing(false);
+    } catch {
+      setError('No se pudo guardar.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <dt className="text-xs text-gray-400">Peso</dt>
+      {editing ? (
+        <dd className="mt-0.5">
+          <div className="flex items-center gap-2">
+            <input
+              type="number" inputMode="decimal" min={1} max={400} step="0.1" autoFocus
+              value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="kg"
+              className="w-20 px-2 py-1 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            <span className="text-xs text-gray-400">kg</span>
+            <button onClick={save} disabled={saving} className="text-xs font-semibold text-primary-600 disabled:opacity-50">{saving ? '…' : 'Guardar'}</button>
+            <button onClick={() => setEditing(false)} className="text-xs text-gray-400 hover:text-gray-600">Cancelar</button>
+          </div>
+          {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+        </dd>
+      ) : (
+        <dd className="flex items-center gap-2 text-gray-800">
+          {weight != null ? `${weight} kg` : <span className="text-gray-400">Sin registrar</span>}
+          <button onClick={() => { void tapLight(); start(); }} className="text-xs font-semibold text-primary-600 hover:text-primary-700">editar</button>
+        </dd>
+      )}
+    </div>
+  );
+}
+
 /** "Perfil" — student card, personal data and enrolled plans/professors. */
-export default function PerfilSection({ student, uploading, uploadProgress, onPhotoUpload }: Props) {
+export default function PerfilSection({ student, uploading, uploadProgress, onPhotoUpload, onSaveWeight }: Props) {
   return (
     <>
       {/* Student card with editable photo */}
@@ -377,7 +431,7 @@ export default function PerfilSection({ student, uploading, uploadProgress, onPh
           <Field label="Teléfono" value={student.phone} />
           <Field label="Teléfono de emergencia" value={student.emergencyPhone} />
           <Field label="Edad" value={student.age != null ? `${student.age} años` : null} />
-          <Field label="Peso" value={student.weight != null ? `${student.weight} kg` : null} />
+          <WeightField weight={student.weight} onSave={onSaveWeight} />
           <Field label="Dirección" value={student.address} />
           <Field label="Grupo sanguíneo" value={student.bloodType} />
           <Field label="Previsión" value={student.healthInsuranceType} />

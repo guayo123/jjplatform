@@ -11,6 +11,7 @@ import { buildWeekCardData, drawWeekCard, shareCard } from '../shareWeekCard';
 import { computeInsights, type Insight } from './trainingInsights';
 import { formatDate, ProgressSkeleton, CardSkeleton } from './shared';
 import TrainingCharts from './TrainingCharts';
+import StudentInfoModal from './StudentInfoModal';
 
 interface Props {
   studentId: number;
@@ -45,6 +46,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [classmates, setClassmates] = useState<Classmate[]>([]);
   const [board, setBoard] = useState<LeaderboardEntry[]>([]);
+  const [cardFor, setCardFor] = useState<number | null>(null); // ranking → student info modal
   const [shareView, setShareView] = useState<{ canvas: HTMLCanvasElement; dataUrl: string } | null>(null);
   const [sharing, setSharing] = useState(false);
   const [shareNote, setShareNote] = useState<string | null>(null);
@@ -310,7 +312,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
           {/* Narrative insights — the "at a glance" read of your game */}
           <InsightsCard insights={insights} hasSessions={sessions.length > 0} />
           <TrainingCharts sessions={sessions} />
-          <LeaderboardCard board={board} meId={studentId} />
+          <LeaderboardCard board={board} meId={studentId} onOpen={setCardFor} />
         </>
       ) : (
         <>
@@ -414,6 +416,10 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
           onClose={() => setCelebrations((prev) => prev.slice(1))}
         />
       )}
+
+      {cardFor != null && (
+        <StudentInfoModal viewerId={studentId} targetId={cardFor} onClose={() => setCardFor(null)} />
+      )}
     </div>
   );
 }
@@ -424,7 +430,7 @@ const MEDALS = ['🥇', '🥈', '🥉'];
  * Academy ranking by sessions this week (streak as tiebreaker); the logged-in student is
  * highlighted. Compact by default (top 3 + my position) — "Ver todo" expands to 10.
  */
-function LeaderboardCard({ board, meId }: { board: LeaderboardEntry[]; meId: number }) {
+function LeaderboardCard({ board, meId, onOpen }: { board: LeaderboardEntry[]; meId: number; onOpen: (studentId: number) => void }) {
   const [expanded, setExpanded] = useState(false);
   if (board.length < 2) return null; // a single-person ranking isn't a ranking
 
@@ -442,9 +448,10 @@ function LeaderboardCard({ board, meId }: { board: LeaderboardEntry[]; meId: num
         {top.map((e, i) => {
           const isMe = e.studentId === meId;
           return (
-            <div
+            <button
               key={e.studentId}
-              className={`flex items-center gap-3 rounded-lg px-2 py-2 ${isMe ? 'bg-primary-50' : ''}`}
+              onClick={() => onOpen(e.studentId)}
+              className={`w-full text-left flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-50 transition-colors ${isMe ? 'bg-primary-50' : ''}`}
             >
               <span className="w-7 text-center text-sm font-bold text-gray-500 flex-shrink-0">
                 {MEDALS[i] ?? i + 1}
@@ -467,13 +474,13 @@ function LeaderboardCard({ board, meId }: { board: LeaderboardEntry[]; meId: num
                   🔥 {e.currentStreak}
                 </span>
               )}
-            </div>
+            </button>
           );
         })}
         {/* If I'm below the visible rows, pin my position at the bottom so it's always in sight. */}
         {myIndex >= visibleCount && (
           <div className="mt-1 pt-2 border-t border-dashed border-gray-200">
-            <div className="flex items-center gap-3 rounded-lg px-2 py-2 bg-primary-50">
+            <button onClick={() => onOpen(board[myIndex].studentId)} className="w-full text-left flex items-center gap-3 rounded-lg px-2 py-2 bg-primary-50 hover:bg-primary-100 transition-colors">
               <span className="w-7 text-center text-sm font-bold text-gray-500 flex-shrink-0">{myIndex + 1}</span>
               <span className="flex-1 min-w-0 truncate text-sm font-bold text-primary-700">
                 {board[myIndex].name} <span className="text-[10px] font-semibold text-primary-500">(tú)</span>
@@ -481,7 +488,7 @@ function LeaderboardCard({ board, meId }: { board: LeaderboardEntry[]; meId: num
               <span className="text-sm font-semibold text-gray-900 flex-shrink-0">
                 {board[myIndex].thisWeekCount} <span className="text-xs font-normal text-gray-400">entrenos</span>
               </span>
-            </div>
+            </button>
           </div>
         )}
         {board.length > 3 && (

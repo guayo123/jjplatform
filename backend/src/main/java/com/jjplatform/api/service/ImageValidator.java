@@ -22,8 +22,8 @@ public class ImageValidator {
     public enum Profile {
         /** Academy logo: small, square-ish. */
         LOGO(1L * 1024 * 1024, 100, 1024, 100, 1024, "logo"),
-        /** Student / professor profile photo. */
-        PROFILE(2L * 1024 * 1024, 200, 3000, 200, 3000, "foto de perfil"),
+        /** Student / professor profile photo. Min 500px so it stays sharp in avatars on hi-DPI screens. */
+        PROFILE(2L * 1024 * 1024, 500, 3000, 500, 3000, "foto de perfil"),
         /** Public gallery photo. */
         GALLERY(5L * 1024 * 1024, 600, 4000, 400, 4000, "foto de galería");
 
