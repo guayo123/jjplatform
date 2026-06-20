@@ -45,6 +45,7 @@ public class TrainingService {
     public static final int REPAIRS_PER_MONTH = 1;
 
     private final TrainingSessionRepository sessionRepository;
+    private final ConditioningService conditioningService;
     private final DisciplineRepository disciplineRepository;
     private final StreakRepairRepository repairRepository;
 
@@ -143,6 +144,8 @@ public class TrainingService {
 
         // Repaired days count as trained for streak math only — never for session/volume stats.
         for (StreakRepair r : repairs) streakDays.add(r.getRepairedDate());
+        // Conditioning (gym) days keep the SAME streak alive — any training day counts.
+        streakDays.addAll(conditioningService.trainedDates(studentId));
 
         out.setCurrentStreak(currentDayStreak(streakDays, today));
         out.setMaxStreak(maxDayStreak(streakDays));
@@ -171,6 +174,7 @@ public class TrainingService {
             if (!s.isBackdated()) streakDays.add(s.getDate()); // late entries never count for streak
         }
         for (StreakRepair r : repairs) streakDays.add(r.getRepairedDate());
+        streakDays.addAll(conditioningService.trainedDates(student.getId()));
 
         LocalDate gap = repairableGapDay(streakDays, today);
         if (gap == null) {

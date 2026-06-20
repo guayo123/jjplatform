@@ -2,6 +2,7 @@ package com.jjplatform.api.controller;
 
 import com.jjplatform.api.dto.BeltPromotionDto;
 import com.jjplatform.api.dto.ClassmateDto;
+import com.jjplatform.api.dto.ConditioningSessionDto;
 import com.jjplatform.api.dto.CompetitionResultDto;
 import com.jjplatform.api.dto.CreateDuelRequest;
 import com.jjplatform.api.dto.DuelDto;
@@ -175,6 +176,25 @@ public class PortalController {
     @DeleteMapping("/students/{studentId}/training/{sessionId}")
     public ResponseEntity<Void> deleteTraining(@PathVariable Long studentId, @PathVariable Long sessionId) {
         portalService.deleteTrainingSession(studentId, sessionId);
+        return ResponseEntity.noContent().build();
+    }
+
+    // --- Conditioning (strength & physical prep) journal ------------------
+
+    @GetMapping("/students/{studentId}/conditioning")
+    public ResponseEntity<List<ConditioningSessionDto>> conditioningSessions(@PathVariable Long studentId) {
+        return ResponseEntity.ok(portalService.getConditioningSessions(studentId));
+    }
+
+    @PostMapping("/students/{studentId}/conditioning")
+    public ResponseEntity<ConditioningSessionDto> createConditioning(@PathVariable Long studentId,
+                                                                     @RequestBody ConditioningSessionDto dto) {
+        return ResponseEntity.ok(portalService.createConditioningSession(studentId, dto));
+    }
+
+    @DeleteMapping("/students/{studentId}/conditioning/{sessionId}")
+    public ResponseEntity<Void> deleteConditioning(@PathVariable Long studentId, @PathVariable Long sessionId) {
+        portalService.deleteConditioningSession(studentId, sessionId);
         return ResponseEntity.noContent().build();
     }
 

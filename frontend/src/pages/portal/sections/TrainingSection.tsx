@@ -1,17 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Classmate, LeaderboardEntry, StudentDiscipline, TrainingModality, TrainingSession, TrainingSessionForm, TrainingSummary } from '../../../types';
+import type { Classmate, ConditioningSession, ConditioningSessionForm, LeaderboardEntry, StudentDiscipline, TrainingModality, TrainingSession, TrainingSessionForm, TrainingSummary } from '../../../types';
 import { trainingApi } from '../../../api/training';
+import { conditioningApi } from '../../../api/conditioning';
 import { notifySuccess } from '../../../native/haptics';
 import { playOss } from '../../../native/sound';
 import { scheduleStreakReminders } from '../../../native/notifications';
 import TrainingForm from '../TrainingForm';
+import ConditioningForm from '../ConditioningForm';
 import Celebration, { type CelebrationContent, streakMessage } from '../Celebration';
-import { computeAchievements, takeNewlyUnlocked, type Achievement } from '../achievements';
+import { computeAchievements, computeConditioningAchievements, takeNewlyUnlocked, type Achievement } from '../achievements';
+import { detectPRs, type PR } from '../prDetection';
+import PRModal from '../PRModal';
 import { buildWeekCardData, drawWeekCard, shareCard } from '../shareWeekCard';
 import { computeInsights, type Insight } from './trainingInsights';
 import { formatDate, ProgressSkeleton, CardSkeleton } from './shared';
 import TrainingCharts from './TrainingCharts';
 import StudentInfoModal from './StudentInfoModal';
+import BodyDiagram from './BodyDiagram';
+import { getMusclesFromFocus, getMusclesFromNames } from '../exerciseCatalog';
 
 interface Props {
   studentId: number;
@@ -25,15 +31,19 @@ const MODALITY_LABEL: Record<string, string> = {
   NOGI: 'No-Gi',
   OPEN_MAT: 'Open Mat',
   COMPETITION: 'Competición',
+  FISICO: 'Físico',
 };
 
-/** History filter chips: everything plus one per session type. */
-const HISTORY_FILTERS: Array<{ key: 'ALL' | TrainingModality; label: string }> = [
+type HistoryFilter = 'ALL' | 'FISICO' | TrainingModality;
+
+/** History filter chips: everything, the conditioning (gym) log, plus one per BJJ session type. */
+const HISTORY_FILTERS: Array<{ key: HistoryFilter; label: string }> = [
   { key: 'ALL', label: 'Todo' },
   { key: 'GI', label: 'Gi' },
   { key: 'NOGI', label: 'No-Gi' },
   { key: 'OPEN_MAT', label: 'Open Mat' },
   { key: 'COMPETITION', label: 'Competición' },
+  { key: 'FISICO', label: 'Físico' },
 ];
 
 /** Local YYYY-MM-DD for "today" — matches the backend LocalDate string on sessions. */
@@ -53,14 +63,19 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
   const [shareNote, setShareNote] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
+  const [condSessions, setCondSessions] = useState<ConditioningSession[]>([]);
+  const [chooserOpen, setChooserOpen] = useState(false); // pick BJJ vs conditioning to log
+  const [condFormOpen, setCondFormOpen] = useState(false);
+  const [condDetailFor, setCondDetailFor] = useState<ConditioningSession | null>(null);
   // Home shows the summary; history (sessions + trends) lives one tap away.
   const [view, setView] = useState<'resumen' | 'historial'>('resumen');
-  const [historyFilter, setHistoryFilter] = useState<'ALL' | TrainingModality>('ALL');
+  const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('ALL');
   const [savingGoal, setSavingGoal] = useState(false);
   const [repairing, setRepairing] = useState(false);
   const [repairError, setRepairError] = useState<string | null>(null);
   // Celebrations queue up (weekly goal → streak → achievements) and show one at a time.
   const [celebrations, setCelebrations] = useState<CelebrationContent[]>([]);
+  const [prResults, setPrResults] = useState<PR[]>([]);
 
   const celebrate = (c: CelebrationContent) => setCelebrations((prev) => [...prev, c]);
 
@@ -80,16 +95,18 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [sum, list, mates, ranking] = await Promise.all([
+      const [sum, list, mates, ranking, cond] = await Promise.all([
         trainingApi.summary(studentId),
         trainingApi.list(studentId),
         trainingApi.classmates(studentId).catch(() => [] as Classmate[]),
         trainingApi.leaderboard(studentId).catch(() => [] as LeaderboardEntry[]),
+        conditioningApi.list(studentId).catch(() => [] as ConditioningSession[]),
       ]);
       setSummary(sum);
       setSessions(list);
       setClassmates(mates);
       setBoard(ranking);
+      setCondSessions(cond);
       // Refresh the native streak reminders so their copy reflects the current state.
       void scheduleStreakReminders(sum.currentStreak, trainedToday(list), {
         lostStreak: sum.lostStreak,
@@ -110,9 +127,34 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
   const insights = useMemo(() => computeInsights(sessions), [sessions]);
 
   const filteredSessions = useMemo(
-    () => (historyFilter === 'ALL' ? sessions : sessions.filter((s) => s.modality === historyFilter)),
+    // "Físico" hides BJJ entirely; a specific BJJ modality filters by it.
+    () => (historyFilter === 'ALL' ? sessions
+      : historyFilter === 'FISICO' ? []
+      : sessions.filter((s) => s.modality === historyFilter)),
     [sessions, historyFilter],
   );
+
+  // History merges BJJ + conditioning chronologically. Conditioning shows under "Todo" and "Físico".
+  const historyItems = useMemo(() => {
+    const bjj = filteredSessions.map((s) => ({ kind: 'bjj' as const, key: `b${s.id}`, date: s.date, created: s.createdAt, s }));
+    const cond = (historyFilter === 'ALL' || historyFilter === 'FISICO' ? condSessions : [])
+      .map((c) => ({ kind: 'cond' as const, key: `c${c.id}`, date: c.date, created: c.createdAt, c }));
+    return [...bjj, ...cond].sort((a, b) => b.date.localeCompare(a.date) || (b.created ?? '').localeCompare(a.created ?? ''));
+  }, [filteredSessions, condSessions, historyFilter]);
+
+  // Distinct exercise names the student has used (most recent first) — seeds the form autocomplete.
+  const recentExercises = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const c of condSessions) {
+      for (const ex of c.exercises) {
+        const n = ex.name.trim();
+        const k = n.toLowerCase();
+        if (n && !seen.has(k)) { seen.add(k); out.push(n); }
+      }
+    }
+    return out.slice(0, 20);
+  }, [condSessions]);
 
   const handleSave = async (data: TrainingSessionForm) => {
     const prevStreak = summary?.currentStreak ?? 0;
@@ -155,6 +197,45 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     celebrateAchievements(takeNewlyUnlocked(computeAchievements(list, sum)));
     // Refresh the leaderboard in the background — the new session may move positions.
     trainingApi.leaderboard(studentId).then(setBoard).catch(() => { /* keep the stale board */ });
+  };
+
+  const handleSaveConditioning = async (data: ConditioningSessionForm) => {
+    const prevStreak = summary?.currentStreak ?? 0;
+    // Snapshot history BEFORE saving so we can compare for PRs
+    const historySnapshot = [...condSessions];
+    playOss();
+    await conditioningApi.create(studentId, data);
+    void notifySuccess();
+    const [sum, cond, list] = await Promise.all([
+      trainingApi.summary(studentId),
+      conditioningApi.list(studentId),
+      trainingApi.list(studentId),
+    ]);
+    setSummary(sum);
+    setCondSessions(cond);
+    // "Trained today" now spans both journals (a gym day keeps the streak too).
+    const todayStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+    const didToday = trainedToday(list) || cond.some((c) => !c.backdated && c.date === todayStr);
+    void scheduleStreakReminders(sum.currentStreak, didToday, {
+      lostStreak: sum.lostStreak,
+      repairAvailable: sum.repairAvailable,
+    });
+    if (sum.currentStreak > prevStreak) {
+      celebrate({
+        eyebrow: 'Racha en marcha',
+        emoji: '🔥',
+        count: sum.currentStreak,
+        unit: sum.currentStreak === 1 ? 'día seguido entrenando' : 'días seguidos entrenando',
+        message: streakMessage(sum.currentStreak),
+      });
+    }
+    // Conditioning badges unlocked by this session queue up after the streak celebration.
+    celebrateAchievements(takeNewlyUnlocked(computeConditioningAchievements(cond)));
+    // PR detection — compare new session exercises against history captured before saving
+    if (data.exercises && data.exercises.length > 0) {
+      const prs = detectPRs(data.exercises, historySnapshot);
+      if (prs.length > 0) setPrResults(prs);
+    }
   };
 
   const handleRepair = async () => {
@@ -221,6 +302,17 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     setSessions((prev) => prev.filter((s) => s.id !== id));
     try {
       await trainingApi.remove(studentId, id);
+      const sum = await trainingApi.summary(studentId);
+      setSummary(sum);
+    } catch {
+      void load(); // restore on failure
+    }
+  };
+
+  const handleDeleteConditioning = async (id: number) => {
+    setCondSessions((prev) => prev.filter((c) => c.id !== id));
+    try {
+      await conditioningApi.remove(studentId, id);
       const sum = await trainingApi.summary(studentId);
       setSummary(sum);
     } catch {
@@ -295,7 +387,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
 
       {/* Resumen | Historial segmented control */}
       <div className="bg-gray-200/70 rounded-xl p-1 flex">
-        {([['resumen', 'Resumen'], ['historial', `Historial (${sessions.length})`]] as const).map(([key, label]) => (
+        {([['resumen', 'Resumen'], ['historial', `Historial (${sessions.length + condSessions.length})`]] as const).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setView(key)}
@@ -318,7 +410,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
       ) : (
         <>
           {/* Session-type filter */}
-          {sessions.length > 0 && (
+          {(sessions.length > 0 || condSessions.length > 0) && (
             <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-0.5">
               {HISTORY_FILTERS.map((f) => (
                 <button
@@ -339,18 +431,20 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
           {/* Recent sessions */}
           <div className="bg-white rounded-xl shadow-sm jjp-accent-bar">
             <div className="p-5">
-              {sessions.length === 0 ? (
+              {sessions.length === 0 && condSessions.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-gray-400 text-sm">Aún no registras entrenamientos.</p>
                   <p className="text-gray-300 text-xs mt-1">Toca el botón + al salir del tatami 🥋</p>
                 </div>
-              ) : filteredSessions.length === 0 ? (
+              ) : historyItems.length === 0 ? (
                 <p className="text-center py-8 text-gray-400 text-sm">
                   No tienes entrenos de tipo {MODALITY_LABEL[historyFilter] ?? historyFilter}.
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {filteredSessions.map((s) => <SessionRow key={s.id} s={s} onDelete={() => handleDelete(s.id)} onOpen={() => setDetailFor(s)} />)}
+                  {historyItems.map((it) => it.kind === 'bjj'
+                    ? <SessionRow key={it.key} s={it.s} onDelete={() => handleDelete(it.s.id)} onOpen={() => setDetailFor(it.s)} />
+                    : <ConditioningRow key={it.key} c={it.c} onDelete={() => handleDeleteConditioning(it.c.id)} onOpen={() => setCondDetailFor(it.c)} />)}
                 </div>
               )}
             </div>
@@ -360,13 +454,20 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
 
       {/* Floating action button: the one primary action, always within thumb reach. */}
       <button
-        onClick={() => setFormOpen(true)}
+        onClick={() => setChooserOpen(true)}
         aria-label="Registrar entrenamiento"
         title="Registrar entrenamiento"
         className="fixed bottom-24 right-5 z-50 w-14 h-14 rounded-full bg-primary-600 hover:bg-primary-700 text-white shadow-xl shadow-primary-600/40 flex items-center justify-center transition-transform active:scale-95"
       >
         <span className="text-3xl leading-none -mt-0.5">+</span>
       </button>
+
+      {chooserOpen && (
+        <LogChooser
+          onClose={() => setChooserOpen(false)}
+          onPick={(kind) => { setChooserOpen(false); if (kind === 'bjj') setFormOpen(true); else setCondFormOpen(true); }}
+        />
+      )}
 
       {formOpen && (
         <TrainingForm
@@ -377,6 +478,12 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
           onSave={handleSave}
         />
       )}
+
+      {condFormOpen && (
+        <ConditioningForm recentExercises={recentExercises} onClose={() => setCondFormOpen(false)} onSave={handleSaveConditioning} />
+      )}
+
+      {condDetailFor && <ConditioningDetail c={condDetailFor} onClose={() => setCondDetailFor(null)} />}
 
       {/* Week-card preview + share */}
       {shareView && (
@@ -416,6 +523,10 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
           key={`${celebrations[0].message}-${celebrations[0].count}`}
           onClose={() => setCelebrations((prev) => prev.slice(1))}
         />
+      )}
+
+      {prResults.length > 0 && celebrations.length === 0 && (
+        <PRModal prs={prResults} onClose={() => setPrResults([])} />
       )}
 
       {cardFor != null && (
@@ -827,6 +938,147 @@ function DetailBlock({ title, children }: { title: string; children: React.React
     <div className="mt-4">
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{title}</p>
       {children}
+    </div>
+  );
+}
+
+const FOCUS_LABEL: Record<string, string> = {
+  PIERNA: '🦵 Pierna', ESPALDA: '🔙 Espalda', PECHO: '🎯 Pecho', HOMBRO: '🤲 Hombro',
+  BRAZO: '💪 Brazo', CORE: '🧱 Core', CARDIO: '🏃 Cardio', FULL_BODY: '🔥 Full body',
+};
+
+function BeltKnotIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2.5" y="9" width="19" height="5" rx="2.2" />
+      <rect x="9.4" y="7.6" width="5.2" height="7.8" rx="1.6" fill="currentColor" stroke="none" />
+      <path d="M10 15.2l-2 5M14 15.2l2 5" />
+    </svg>
+  );
+}
+
+function DumbbellIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12" />
+    </svg>
+  );
+}
+
+/** Chooser shown when tapping +: log a BJJ session or a conditioning (gym) session. Centered. */
+function LogChooser({ onClose, onPick }: { onClose: () => void; onPick: (kind: 'bjj' | 'cond') => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-5 pt-safe pb-safe">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl jjp-pop">
+        <button onClick={onClose} className="absolute right-3 top-3 text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
+        <h2 className="text-center font-bold text-gray-900">¿Qué quieres registrar?</h2>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <button
+            onClick={() => onPick('bjj')}
+            className="flex flex-col items-center gap-2.5 py-6 rounded-xl border-2 border-gray-200 hover:border-primary-400 hover:bg-primary-50/40 transition-colors"
+          >
+            <span className="w-12 h-12 rounded-full bg-primary-50 text-primary-600 flex items-center justify-center">
+              <BeltKnotIcon className="w-7 h-7" />
+            </span>
+            <span className="text-sm font-semibold text-gray-800">Jiujitsu</span>
+          </button>
+          <button
+            onClick={() => onPick('cond')}
+            className="flex flex-col items-center gap-2.5 py-6 rounded-xl border-2 border-gray-200 hover:border-primary-400 hover:bg-primary-50/40 transition-colors"
+          >
+            <span className="w-12 h-12 rounded-full bg-primary-50 text-primary-600 flex items-center justify-center">
+              <DumbbellIcon className="w-7 h-7" />
+            </span>
+            <span className="text-sm font-semibold text-gray-800">Acondicionamiento</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** History row for a conditioning (gym) session, parallel to SessionRow. */
+function ConditioningRow({ c, onDelete, onOpen }: { c: ConditioningSession; onDelete: () => void; onOpen: () => void }) {
+  const totalSets = c.exercises.reduce((n, e) => n + e.sets.length, 0);
+  return (
+    <div className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50">
+      <button onClick={onOpen} className="flex-1 min-w-0 text-left">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-semibold text-gray-900">{formatDate(c.date)}</span>
+          <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">🏋️ Físico</span>
+          {c.focus && <span className="text-xs text-gray-400">{FOCUS_LABEL[c.focus] ?? c.focus}</span>}
+        </div>
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">
+          {c.exercises.length > 0 && <span>🔁 {c.exercises.length} ej · {totalSets} series</span>}
+          {c.durationMin != null && <span>⏱ {c.durationMin} min</span>}
+        </div>
+        {c.notes && <p className="text-xs text-gray-400 italic mt-1 line-clamp-2">"{c.notes}"</p>}
+      </button>
+      <button onClick={onDelete} className="text-gray-300 hover:text-red-500 px-1 flex-shrink-0" aria-label="Eliminar">🗑</button>
+    </div>
+  );
+}
+
+/** Full detail of a conditioning session (styled like the BJJ session detail). */
+function ConditioningDetail({ c, onClose }: { c: ConditioningSession; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-5 pt-safe pb-safe">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl jjp-pop max-h-[88vh] overflow-y-auto">
+        <button onClick={onClose} className="absolute right-3 top-3 text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
+        <div className="text-center">
+          <p className="text-lg font-extrabold text-gray-900">{formatDate(c.date)}</p>
+          <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+            <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">🏋️ Acondicionamiento</span>
+            {c.focus && <span className="text-xs text-gray-400">{FOCUS_LABEL[c.focus] ?? c.focus}</span>}
+            {c.durationMin != null && <span className="text-xs text-gray-400">⏱ {c.durationMin} min</span>}
+            {c.backdated && <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded-full">Registrado tarde</span>}
+          </div>
+        </div>
+
+        {(() => {
+          const names = c.exercises.map((e) => e.name).filter(Boolean);
+          const muscles = names.length > 0 ? getMusclesFromNames(names) : getMusclesFromFocus(c.focus ?? null);
+          return muscles.length > 0 ? (
+            <div className="mt-4">
+              <BodyDiagram muscles={muscles} />
+              <div className="mt-2 flex items-center justify-center gap-4 text-[11px] text-gray-400">
+                <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#f97316' }} /> Trabajado</span>
+                <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#cbd5e1' }} /> No objetivo</span>
+              </div>
+            </div>
+          ) : null;
+        })()}
+
+        {c.exercises.length > 0 && (
+          <DetailBlock title="Ejercicios">
+            <div className="space-y-2">
+              {c.exercises.map((ex, i) => (
+                <div key={i} className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-gray-800">{ex.name}</p>
+                    {ex.restSec != null && <span className="text-[11px] text-gray-400">descanso {ex.restSec}s</span>}
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {ex.sets.map((s, j) => (
+                      <span key={j} className="text-xs bg-white border border-gray-200 rounded-full px-2 py-0.5 text-gray-600">
+                        {s.reps ?? '–'}{s.weightKg != null ? ` × ${s.weightKg}kg` : ''}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </DetailBlock>
+        )}
+
+        {c.notes && (
+          <DetailBlock title="Notas">
+            <p className="text-sm text-gray-600 italic whitespace-pre-wrap">"{c.notes}"</p>
+          </DetailBlock>
+        )}
+      </div>
     </div>
   );
 }

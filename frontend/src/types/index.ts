@@ -653,6 +653,41 @@ export interface TrainingSessionForm {
   partners?: TrainingPartner[];
 }
 
+// ─── Conditioning (strength & physical prep journal) ───
+export type ConditioningFocus = 'PIERNA' | 'ESPALDA' | 'PECHO' | 'HOMBRO' | 'BRAZO' | 'CORE' | 'CARDIO' | 'FULL_BODY';
+
+export interface ConditioningSet {
+  reps: number | null;
+  weightKg: number | null;
+}
+
+export interface ConditioningExercise {
+  name: string;
+  restSec: number | null;
+  sets: ConditioningSet[];
+}
+
+export interface ConditioningSession {
+  id: number;
+  date: string; // YYYY-MM-DD
+  backdated: boolean;
+  focus: ConditioningFocus | null;
+  durationMin: number | null;
+  notes: string | null;
+  exercises: ConditioningExercise[];
+  createdAt: string;
+}
+
+/** Payload to log a conditioning session. */
+export interface ConditioningSessionForm {
+  date?: string;
+  backdated?: boolean;
+  focus?: ConditioningFocus | null;
+  durationMin?: number | null;
+  notes?: string | null;
+  exercises: ConditioningExercise[];
+}
+
 /** One row of the academy training leaderboard. */
 export interface LeaderboardEntry {
   studentId: number;

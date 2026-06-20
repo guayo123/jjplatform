@@ -67,6 +67,24 @@ public class PushService {
         CompletableFuture.runAsync(() -> dispatch(tokens, title, body));
     }
 
+    /**
+     * Admin broadcast: send a free message to every device of an academy, or to ALL academies
+     * when {@code academyId} is null. Returns how many devices were targeted (0 if push is off
+     * or there are no registered devices).
+     */
+    @Transactional(readOnly = true)
+    public int broadcast(Long academyId, String title, String body) {
+        if (FirebaseApp.getApps().isEmpty()) return 0;
+        List<DeviceToken> devices = academyId == null
+                ? tokenRepository.findAll()
+                : tokenRepository.findByAcademyId(academyId);
+        List<String> tokens = new ArrayList<>();
+        for (DeviceToken dt : devices) tokens.add(dt.getToken());
+        if (tokens.isEmpty()) return 0;
+        CompletableFuture.runAsync(() -> dispatch(tokens, title, body));
+        return tokens.size();
+    }
+
     private void dispatch(List<String> tokens, String title, String body) {
         try {
             Notification notification = Notification.builder().setTitle(title).setBody(body).build();

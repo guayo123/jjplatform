@@ -55,6 +55,7 @@ public class PortalService {
     private final PaymentService paymentService;
     private final FileStorageService fileStorageService;
     private final TrainingService trainingService;
+    private final ConditioningService conditioningService;
     private final StudentService studentService;
     private final DuelService duelService;
     private final TechniqueService techniqueService;
@@ -305,6 +306,24 @@ public class PortalService {
     public void deleteTrainingSession(Long studentId, Long sessionId) {
         requireOwnedStudent(studentId);
         trainingService.delete(studentId, sessionId);
+    }
+
+    // --- Conditioning (strength & physical prep) journal -------------------
+
+    public List<com.jjplatform.api.dto.ConditioningSessionDto> getConditioningSessions(Long studentId) {
+        requireOwnedStudent(studentId);
+        return conditioningService.listByStudent(studentId);
+    }
+
+    public com.jjplatform.api.dto.ConditioningSessionDto createConditioningSession(
+            Long studentId, com.jjplatform.api.dto.ConditioningSessionDto dto) {
+        Student s = requireOwnedStudent(studentId);
+        return conditioningService.create(s, dto);
+    }
+
+    public void deleteConditioningSession(Long studentId, Long sessionId) {
+        requireOwnedStudent(studentId);
+        conditioningService.delete(studentId, sessionId);
     }
 
     /** Current student's weekly training goal (null when not set). */

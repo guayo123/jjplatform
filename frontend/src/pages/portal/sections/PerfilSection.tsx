@@ -12,7 +12,8 @@ import {
   type ReminderPrefs,
 } from '../../../native/notifications';
 import type { Student } from '../../../types';
-import { computeAchievements, type Achievement } from '../achievements';
+import { computeAchievements, computeConditioningAchievements, type Achievement } from '../achievements';
+import { conditioningApi } from '../../../api/conditioning';
 import { formatDate, Field } from './shared';
 import { useThemeStore, THEME_OPTIONS } from '../theme';
 import { isSoundEnabled, setSoundEnabled, playOss, isDuelSoundEnabled, setDuelSoundEnabled, playDuelo } from '../../../native/sound';
@@ -227,32 +228,56 @@ function SettingsSection({ studentId }: { studentId: number }) {
 
 /** "Logros" — badge vitrina computed from the student's own journal. */
 function AchievementsCard({ studentId }: { studentId: number }) {
-  const [achievements, setAchievements] = useState<Achievement[] | null>(null);
+  const [bjj, setBjj] = useState<Achievement[] | null>(null);
+  const [fisico, setFisico] = useState<Achievement[] | null>(null);
+  const [tab, setTab] = useState<'bjj' | 'fisico'>('bjj');
   // Tapped badge → detail sheet (mobile has no hover, so a native `title` tooltip never shows).
   const [selected, setSelected] = useState<Achievement | null>(null);
 
   useEffect(() => {
     let alive = true;
-    Promise.all([trainingApi.list(studentId), trainingApi.summary(studentId)])
-      .then(([sessions, summary]) => {
-        if (alive) setAchievements(computeAchievements(sessions, summary));
+    Promise.all([
+      trainingApi.list(studentId),
+      trainingApi.summary(studentId),
+      conditioningApi.list(studentId).catch(() => []),
+    ])
+      .then(([sessions, summary, cond]) => {
+        if (!alive) return;
+        setBjj(computeAchievements(sessions, summary));
+        setFisico(computeConditioningAchievements(cond));
       })
       .catch(() => { /* hide the card if the journal can't load */ });
     return () => { alive = false; };
   }, [studentId]);
 
-  if (!achievements) return null;
-  const unlockedCount = achievements.filter((a) => a.unlocked).length;
+  if (!bjj || !fisico) return null;
+  const list = tab === 'bjj' ? bjj : fisico;
+  const unlockedCount = list.filter((a) => a.unlocked).length;
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-5">
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="font-bold text-gray-900">Logros</h2>
-        <span className="text-xs text-gray-400">{unlockedCount} de {achievements.length}</span>
+        <span className="text-xs text-gray-400">{unlockedCount} de {list.length}</span>
       </div>
-      <p className="text-xs text-gray-400 mt-0.5 mb-4">Toca un logro para ver cómo conseguirlo</p>
+
+      <div className="mt-3 flex gap-2">
+        {([['bjj', 'Jiujitsu'], ['fisico', 'Físico']] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => { void tapLight(); setTab(key); }}
+            className={`flex-1 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+              tab === key ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-500 border-gray-200'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <p className="text-xs text-gray-400 mt-3 mb-4">Toca un logro para ver cómo conseguirlo</p>
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-        {achievements.map((a) => (
+        {list.map((a) => (
           <button
             key={a.id}
             type="button"

@@ -31,6 +31,7 @@ const Schedules      = lazy(() => import('./pages/admin/Schedules'));
 const Disciplines    = lazy(() => import('./pages/admin/Disciplines'));
 const Professors     = lazy(() => import('./pages/admin/Professors'));
 const ProfessorForm  = lazy(() => import('./pages/admin/ProfessorForm'));
+const Notifications  = lazy(() => import('./pages/admin/Notifications'));
 const SuperAcademies = lazy(() => import('./pages/super/Academies'));
 const Portal          = lazy(() => import('./pages/portal/Portal'));
 const PortalChangePassword = lazy(() => import('./pages/admin/ChangePassword'));
@@ -90,6 +91,7 @@ export default function App() {
           <Route path="/admin/disciplines" element={<Suspense><Disciplines /></Suspense>} />
           <Route path="/admin/plans" element={<Suspense><Plans /></Suspense>} />
           <Route path="/admin/schedules" element={<Suspense><Schedules /></Suspense>} />
+          <Route path="/admin/notifications" element={<Suspense><Notifications /></Suspense>} />
           <Route path="/super/academies" element={<Suspense><SuperAcademies /></Suspense>} />
         </Route>
       </Route>

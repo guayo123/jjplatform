@@ -15,6 +15,7 @@ const GESTION_LINKS = [
   { to: '/admin/plans',          label: 'Planes' },
   { to: '/admin/schedules',      label: 'Horarios' },
   { to: '/admin/photos',         label: 'Fotos' },
+  { to: '/admin/notifications',  label: 'Notificaciones' },
   { to: '/admin/settings',       label: 'Configuración' },
 ];
 
@@ -29,7 +30,10 @@ export default function Navbar() {
   const gestionRef = useRef<HTMLDivElement>(null);
 
   const allLinks = isSuperAdmin
-    ? [{ to: '/super/academies', label: 'Academias' }]
+    ? [
+        { to: '/super/academies', label: 'Academias' },
+        { to: '/admin/notifications', label: 'Notificaciones' },
+      ]
     : [
         ...PRIMARY_LINKS,
         ...GESTION_LINKS,
