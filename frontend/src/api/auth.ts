@@ -1,6 +1,7 @@
 import client from './client';
 import type {
   ChangePasswordRequest,
+  ForgotPasswordRequest,
   LoginRequest,
   LoginResponse,
   RegisterRequest,
@@ -16,6 +17,9 @@ export const authApi = {
 
   studentRegister: (data: StudentRegisterRequest) =>
     client.post<void>('/auth/student-register', data).then((r) => r.data),
+
+  forgotPassword: (data: ForgotPasswordRequest) =>
+    client.post<void>('/auth/forgot-password', data).then((r) => r.data),
 
   changePassword: (data: ChangePasswordRequest) =>
     client.post<void>('/auth/change-password', data).then((r) => r.data),

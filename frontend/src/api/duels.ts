@@ -1,5 +1,5 @@
 import client from './client';
-import type { CreateDuelRequest, Duel, DuelResultRequest } from '../types';
+import type { CreateDuelRequest, Duel, DuelRankingEntry, DuelResultRequest } from '../types';
 
 export const duelsApi = {
   /** Duels involving the student (incoming + outgoing). */
@@ -9,6 +9,10 @@ export const duelsApi = {
   /** Academy feed: completed (with winner) + rejected duels. */
   feed: (studentId: number) =>
     client.get<Duel[]>(`/portal/students/${studentId}/duels/feed`).then((r) => r.data),
+
+  /** Top-10 academy duel ranking by win/loss record. */
+  ranking: (studentId: number) =>
+    client.get<DuelRankingEntry[]>(`/portal/students/${studentId}/duels/ranking`).then((r) => r.data),
 
   create: (studentId: number, data: CreateDuelRequest) =>
     client.post<Duel>(`/portal/students/${studentId}/duels`, data).then((r) => r.data),

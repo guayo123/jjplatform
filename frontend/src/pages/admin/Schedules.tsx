@@ -7,7 +7,7 @@ import { useGuidedTour } from '../../utils/useGuidedTour';
 import SchedulePosterModal from './SchedulePosterModal';
 import FormInput from '../../components/FormInput';
 import FormSelect from '../../components/FormSelect';
-import type { Plan, Professor, Schedule, AcademySettings } from '../../types';
+import type { Plan, Professor, Schedule, AcademySettings, ReservationRoster } from '../../types';
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const DAY_SHORT: Record<string, string> = {
@@ -23,6 +23,43 @@ function classColor(name: string): string {
 function hexAlpha(hex: string, alpha: number): string {
   const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
   return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// Spanish day name (as stored on ClassSchedule.dayOfWeek) → JS getDay() index.
+const JS_DAY: Record<string, number> = {
+  Domingo: 0, Lunes: 1, Martes: 2, Miércoles: 3, Jueves: 4, Viernes: 5, Sábado: 6,
+};
+const toISODate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+/** Next `count` calendar dates (ISO) whose weekday matches `dayName`, starting today. */
+function nextOccurrences(dayName: string, count: number): string[] {
+  const target = JS_DAY[dayName];
+  if (target === undefined) return [];
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  while (d.getDay() !== target) d.setDate(d.getDate() + 1);
+  const out: string[] = [];
+  for (let i = 0; i < count; i++) {
+    out.push(toISODate(d));
+    d.setDate(d.getDate() + 7);
+  }
+  return out;
+}
+function fmtOccurrence(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  return d.toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+const BELT_CHIP: Record<string, string> = {
+  Blanco: 'bg-gray-100 text-gray-700 border-gray-300',
+  Azul: 'bg-blue-100 text-blue-700 border-blue-300',
+  Morado: 'bg-purple-100 text-purple-700 border-purple-300',
+  Marrón: 'bg-amber-100 text-amber-800 border-amber-300',
+  Negro: 'bg-gray-800 text-white border-gray-700',
+};
+
+function initials(name: string): string {
+  return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
 }
 
 interface FormState {
@@ -61,8 +98,38 @@ export default function Schedules() {
   const [saving, setSaving] = useState(false);
   const [academy, setAcademy] = useState<AcademySettings | null>(null);
   const [showPoster, setShowPoster] = useState(false);
+  // Roster: who reserved a given class occurrence. `dates` = upcoming occurrences of that weekday.
+  const [roster, setRoster] = useState<{
+    schedule: Schedule;
+    dates: string[];
+    date: string;
+    list: ReservationRoster[] | null;
+    loading: boolean;
+  } | null>(null);
   const { toast } = useToast();
   const confirm = useConfirm();
+
+  const openRoster = (s: Schedule) => {
+    const dates = nextOccurrences(s.dayOfWeek, 4);
+    setRoster({ schedule: s, dates, date: dates[0] ?? toISODate(new Date()), list: null, loading: true });
+  };
+
+  const rosterSid = roster?.schedule.id;
+  const rosterDate = roster?.date;
+  useEffect(() => {
+    if (rosterSid == null || !rosterDate) return;
+    let cancelled = false;
+    setRoster((r) => (r ? { ...r, loading: true } : r));
+    academiesApi
+      .getReservations(rosterSid, rosterDate)
+      .then((list) => {
+        if (!cancelled) setRoster((r) => (r && r.schedule.id === rosterSid && r.date === rosterDate ? { ...r, list, loading: false } : r));
+      })
+      .catch(() => {
+        if (!cancelled) setRoster((r) => (r ? { ...r, list: [], loading: false } : r));
+      });
+    return () => { cancelled = true; };
+  }, [rosterSid, rosterDate]);
 
   const load = () =>
     Promise.all([
@@ -301,6 +368,14 @@ export default function Schedules() {
                             <span className="text-gray-600">Prof. </span>{s.professorName}
                           </p>
                         )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openRoster(s); }}
+                          title="Ver reservas"
+                          className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-medium text-gray-500 hover:text-primary-600 rounded px-1.5 py-0.5 -ml-1 hover:bg-white/60 transition-colors"
+                        >
+                          <span aria-hidden>👥</span>
+                          Reservas{s.capacity != null ? ` · cupo ${s.capacity}` : ''}
+                        </button>
                       </div>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDelete(s); }}
@@ -473,6 +548,99 @@ export default function Schedules() {
           academy={academy}
           onClose={() => setShowPoster(false)}
         />
+      )}
+
+      {/* Roster: who reserved a class occurrence */}
+      {roster && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setRoster(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-gray-100">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">{roster.schedule.className}</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {roster.schedule.dayOfWeek} · {roster.schedule.startTime.slice(0, 5)}–{roster.schedule.endTime.slice(0, 5)}
+                    {roster.schedule.professorName ? ` · Prof. ${roster.schedule.professorName}` : ''}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setRoster(null)}
+                  className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                  aria-label="Cerrar"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Date selector: upcoming occurrences of this weekday */}
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {roster.dates.map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setRoster((r) => (r ? { ...r, date: d } : r))}
+                    className={`text-xs px-2.5 py-1 rounded-full border capitalize transition-colors ${
+                      d === roster.date
+                        ? 'bg-primary-600 text-white border-primary-600'
+                        : 'bg-white text-gray-600 border-gray-300 hover:border-primary-400'
+                    }`}
+                  >
+                    {fmtOccurrence(d)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-5 overflow-y-auto">
+              {roster.loading ? (
+                <div className="flex justify-center py-10">
+                  <div className="w-6 h-6 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-baseline gap-2 mb-3">
+                    <span className="text-2xl font-bold text-gray-900">{roster.list?.length ?? 0}</span>
+                    <span className="text-sm text-gray-500">
+                      {(roster.list?.length ?? 0) === 1 ? 'alumno reservado' : 'alumnos reservados'}
+                      {roster.schedule.capacity != null && ` de ${roster.schedule.capacity} cupos`}
+                    </span>
+                  </div>
+
+                  {!roster.list || roster.list.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-8">
+                      Nadie ha reservado esta clase aún.
+                    </p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {roster.list.map((p) => (
+                        <li key={p.studentId} className="flex items-center gap-3">
+                          {p.photoUrl ? (
+                            <img src={p.photoUrl} alt="" className="w-9 h-9 rounded-full object-cover bg-gray-100" />
+                          ) : (
+                            <span className="w-9 h-9 rounded-full bg-gray-200 text-gray-500 text-xs font-semibold flex items-center justify-center">
+                              {initials(p.name)}
+                            </span>
+                          )}
+                          <span className="flex-1 text-sm font-medium text-gray-800 truncate">{p.name}</span>
+                          {p.belt && (
+                            <span className={`text-[11px] px-2 py-0.5 rounded border font-medium ${BELT_CHIP[p.belt] ?? 'bg-gray-100 text-gray-700 border-gray-300'}`}>
+                              {p.belt}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

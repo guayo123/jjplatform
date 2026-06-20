@@ -25,6 +25,9 @@ public class StudentDto {
 
     private String joinDate;
 
+    /** ISO date (yyyy-MM-dd) of birth. Optional. */
+    private String birthDate;
+
     @Min(value = 1, message = "Age must be positive")
     private Integer age;
 

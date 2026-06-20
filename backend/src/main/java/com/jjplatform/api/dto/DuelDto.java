@@ -18,14 +18,25 @@ public class DuelDto {
     private String opponentName;
     private String opponentPhotoUrl;
 
+    /** Impartial judge (null when the duel has no referee). */
+    private Long refereeId;
+    private String refereeName;
+
+    private String format;
     private String modality;
     private String message;
+    private LocalDateTime scheduledAt;
+    private String location;
 
     private Long winnerStudentId;
     private String winnerName;
     private String method;
     private String submissionName;
+    private Integer challengerScore;
+    private Integer opponentScore;
     private String resultNotes;
+    /** Who reported the result (so clients can avoid self-notifying the reporter). */
+    private Long reportedBy;
 
     private LocalDateTime createdAt;
     private LocalDateTime respondedAt;

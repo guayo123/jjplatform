@@ -1,27 +1,17 @@
 import { PushNotifications } from '@capacitor/push-notifications';
 import { getPlatformInfo } from './usePlatform';
+import { devicesApi } from '../api/devices';
 
 /**
- * Push notifications — SCAFFOLDING ONLY (fase 2).
+ * Push notifications (FCM) for the native app. Registers for push, sends the device token to the
+ * backend so the server can target the academy (duel confirmed / result), and wires the listeners.
  *
- * This registers for push and wires the listeners, but actually delivering remote
- * pushes still requires backend work that does not exist yet:
- *   - A Firebase project (FCM) for Android + APNs credentials for iOS.
- *   - A backend endpoint to store device tokens, e.g. POST /api/portal/devices.
- *   - A backend service that sends pushes via FCM/APNs.
- *
- * TODO(fase 2): when the endpoint exists, send `token` from the 'registration'
- * listener to the backend so the server can target this device.
- *
- * Disabled by default: on Android, PushNotifications.register() calls into
- * FirebaseMessaging on a native background thread, which throws
- * IllegalStateException("Default FirebaseApp is not initialized") and crashes
- * the whole app (an uncaught native exception a JS try/catch cannot stop) when
- * no google-services.json / Firebase project is configured. Until FCM/APNs are
- * wired up, gate registration behind VITE_ENABLE_PUSH so the app never registers
- * against a missing Firebase config.
+ * Gated behind VITE_ENABLE_PUSH: on Android, PushNotifications.register() calls into
+ * FirebaseMessaging on a native background thread and throws IllegalStateException
+ * ("Default FirebaseApp is not initialized") — crashing the app — when google-services.json /
+ * a Firebase project isn't configured. Keep the flag off until Firebase is wired in the build.
  */
-export async function registerPush(): Promise<void> {
+export async function registerPush(studentId: number): Promise<void> {
   if (!getPlatformInfo().isNative) return;
   if (import.meta.env.VITE_ENABLE_PUSH !== 'true') return;
   try {
@@ -30,20 +20,18 @@ export async function registerPush(): Promise<void> {
 
     await PushNotifications.register();
 
+    // Fresh listeners each call would stack up; clear any from a previous registration first.
+    await PushNotifications.removeAllListeners();
+
     await PushNotifications.addListener('registration', (token) => {
-      // TODO(fase 2): POST token.value to /api/portal/devices
-      // eslint-disable-next-line no-console
-      console.debug('[push] device token', token.value);
+      devicesApi
+        .register(studentId, token.value, getPlatformInfo().platform)
+        .catch(() => { /* token sync is best-effort; retried next app open */ });
     });
 
     await PushNotifications.addListener('registrationError', (err) => {
       // eslint-disable-next-line no-console
       console.warn('[push] registration error', err);
-    });
-
-    await PushNotifications.addListener('pushNotificationReceived', (notification) => {
-      // eslint-disable-next-line no-console
-      console.debug('[push] received', notification);
     });
   } catch {
     /* push unavailable — non-critical */

@@ -8,6 +8,261 @@
   }
 }
 
+/* Tailwind's preflight resets button backgrounds with a rule that uses `:where()`
+   (`button, input:where([type=button])…{background-color:transparent}`). Old Android WebViews
+   (Chrome 83, still on many emulators/devices) don't understand `:where()`, so they DROP that whole
+   rule and every <button> falls back to the UA's light-grey background. Under the dark portal theme
+   the near-white button text then turns into the unreadable "white-on-grey smear" (the × close, the
+   collapsible "Próximas clases" header, day chips, etc. — all are <button>s). Re-apply the reset in
+   legacy-safe syntax so buttons without an explicit bg utility stay transparent everywhere. */
+button {
+  background-color: transparent;
+  background-image: none;
+}
+
+/* ============================================================================
+   PORTAL DESIGN SYSTEM — "Ember" (dark dojo)
+   Semantic color tokens + a scoped skin that re-themes the student portal only
+   (everything under `.portal-theme`). The admin dashboard keeps its own look.
+   A theme = one set of token values on `.portal-theme[data-theme="…"]`, so the
+   Ajustes → Apariencia switcher just flips the attribute.
+   ============================================================================ */
+.portal-theme,
+.portal-theme[data-theme='ember'] {
+  --bg: #0E0F13;
+  --surface: #161A23;
+  --surface-2: #1F2430;
+  --line: rgba(255, 255, 255, 0.08);
+  --text: #F2F4F8;
+  --muted: #9AA1AD;
+  --muted-2: #6B727F;
+  --acc-1: #FF4133;
+  --acc-2: #FF8A1E;
+  --acc: #FF6A4D;             /* readable ember for text/icons on dark */
+  --acc-soft: rgba(255, 84, 54, 0.14);
+  --acc-border: rgba(255, 84, 54, 0.5);
+  /* color-coded stat accents (kept vivid but legible on dark) */
+  --c-blue: #4D8DFF;
+  --c-green: #34D399;
+  --c-purple: #A78BFA;
+  --c-orange: #FBA94C;
+  --c-gold: #F5B731;
+  --pro: #8B5CF6;
+  --gradient-acc: linear-gradient(135deg, var(--acc-1), var(--acc-2));
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.8);
+}
+
+/* Light theme ("Claro") — same Ember accent, light surfaces. The scoped skin is
+   token-driven, so components adapt automatically; only the tokens change here. */
+.portal-theme[data-theme='light'] {
+  --bg: #EEF1F6;
+  --surface: #FFFFFF;
+  --surface-2: #F1F4F9;
+  --line: #E4E8EF;
+  --text: #1A2030;
+  --muted: #6B7280;
+  --muted-2: #9AA1AD;
+  --acc-1: #FF4133;
+  --acc-2: #FF8A1E;
+  --acc: #E5482F;
+  --acc-soft: rgba(255, 84, 54, 0.10);
+  --acc-border: rgba(255, 84, 54, 0.45);
+  --c-blue: #2F6BFF;
+  --c-green: #10B981;
+  --c-purple: #7C5CFF;
+  --c-orange: #EA8A2E;
+  --c-gold: #D99A00;
+  --pro: #7C5CFF;
+  --gradient-acc: linear-gradient(135deg, var(--acc-1), var(--acc-2));
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 16px -8px rgba(16, 24, 40, 0.12);
+  --skeleton-hi: rgba(15, 23, 42, 0.05);
+  --texture: rgba(15, 23, 42, 0.022);
+}
+
+/* Classic theme — the app's original light + blue look, kept as an option. */
+.portal-theme[data-theme='classic'] {
+  --bg: #EEF1F6;
+  --surface: #FFFFFF;
+  --surface-2: #F1F4F9;
+  --line: #E4E8EF;
+  --text: #1A2030;
+  --muted: #6B7280;
+  --muted-2: #9AA1AD;
+  --acc-1: #3B82F6;
+  --acc-2: #2563EB;
+  --acc: #2563EB;
+  --acc-soft: rgba(37, 99, 235, 0.10);
+  --acc-border: rgba(37, 99, 235, 0.45);
+  --c-blue: #2563EB;
+  --c-green: #10B981;
+  --c-purple: #7C5CFF;
+  --c-orange: #EA8A2E;
+  --c-gold: #D99A00;
+  --pro: #7C5CFF;
+  --gradient-acc: linear-gradient(135deg, var(--acc-1), var(--acc-2));
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 16px -8px rgba(16, 24, 40, 0.12);
+  --skeleton-hi: rgba(15, 23, 42, 0.05);
+  --texture: rgba(15, 23, 42, 0.022);
+}
+
+/* Base surface + text for the portal shell, with a faint "tatami weave" texture. */
+.portal-theme {
+  background-color: var(--bg);
+  color: var(--text);
+  /* Kill Android's grey tap-flash box (shows up behind ×/buttons when pressed). */
+  -webkit-tap-highlight-color: transparent;
+  background-image:
+    repeating-linear-gradient(45deg, var(--texture, rgba(255, 255, 255, 0.013)) 0 1.5px, transparent 1.5px 9px),
+    repeating-linear-gradient(-45deg, var(--texture, rgba(255, 255, 255, 0.013)) 0 1.5px, transparent 1.5px 9px);
+}
+
+/* Display font for portal titles. The previous bundled Oswald woff2 rendered as a blurry
+   white smear inside the Android WebView, so titles now use the platform's native UI font
+   (San Francisco / Roboto / Segoe UI) which is crisp everywhere. A touch of weight + tight
+   tracking keeps the strong "martial" feel without a custom webfont. */
+.portal-theme h1,
+.portal-theme h2,
+.portal-theme .jjp-display {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, 'Helvetica Neue', Arial, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* --- Scoped utility re-mapping: turns the existing light Tailwind classes into
+       the dark Ember palette without rewriting every component. Limited to the
+       neutral/primary subset so semantic accent colors (green/red/amber) stay. --- */
+.portal-theme .bg-white,
+.portal-theme .bg-gray-50,
+/* Opacity variants (e.g. sticky headers `bg-gray-50/95` with backdrop-blur) must be remapped
+   too — otherwise they keep Tailwind's light gray and the near-white title text on them turns
+   into an unreadable white-on-gray smear in the dark theme. */
+.portal-theme .bg-gray-50\/95,
+.portal-theme .bg-gray-50\/90,
+.portal-theme .bg-gray-50\/80 { background-color: var(--surface) !important; }
+.portal-theme .bg-gray-100 { background-color: var(--bg) !important; }
+.portal-theme .bg-gray-200,
+.portal-theme .bg-gray-300,
+.portal-theme .bg-gray-200\/50,
+.portal-theme .bg-gray-200\/60,
+.portal-theme .bg-gray-200\/70 { background-color: var(--surface-2) !important; }
+.portal-theme .bg-primary-50 { background-color: var(--acc-soft) !important; }
+
+.portal-theme .text-gray-900,
+.portal-theme .text-gray-800,
+.portal-theme .text-gray-700 { color: var(--text) !important; }
+.portal-theme .text-gray-600,
+.portal-theme .text-gray-500 { color: var(--muted) !important; }
+.portal-theme .text-gray-400,
+.portal-theme .text-gray-300 { color: var(--muted-2) !important; }
+
+.portal-theme .border-gray-100,
+.portal-theme .border-gray-200,
+.portal-theme .border-gray-300,
+.portal-theme .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+.portal-theme .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--line) !important; }
+
+.portal-theme .shadow-sm,
+.portal-theme .shadow,
+.portal-theme .shadow-md,
+.portal-theme .shadow-lg { box-shadow: var(--shadow) !important; }
+
+/* Primary (blue) → Ember accent */
+.portal-theme .bg-primary-500,
+.portal-theme .bg-primary-600,
+.portal-theme .bg-primary-700,
+.portal-theme .hover\:bg-primary-700:hover {
+  background-image: var(--gradient-acc) !important;
+  background-color: var(--acc-1) !important;
+  box-shadow: 0 10px 26px -10px var(--acc-1);
+}
+.portal-theme .text-primary-500,
+.portal-theme .text-primary-600,
+.portal-theme .text-primary-700 { color: var(--acc) !important; }
+.portal-theme .border-primary-400,
+.portal-theme .border-primary-500,
+.portal-theme .border-primary-600 { border-color: var(--acc) !important; }
+.portal-theme .ring-primary-500 { --tw-ring-color: var(--acc) !important; }
+
+/* Subtle hover overlays */
+.portal-theme .hover\:bg-gray-50:hover,
+.portal-theme .hover\:bg-gray-100:hover { background-color: rgba(255, 255, 255, 0.05) !important; }
+
+/* Error / info tints, kept readable on dark */
+.portal-theme .bg-red-50 { background-color: rgba(248, 80, 70, 0.13) !important; }
+.portal-theme .text-red-600,
+.portal-theme .text-red-500 { color: #FF7A6B !important; }
+.portal-theme .bg-green-50 { background-color: rgba(52, 211, 153, 0.13) !important; }
+.portal-theme .bg-amber-50,
+.portal-theme .bg-yellow-50 { background-color: rgba(245, 183, 49, 0.13) !important; }
+
+/* Form fields. The text is forced to the theme's near-white, so the field MUST also get a dark
+   surface + border — otherwise the input keeps the browser's light default and you get the
+   classic white-text-on-light-gray smear while typing. Covers inputs, selects and textareas
+   regardless of the Tailwind bg/border utilities the component happens to use. */
+.portal-theme input:not([type='checkbox']):not([type='radio']):not([type='range']),
+.portal-theme select,
+.portal-theme textarea {
+  color: var(--text);
+  background-color: var(--surface-2) !important;
+  border-color: var(--line) !important;
+}
+.portal-theme input::placeholder,
+.portal-theme textarea::placeholder { color: var(--muted-2); }
+/* Native date/time pickers render their glyphs dark by default — invert so they read on dark. */
+.portal-theme input[type='date']::-webkit-calendar-picker-indicator { filter: invert(0.8); }
+
+/* --- Reusable portal primitives (Ember) — opt-in classes for refined elements --- */
+.portal-theme .jjp-label {
+  font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--muted); font-weight: 700;
+}
+.portal-theme .jjp-pill {
+  border-radius: 999px; padding: 8px 14px; font-size: 12.5px; font-weight: 700;
+  background-color: var(--surface); border: 1px solid var(--line); color: var(--muted);
+}
+.portal-theme .jjp-pill--on {
+  background-color: var(--acc-soft); border-color: var(--acc-border); color: var(--acc);
+}
+.portal-theme .jjp-accent-bar { position: relative; overflow: hidden; }
+.portal-theme .jjp-accent-bar::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+  background: linear-gradient(var(--acc-1), var(--acc-2));
+}
+.portal-theme .jjp-gradient-text {
+  background: var(--gradient-acc); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* Skeleton loaders — shimmering placeholders shown while data loads. */
+@keyframes jjp-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.portal-theme .jjp-skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--skeleton-hi, rgba(255, 255, 255, 0.07)) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: jjp-shimmer 1.4s ease-in-out infinite;
+  border-radius: 10px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .portal-theme .jjp-skeleton { animation: none; }
+}
+
+/* Tab/content entrance — a subtle fade + rise so screens don't pop in flat.
+   IMPORTANT: no lingering transform/will-change once the animation ends. A persistent
+   transform (or will-change: transform) turns this element into the containing block for
+   any `position: fixed` descendant — which would anchor the FAB and modals to this div
+   instead of the viewport. `backwards` reverts to the natural (transform: none) state on
+   finish, so fixed children stay pinned to the screen. */
+@keyframes jjp-fade-up {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.portal-theme .jjp-fade-up {
+  animation: jjp-fade-up 0.28s ease-out backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .portal-theme .jjp-fade-up { animation: none; }
+}
+
 /* Promotion celebration: GPU-friendly (transform/opacity only) so it stays smooth
    inside the Android WebView. */
 @keyframes jjp-confetti-fall {

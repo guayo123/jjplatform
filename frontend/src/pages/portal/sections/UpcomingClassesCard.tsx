@@ -3,13 +3,16 @@ import type { UpcomingClass } from '../../../types';
 import { portalApi } from '../../../api/portal';
 import { tapLight, notifySuccess } from '../../../native/haptics';
 import { scheduleClassReminder, cancelClassReminder } from '../../../native/notifications';
-import { formatDate, Spinner } from './shared';
+import { CardSkeleton } from './shared';
 
 /** "Próximas clases" — reserve a spot in upcoming classes; sets a local reminder ~2h before. */
 export default function UpcomingClassesCard({ studentId }: { studentId: number }) {
   const [classes, setClasses] = useState<UpcomingClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  const [activeDate, setActiveDate] = useState('');
+  // Collapsed by default — it's a secondary block, kept off the main Resumen scroll.
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     portalApi.upcomingClasses(studentId).then(setClasses).catch(() => setClasses([])).finally(() => setLoading(false));
@@ -45,64 +48,130 @@ export default function UpcomingClassesCard({ studentId }: { studentId: number }
   };
 
   if (loading) {
-    return (
-      <div className="bg-white rounded-xl shadow-sm p-5"><Spinner /></div>
-    );
+    return <CardSkeleton lines={2} />;
   }
   if (classes.length === 0) return null;
 
-  // Group by date for friendly day headers.
+  // Group by date so a horizontal day-selector keeps the list short (one day at a time).
   const groups: { date: string; items: UpcomingClass[] }[] = [];
   for (const c of classes) {
     const g = groups.find((x) => x.date === c.classDate);
     if (g) g.items.push(c); else groups.push({ date: c.classDate, items: [c] });
   }
+  const selectedDate = groups.find((g) => g.date === activeDate)?.date ?? groups[0]?.date;
+  const selectedItems = groups.find((g) => g.date === selectedDate)?.items ?? [];
+  const reservedCount = classes.filter((c) => c.mineReserved).length;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm">
-      <div className="p-5 border-b border-gray-100">
-        <h2 className="font-bold text-gray-900">Próximas clases</h2>
-        <p className="text-xs text-gray-400 mt-0.5">Reserva tu cupo y te avisamos antes de la clase</p>
+    <div className="bg-white rounded-xl shadow-sm jjp-accent-bar">
+      {/* Collapsed header — tap to expand. Shows a one-line summary so it stays informative folded. */}
+      <button
+        onClick={() => { void tapLight(); setOpen((v) => !v); }}
+        aria-expanded={open}
+        className={`w-full flex items-center gap-3 p-5 pl-6 text-left ${open ? 'border-b border-gray-100' : ''}`}
+      >
+        <span className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center bg-orange-50 text-orange-500">
+          <CalendarIcon />
+        </span>
+        <div className="flex-1 min-w-0">
+          <h2 className="font-semibold text-gray-800">Próximas clases</h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {reservedCount > 0
+              ? `${reservedCount} ${reservedCount === 1 ? 'reservada' : 'reservadas'} · ${classes.length} para reservar`
+              : `${classes.length} ${classes.length === 1 ? 'clase disponible' : 'clases disponibles'} · reserva tu cupo`}
+          </p>
+        </div>
+        <svg
+          className={`w-5 h-5 text-gray-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (<>
+      {/* Day selector — horizontal calendar chips */}
+      <div className="flex gap-2 overflow-x-auto px-5 pl-6 pt-3 pb-1">
+        {groups.map((g) => {
+          const on = g.date === selectedDate;
+          const mine = g.items.some((c) => c.mineReserved);
+          return (
+            <button
+              key={g.date}
+              onClick={() => { void tapLight(); setActiveDate(g.date); }}
+              className={`flex-shrink-0 w-14 py-2 rounded-2xl border flex flex-col items-center transition-colors ${
+                on ? 'bg-primary-600 border-primary-600 text-white' : 'bg-white border-gray-200 text-gray-500'
+              }`}
+            >
+              <span className={`text-[10px] font-bold uppercase ${on ? 'text-white/90' : 'text-gray-400'}`}>{dayChipTop(g.date)}</span>
+              <span className="text-lg font-extrabold leading-none mt-0.5">{dayChipNum(g.date)}</span>
+              <span
+                className={`mt-1 w-1.5 h-1.5 rounded-full ${mine ? (on ? 'bg-white' : 'bg-green-500') : 'bg-transparent'}`}
+              />
+            </button>
+          );
+        })}
       </div>
-      <div className="p-5 space-y-4">
-        {groups.map((g) => (
-          <div key={g.date}>
-            <p className="text-xs font-semibold text-gray-500 mb-2 capitalize">{formatDate(g.date)}</p>
-            <div className="space-y-2">
-              {g.items.map((c) => {
-                const full = c.spotsLeft === 0 && !c.mineReserved;
-                return (
-                  <div key={key(c)} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100">
-                    <div className="text-center flex-shrink-0 w-12">
-                      <p className="text-sm font-bold text-gray-900">{c.startTime}</p>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-gray-900 truncate">{c.className}</p>
-                      <p className="text-xs text-gray-400">
-                        {c.professorName ? `${c.professorName} · ` : ''}
-                        {c.capacity == null ? 'Cupos disponibles' : `${c.reservedCount}/${c.capacity} reservados`}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => toggle(c)}
-                      disabled={busy === key(c) || full}
-                      className={`flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
-                        c.mineReserved
-                          ? 'border-green-300 text-green-700 bg-green-50 hover:bg-green-100'
-                          : full
-                            ? 'border-gray-200 text-gray-400'
-                            : 'border-primary-300 text-primary-700 hover:bg-primary-50'
-                      }`}
-                    >
-                      {busy === key(c) ? '…' : c.mineReserved ? '✓ Reservado' : full ? 'Llena' : 'Reservar'}
-                    </button>
-                  </div>
-                );
-              })}
+
+      {/* Classes for the selected day */}
+      <div className="p-5 pl-6 pt-3 space-y-2">
+        {selectedItems.map((c) => {
+          const full = c.spotsLeft === 0 && !c.mineReserved;
+          return (
+            <div key={key(c)} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100">
+              <div className="text-center flex-shrink-0 w-12">
+                <p className="text-sm font-bold text-gray-900">{c.startTime}</p>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-gray-900 truncate">{c.className}</p>
+                <p className="text-xs text-gray-400">
+                  {c.professorName ? `${c.professorName} · ` : ''}
+                  {c.capacity == null ? 'Cupos disponibles' : `${c.reservedCount}/${c.capacity} reservados`}
+                </p>
+              </div>
+              <button
+                onClick={() => toggle(c)}
+                disabled={busy === key(c) || full}
+                className={`flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
+                  c.mineReserved
+                    ? 'border-green-300 text-green-700 bg-green-50 hover:bg-green-100'
+                    : full
+                      ? 'border-gray-200 text-gray-400'
+                      : 'border-primary-300 text-primary-700 hover:bg-primary-50'
+                }`}
+              >
+                {busy === key(c) ? '…' : c.mineReserved ? '✓ Reservado' : full ? 'Llena' : 'Reservar'}
+              </button>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+      </>)}
     </div>
   );
+}
+
+// Calendar icon (stroke style, tints with currentColor) — matches the portal's hand-drawn icon set.
+function CalendarIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3.5" y="5" width="17" height="16" rx="2.5" />
+      <path d="M3.5 9.5 H20.5" />
+      <path d="M8 3.5 V6.5 M16 3.5 V6.5" />
+    </svg>
+  );
+}
+
+// Day-chip labels: "Hoy" / weekday abbrev + day number.
+function chipDate(iso: string) {
+  return new Date(`${iso}T00:00:00`);
+}
+function dayChipTop(iso: string): string {
+  const d = chipDate(iso);
+  const today = new Date();
+  if (d.toDateString() === today.toDateString()) return 'Hoy';
+  return d.toLocaleDateString('es-CL', { weekday: 'short' }).replace('.', '');
+}
+function dayChipNum(iso: string): string {
+  return String(chipDate(iso).getDate());
 }

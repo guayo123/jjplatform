@@ -1,5 +1,5 @@
 import client from './client';
-import type { Student, StudentDiscipline, BeltPromotion, Payment, TechniqueCurriculum, PaymentOptions, UpcomingClass } from '../types';
+import type { Student, StudentDiscipline, BeltPromotion, Payment, TechniqueCurriculum, PaymentOptions, UpcomingClass, Birthday, CompetitionResult, CompetitionResultForm, StudentCard } from '../types';
 
 export const portalApi = {
   /** The logged-in student's profile(s) — one per academy they belong to. */
@@ -8,8 +8,24 @@ export const portalApi = {
   disciplines: (studentId: number) =>
     client.get<StudentDiscipline[]>(`/portal/students/${studentId}/disciplines`).then((r) => r.data),
 
+  /** Card of an academy mate (tapped from a ranking): name, rut, belt, age, photo. */
+  studentCard: (studentId: number, targetId: number) =>
+    client.get<StudentCard>(`/portal/students/${studentId}/students/${targetId}/card`).then((r) => r.data),
+
+  /** The student updates their own weight (kg); null clears it. */
+  setWeight: (studentId: number, weight: number | null) =>
+    client.put<{ weight: number | null }>(`/portal/students/${studentId}/weight`, { weight }).then((r) => r.data.weight),
+
   beltPromotions: (studentId: number) =>
     client.get<BeltPromotion[]>(`/portal/students/${studentId}/belt-promotions`).then((r) => r.data),
+
+  /** Student adds a competition result (torneo) to one of their own disciplines. */
+  addCompetitionResult: (studentId: number, studentDisciplineId: number, form: CompetitionResultForm) =>
+    client.post<CompetitionResult>(`/portal/students/${studentId}/disciplines/${studentDisciplineId}/results`, form).then((r) => r.data),
+
+  /** Student edits one of their own competition results. */
+  updateCompetitionResult: (studentId: number, resultId: number, form: CompetitionResultForm) =>
+    client.put<CompetitionResult>(`/portal/students/${studentId}/results/${resultId}`, form).then((r) => r.data),
 
   payments: (studentId: number) =>
     client.get<Payment[]>(`/portal/students/${studentId}/payments`).then((r) => r.data),
@@ -28,6 +44,9 @@ export const portalApi = {
 
   cancelClass: (studentId: number, scheduleId: number, date: string) =>
     client.delete(`/portal/students/${studentId}/classes/${scheduleId}/reserve`, { params: { date } }),
+
+  birthdays: (studentId: number) =>
+    client.get<Birthday[]>(`/portal/students/${studentId}/birthdays`).then((r) => r.data),
 
   techniques: (studentId: number) =>
     client.get<TechniqueCurriculum[]>(`/portal/students/${studentId}/techniques`).then((r) => r.data),

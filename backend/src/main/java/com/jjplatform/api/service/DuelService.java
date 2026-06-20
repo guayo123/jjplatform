@@ -2,6 +2,7 @@ package com.jjplatform.api.service;
 
 import com.jjplatform.api.dto.CreateDuelRequest;
 import com.jjplatform.api.dto.DuelDto;
+import com.jjplatform.api.dto.DuelRankingDto;
 import com.jjplatform.api.dto.DuelResultRequest;
 import com.jjplatform.api.exception.ResourceNotFoundException;
 import com.jjplatform.api.model.Duel;
@@ -13,7 +14,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Challenges ("retos") between classmates. All actions verify the acting student is a
@@ -25,6 +31,7 @@ public class DuelService {
 
     private final DuelRepository duelRepository;
     private final StudentRepository studentRepository;
+    private final PushService pushService;
 
     @Transactional
     public DuelDto create(Student challenger, CreateDuelRequest req) {
@@ -41,13 +48,26 @@ public class DuelService {
             throw new IllegalArgumentException("Solo puedes retar a compañeros de tu academia.");
         }
 
+        Student referee = resolveReferee(req.getRefereeStudentId(), challenger, opponent);
+
+        String format = parseFormat(req.getFormat());
+        if (format == null) {
+            throw new IllegalArgumentException("Debes elegir un modo para el duelo.");
+        }
+        // Gi/No-Gi only applies to a submission bout.
+        String modality = "SUBMISSION".equals(format) ? parseModality(req.getModality()) : null;
+
         Duel duel = Duel.builder()
                 .academy(challenger.getAcademy())
                 .challenger(challenger)
                 .opponent(opponent)
+                .referee(referee)
                 .status(Duel.Status.PENDING)
-                .modality(parseModality(req.getModality()))
+                .format(format)
+                .modality(modality)
                 .message(trim(req.getMessage()))
+                .scheduledAt(req.getScheduledAt())
+                .location(trim(req.getLocation()))
                 .build();
         return toDto(duelRepository.save(duel));
     }
@@ -63,13 +83,24 @@ public class DuelService {
         }
         duel.setStatus(accept ? Duel.Status.ACCEPTED : Duel.Status.REJECTED);
         duel.setRespondedAt(LocalDateTime.now());
-        return toDto(duelRepository.save(duel));
+        DuelDto dto = toDto(duelRepository.save(duel));
+        if (accept) {
+            // Tell the whole academy the bout is on — except whoever just accepted.
+            pushService.sendToAcademy(duel.getAcademy().getId(), "⚔️ Duelo confirmado",
+                    duel.getChallenger().getName() + " vs " + duel.getOpponent().getName(), me.getId());
+        }
+        return dto;
     }
 
     @Transactional
     public DuelDto reportResult(Student me, Long duelId, DuelResultRequest req) {
         Duel duel = require(duelId);
-        if (!isParticipant(duel, me.getId())) {
+        if (duel.getReferee() != null) {
+            // Refereed duel: only the impartial judge declares the winner.
+            if (!duel.getReferee().getId().equals(me.getId())) {
+                throw new IllegalArgumentException("Solo el árbitro puede registrar el resultado de este duelo.");
+            }
+        } else if (!isParticipant(duel, me.getId())) {
             throw new IllegalArgumentException("Solo un participante puede registrar el resultado.");
         }
         if (duel.getStatus() != Duel.Status.ACCEPTED) {
@@ -90,10 +121,28 @@ public class DuelService {
         duel.setMethod(method);
         duel.setWinnerStudentId(winner);
         duel.setSubmissionName(method == Duel.Method.SUBMISSION ? trim(req.getSubmissionName()) : null);
+        // Per-fighter score only for a points decision.
+        duel.setChallengerScore(method == Duel.Method.POINTS ? clampScore(req.getChallengerScore()) : null);
+        duel.setOpponentScore(method == Duel.Method.POINTS ? clampScore(req.getOpponentScore()) : null);
         duel.setResultNotes(trim(req.getNotes()));
         duel.setReportedBy(me.getId());
         duel.setCompletedAt(LocalDateTime.now());
-        return toDto(duelRepository.save(duel));
+        DuelDto dto = toDto(duelRepository.save(duel));
+
+        // Broadcast the result to the whole academy — except whoever reported it.
+        String title;
+        String body;
+        if (winner == null) {
+            title = "🤝 Duelo en la academia";
+            body = duel.getChallenger().getName() + " y " + duel.getOpponent().getName() + " terminaron en empate.";
+        } else {
+            Student winnerStudent = winner.equals(duel.getChallenger().getId()) ? duel.getChallenger() : duel.getOpponent();
+            Student loserStudent = winner.equals(duel.getChallenger().getId()) ? duel.getOpponent() : duel.getChallenger();
+            title = "🏆 ¡Victoria en la academia!";
+            body = winnerStudent.getName() + " venció a " + loserStudent.getName() + ".";
+        }
+        pushService.sendToAcademy(duel.getAcademy().getId(), title, body, me.getId());
+        return dto;
     }
 
     @Transactional
@@ -114,12 +163,54 @@ public class DuelService {
         return duelRepository.findInvolving(studentId).stream().map(this::toDto).toList();
     }
 
+    /**
+     * Academy activity: completed + rejected duels (the visible "results" feed) plus accepted ones,
+     * which clients use to broadcast a "duel confirmed" notification to the whole academy. The UI
+     * filters accepted out of the results card; only the notifier reads them.
+     */
     @Transactional(readOnly = true)
     public List<DuelDto> feed(Long academyId) {
         return duelRepository
                 .findByAcademyIdAndStatusInOrderByUpdatedAtDesc(
-                        academyId, List.of(Duel.Status.COMPLETED, Duel.Status.REJECTED))
+                        academyId, List.of(Duel.Status.COMPLETED, Duel.Status.REJECTED, Duel.Status.ACCEPTED))
                 .stream().limit(40).map(this::toDto).toList();
+    }
+
+    /**
+     * Top-10 academy duel ranking by record. Tallies wins/losses/draws per participant across all
+     * COMPLETED duels, then ranks by wins (desc), fewer losses, more total bouts and finally name.
+     */
+    @Transactional(readOnly = true)
+    public List<DuelRankingDto> ranking(Long academyId) {
+        List<Duel> completed = duelRepository.findByAcademyIdAndStatusInOrderByUpdatedAtDesc(
+                academyId, List.of(Duel.Status.COMPLETED));
+
+        Map<Long, DuelRankingDto> byStudent = new LinkedHashMap<>();
+        for (Duel d : completed) {
+            Long winner = d.getWinnerStudentId(); // null = draw
+            tally(byStudent, d.getChallenger(), winner);
+            tally(byStudent, d.getOpponent(), winner);
+        }
+
+        List<DuelRankingDto> rows = new ArrayList<>(byStudent.values());
+        rows.sort(Comparator.comparingInt(DuelRankingDto::getWins).reversed()
+                .thenComparingInt(DuelRankingDto::getLosses)
+                .thenComparing(r -> -(r.getWins() + r.getLosses() + r.getDraws()))
+                .thenComparing(DuelRankingDto::getName, String.CASE_INSENSITIVE_ORDER));
+        return rows.stream().limit(10).toList();
+    }
+
+    private void tally(Map<Long, DuelRankingDto> byStudent, Student s, Long winnerId) {
+        DuelRankingDto row = byStudent.computeIfAbsent(s.getId(), id -> {
+            DuelRankingDto r = new DuelRankingDto();
+            r.setStudentId(s.getId());
+            r.setName(s.getName());
+            r.setPhotoUrl(s.getPhotoUrl());
+            return r;
+        });
+        if (winnerId == null) row.setDraws(row.getDraws() + 1);
+        else if (winnerId.equals(s.getId())) row.setWins(row.getWins() + 1);
+        else row.setLosses(row.getLosses() + 1);
     }
 
     // --- helpers ----------------------------------------------------------
@@ -131,6 +222,21 @@ public class DuelService {
 
     private boolean isParticipant(Duel d, Long studentId) {
         return d.getChallenger().getId().equals(studentId) || d.getOpponent().getId().equals(studentId);
+    }
+
+    /** Validates the optional referee: a third classmate of the same academy, not a participant. */
+    private Student resolveReferee(Long refereeId, Student challenger, Student opponent) {
+        if (refereeId == null) return null;
+        if (refereeId.equals(challenger.getId()) || refereeId.equals(opponent.getId())) {
+            throw new IllegalArgumentException("El árbitro debe ser una tercera persona, no un participante.");
+        }
+        Student referee = studentRepository.findById(refereeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Árbitro no encontrado"));
+        if (referee.getAcademy() == null
+                || !referee.getAcademy().getId().equals(challenger.getAcademy().getId())) {
+            throw new IllegalArgumentException("El árbitro debe ser de tu academia.");
+        }
+        return referee;
     }
 
     private DuelDto toDto(Duel d) {
@@ -147,8 +253,16 @@ public class DuelService {
         dto.setOpponentName(o.getName());
         dto.setOpponentPhotoUrl(o.getPhotoUrl());
 
+        if (d.getReferee() != null) {
+            dto.setRefereeId(d.getReferee().getId());
+            dto.setRefereeName(d.getReferee().getName());
+        }
+
+        dto.setFormat(d.getFormat());
         dto.setModality(d.getModality());
         dto.setMessage(d.getMessage());
+        dto.setScheduledAt(d.getScheduledAt());
+        dto.setLocation(d.getLocation());
 
         dto.setWinnerStudentId(d.getWinnerStudentId());
         if (d.getWinnerStudentId() != null) {
@@ -156,7 +270,10 @@ public class DuelService {
         }
         dto.setMethod(d.getMethod() != null ? d.getMethod().name() : null);
         dto.setSubmissionName(d.getSubmissionName());
+        dto.setChallengerScore(d.getChallengerScore());
+        dto.setOpponentScore(d.getOpponentScore());
         dto.setResultNotes(d.getResultNotes());
+        dto.setReportedBy(d.getReportedBy());
 
         dto.setCreatedAt(d.getCreatedAt());
         dto.setRespondedAt(d.getRespondedAt());
@@ -173,6 +290,17 @@ public class DuelService {
         return up;
     }
 
+    private static final Set<String> FORMATS = Set.of("SUBMISSION", "COMBAT_JJ", "MMA", "NO_RULES");
+
+    private String parseFormat(String v) {
+        if (v == null || v.isBlank()) return null;
+        String up = v.trim().toUpperCase();
+        if (!FORMATS.contains(up)) {
+            throw new IllegalArgumentException("Modo no válido (SUBMISSION/COMBAT_JJ/MMA/NO_RULES).");
+        }
+        return up;
+    }
+
     private Duel.Method parseMethod(String v) {
         if (v == null || v.isBlank()) {
             throw new IllegalArgumentException("Indica cómo terminó el duelo.");
@@ -180,7 +308,7 @@ public class DuelService {
         try {
             return Duel.Method.valueOf(v.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Método no válido (SUBMISSION/POINTS/DECISION/DRAW).");
+            throw new IllegalArgumentException("Método no válido (SUBMISSION/POINTS/DECISION/DRAW/DISQUALIFICATION).");
         }
     }
 
@@ -188,5 +316,11 @@ public class DuelService {
         if (s == null) return null;
         String t = s.trim();
         return t.isEmpty() ? null : t;
+    }
+
+    /** A bout score is a non-negative number; null stays null. */
+    private Integer clampScore(Integer v) {
+        if (v == null) return null;
+        return v < 0 ? 0 : v;
     }
 }

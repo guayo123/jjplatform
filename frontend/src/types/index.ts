@@ -18,6 +18,11 @@ export interface StudentRegisterRequest {
   email: string;
 }
 
+export interface ForgotPasswordRequest {
+  rut: string;
+  email: string;
+}
+
 export interface LoginResponse {
   token: string;
   email: string;
@@ -81,6 +86,7 @@ export interface Student {
   phone: string | null;
   emergencyPhone: string | null;
   joinDate: string | null;
+  birthDate: string | null;
   age: number | null;
   weight: number | null;
   belt: string | null;
@@ -133,6 +139,15 @@ export interface BeltPromotionForm {
 }
 
 export type StudentForm = Omit<Student, 'id' | 'belt' | 'stripes'>;
+
+/** A classmate's birthday in the current month (portal "Cumpleaños del mes" card). Year is omitted by design. */
+export interface Birthday {
+  id: number;
+  name: string;
+  photoUrl: string | null;
+  day: number;
+  month: number;
+}
 
 // ─── Discipline belt configuration ───
 export interface DisciplineBelt {
@@ -390,6 +405,14 @@ export interface ScheduleForm {
   capacity?: number | null;
 }
 
+/** A student who reserved a given class occurrence (admin roster view). */
+export interface ReservationRoster {
+  studentId: number;
+  name: string;
+  photoUrl: string | null;
+  belt: string | null;
+}
+
 export interface Photo {
   id: number;
   url: string;
@@ -512,13 +535,30 @@ export interface TrainingPartner {
 export interface Classmate {
   id: number;
   name: string;
+  nickname: string | null;
   belt: string | null;
+  stripes: number | null;
+  photoUrl: string | null;
+  age: number | null;
+}
+
+/** Card shown when tapping a name in a ranking. */
+export interface StudentCard {
+  id: number;
+  name: string;
+  nickname: string | null;
+  belt: string | null;
+  stripes: number | null;
+  age: number | null;
+  weight: number | null;
   photoUrl: string | null;
 }
 
 // ─── Duels (challenges between classmates) ───
 export type DuelStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'COMPLETED';
-export type DuelMethod = 'SUBMISSION' | 'POINTS' | 'DECISION' | 'DRAW';
+export type DuelMethod = 'SUBMISSION' | 'POINTS' | 'DECISION' | 'DRAW' | 'DISQUALIFICATION';
+/** Bout ruleset. Gi/No-Gi (modality) only applies to SUBMISSION. */
+export type DuelFormat = 'SUBMISSION' | 'COMBAT_JJ' | 'MMA' | 'NO_RULES';
 
 export interface Duel {
   id: number;
@@ -529,28 +569,52 @@ export interface Duel {
   opponentId: number;
   opponentName: string;
   opponentPhotoUrl: string | null;
+  refereeId: number | null;
+  refereeName: string | null;
+  format: DuelFormat | null;
   modality: TrainingModality | null;
   message: string | null;
+  scheduledAt: string | null;
+  location: string | null;
   winnerStudentId: number | null;
   winnerName: string | null;
   method: DuelMethod | null;
   submissionName: string | null;
+  challengerScore: number | null;
+  opponentScore: number | null;
   resultNotes: string | null;
+  reportedBy: number | null;
   createdAt: string;
   respondedAt: string | null;
   completedAt: string | null;
 }
 
+export interface DuelRankingEntry {
+  studentId: number;
+  name: string;
+  photoUrl: string | null;
+  wins: number;
+  losses: number;
+  draws: number;
+}
+
 export interface CreateDuelRequest {
   opponentStudentId: number;
+  refereeStudentId?: number | null;
+  format?: DuelFormat | null;
   modality?: TrainingModality | null;
   message?: string | null;
+  /** Agreed date/time, local ISO without offset (e.g. "2026-06-20T18:30"). */
+  scheduledAt?: string | null;
+  location?: string | null;
 }
 
 export interface DuelResultRequest {
   winnerStudentId?: number | null;
   method: DuelMethod;
   submissionName?: string | null;
+  challengerScore?: number | null;
+  opponentScore?: number | null;
   notes?: string | null;
 }
 
@@ -559,6 +623,7 @@ export interface TrainingSession {
   disciplineId: number | null;
   disciplineName: string | null;
   date: string; // YYYY-MM-DD
+  backdated: boolean; // logged late for a past day; excluded from the streak
   modality: TrainingModality | null;
   durationMin: number | null;
   roundsCount: number | null;
@@ -575,6 +640,8 @@ export interface TrainingSession {
 export interface TrainingSessionForm {
   disciplineId?: number | null;
   date?: string;
+  /** True for a late entry (Ayer/Anteayer) — recorded but excluded from the streak. */
+  backdated?: boolean;
   modality?: TrainingModality | null;
   durationMin?: number | null;
   roundsCount?: number | null;
@@ -584,6 +651,41 @@ export interface TrainingSessionForm {
   techniques?: string[];
   submissions?: TrainingSubmission[];
   partners?: TrainingPartner[];
+}
+
+// ─── Conditioning (strength & physical prep journal) ───
+export type ConditioningFocus = 'PIERNA' | 'ESPALDA' | 'PECHO' | 'HOMBRO' | 'BRAZO' | 'CORE' | 'CARDIO' | 'FULL_BODY';
+
+export interface ConditioningSet {
+  reps: number | null;
+  weightKg: number | null;
+}
+
+export interface ConditioningExercise {
+  name: string;
+  restSec: number | null;
+  sets: ConditioningSet[];
+}
+
+export interface ConditioningSession {
+  id: number;
+  date: string; // YYYY-MM-DD
+  backdated: boolean;
+  focus: ConditioningFocus | null;
+  durationMin: number | null;
+  notes: string | null;
+  exercises: ConditioningExercise[];
+  createdAt: string;
+}
+
+/** Payload to log a conditioning session. */
+export interface ConditioningSessionForm {
+  date?: string;
+  backdated?: boolean;
+  focus?: ConditioningFocus | null;
+  durationMin?: number | null;
+  notes?: string | null;
+  exercises: ConditioningExercise[];
 }
 
 /** One row of the academy training leaderboard. */

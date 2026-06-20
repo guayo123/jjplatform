@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import BeltImage from '../../../components/BeltImage';
+import BeltEmblem from './BeltEmblem';
 import ImageUpload from '../../../components/ImageUpload';
 import { useToast } from '../../../components/ToastContext';
 import { trainingApi } from '../../../api/training';
 import { usePlatform } from '../../../native/usePlatform';
+import { tapLight } from '../../../native/haptics';
 import {
   scheduleStreakReminders,
   getReminderPrefs,
@@ -11,14 +12,18 @@ import {
   type ReminderPrefs,
 } from '../../../native/notifications';
 import type { Student } from '../../../types';
-import { computeAchievements, type Achievement } from '../achievements';
+import { computeAchievements, computeConditioningAchievements, type Achievement } from '../achievements';
+import { conditioningApi } from '../../../api/conditioning';
 import { formatDate, Field } from './shared';
+import { useThemeStore, THEME_OPTIONS } from '../theme';
+import { isSoundEnabled, setSoundEnabled, playOss, isDuelSoundEnabled, setDuelSoundEnabled, playDuelo } from '../../../native/sound';
 
 interface Props {
   student: Student;
   uploading: boolean;
   uploadProgress: number;
   onPhotoUpload: (file: File) => Promise<void>;
+  onSaveWeight: (weight: number | null) => Promise<void>;
 }
 
 const HOUR_LABELS = Array.from({ length: 24 }, (_, h) => ({
@@ -34,6 +39,10 @@ const HOUR_LABELS = Array.from({ length: 24 }, (_, h) => ({
 function SettingsSection({ studentId }: { studentId: number }) {
   const { isNative } = usePlatform();
   const { toast } = useToast();
+  const themePref = useThemeStore((s) => s.pref);
+  const setThemePref = useThemeStore((s) => s.setPref);
+  const [soundOn, setSoundOn] = useState(isSoundEnabled());
+  const [duelSoundOn, setDuelSoundOn] = useState(isDuelSoundEnabled());
   const [goal, setGoal] = useState<number | null>(null);
   const [savingGoal, setSavingGoal] = useState(false);
   const [prefs, setPrefs] = useState<ReminderPrefs>(() => getReminderPrefs());
@@ -101,6 +110,83 @@ function SettingsSection({ studentId }: { studentId: number }) {
         </div>
       </div>
 
+      {/* Appearance / theme picker */}
+      <div className="mt-5 pt-5 border-t border-gray-100">
+        <p className="text-sm font-semibold text-gray-700">Apariencia 🎨</p>
+        <p className="text-xs text-gray-400 mb-3">Elige el diseño del portal. Se guarda en este dispositivo.</p>
+        <div className="space-y-2">
+          {THEME_OPTIONS.map((opt) => {
+            const active = themePref === opt.key;
+            return (
+              <button
+                key={opt.key}
+                onClick={() => setThemePref(opt.key)}
+                className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-colors text-left ${
+                  active ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <span
+                  className="w-10 h-10 rounded-lg border border-gray-200 flex-shrink-0 relative overflow-hidden"
+                  style={{ background: opt.swatchBg }}
+                >
+                  <span className="absolute left-1.5 bottom-1.5 w-4 h-4 rounded" style={{ background: opt.swatchAccent }} />
+                  {opt.swatchDot && (
+                    <span className="absolute right-1.5 top-1.5 w-2 h-2 rounded-sm" style={{ background: opt.swatchDot }} />
+                  )}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-semibold text-gray-800">{opt.label}</span>
+                  <span className="block text-xs text-gray-400">{opt.desc}</span>
+                </span>
+                <span
+                  className={`w-5 h-5 rounded-full border-2 flex-shrink-0 grid place-items-center ${
+                    active ? 'border-primary-500' : 'border-gray-300'
+                  }`}
+                >
+                  {active && <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--acc, #FF5436)' }} />}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Sounds */}
+      <div className="mt-5 pt-5 border-t border-gray-100">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-700">Sonidos 🥋</p>
+            <p className="text-xs text-gray-400">Un "oss" al registrar entreno o subir de grado.</p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={soundOn}
+            onClick={() => { const next = !soundOn; setSoundOn(next); setSoundEnabled(next); if (next) playOss(); }}
+            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${soundOn ? 'bg-primary-600' : 'bg-gray-300'}`}
+          >
+            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${soundOn ? 'left-[22px]' : 'left-0.5'}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Duel sound */}
+      <div className="mt-5 pt-5 border-t border-gray-100">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-700">Sonido de duelos ⚔️</p>
+            <p className="text-xs text-gray-400">Un toque de sonido al enviar un reto a un compañero.</p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={duelSoundOn}
+            onClick={() => { const next = !duelSoundOn; setDuelSoundOn(next); setDuelSoundEnabled(next); if (next) playDuelo(); }}
+            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${duelSoundOn ? 'bg-primary-600' : 'bg-gray-300'}`}
+          >
+            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${duelSoundOn ? 'left-[22px]' : 'left-0.5'}`} />
+          </button>
+        </div>
+      </div>
+
       {/* Daily motivation reminder — native only (local notifications no-op on web) */}
       {isNative && (
         <div className="mt-5 pt-5 border-t border-gray-100">
@@ -142,33 +228,62 @@ function SettingsSection({ studentId }: { studentId: number }) {
 
 /** "Logros" — badge vitrina computed from the student's own journal. */
 function AchievementsCard({ studentId }: { studentId: number }) {
-  const [achievements, setAchievements] = useState<Achievement[] | null>(null);
+  const [bjj, setBjj] = useState<Achievement[] | null>(null);
+  const [fisico, setFisico] = useState<Achievement[] | null>(null);
+  const [tab, setTab] = useState<'bjj' | 'fisico'>('bjj');
+  // Tapped badge → detail sheet (mobile has no hover, so a native `title` tooltip never shows).
+  const [selected, setSelected] = useState<Achievement | null>(null);
 
   useEffect(() => {
     let alive = true;
-    Promise.all([trainingApi.list(studentId), trainingApi.summary(studentId)])
-      .then(([sessions, summary]) => {
-        if (alive) setAchievements(computeAchievements(sessions, summary));
+    Promise.all([
+      trainingApi.list(studentId),
+      trainingApi.summary(studentId),
+      conditioningApi.list(studentId).catch(() => []),
+    ])
+      .then(([sessions, summary, cond]) => {
+        if (!alive) return;
+        setBjj(computeAchievements(sessions, summary));
+        setFisico(computeConditioningAchievements(cond));
       })
       .catch(() => { /* hide the card if the journal can't load */ });
     return () => { alive = false; };
   }, [studentId]);
 
-  if (!achievements) return null;
-  const unlockedCount = achievements.filter((a) => a.unlocked).length;
+  if (!bjj || !fisico) return null;
+  const list = tab === 'bjj' ? bjj : fisico;
+  const unlockedCount = list.filter((a) => a.unlocked).length;
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-5">
-      <div className="flex items-baseline justify-between gap-2 mb-4">
+      <div className="flex items-baseline justify-between gap-2">
         <h2 className="font-bold text-gray-900">Logros</h2>
-        <span className="text-xs text-gray-400">{unlockedCount} de {achievements.length}</span>
+        <span className="text-xs text-gray-400">{unlockedCount} de {list.length}</span>
       </div>
+
+      <div className="mt-3 flex gap-2">
+        {([['bjj', 'Jiujitsu'], ['fisico', 'Físico']] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => { void tapLight(); setTab(key); }}
+            className={`flex-1 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+              tab === key ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-500 border-gray-200'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <p className="text-xs text-gray-400 mt-3 mb-4">Toca un logro para ver cómo conseguirlo</p>
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-        {achievements.map((a) => (
-          <div
+        {list.map((a) => (
+          <button
             key={a.id}
+            type="button"
             title={a.description}
-            className={`rounded-xl border p-3 text-center ${
+            onClick={() => { void tapLight(); setSelected(a); }}
+            className={`rounded-xl border p-3 text-center transition-transform active:scale-95 ${
               a.unlocked ? 'border-amber-200 bg-amber-50' : 'border-gray-100 bg-gray-50'
             }`}
           >
@@ -189,15 +304,101 @@ function AchievementsCard({ studentId }: { studentId: number }) {
                 <p className="mt-0.5 text-[10px] text-gray-400">{a.current} / {a.target}</p>
               </>
             )}
-          </div>
+          </button>
         ))}
+      </div>
+
+      {selected && <AchievementDetail a={selected} onClose={() => setSelected(null)} />}
+    </div>
+  );
+}
+
+/** Detail sheet for a tapped achievement: what it is, how to get it, and current progress. */
+function AchievementDetail({ a, onClose }: { a: Achievement; onClose: () => void }) {
+  const pct = Math.round((a.current / a.target) * 100);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-5 pt-safe pb-safe">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl text-center jjp-pop">
+        <button onClick={onClose} className="absolute right-3 top-3 text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
+        <div className={`text-5xl ${a.unlocked ? '' : 'grayscale opacity-40'}`}>{a.emoji}</div>
+        <h3 className="mt-2 text-lg font-extrabold text-gray-900">{a.title}</h3>
+        <p className="mt-1 text-sm text-gray-600">{a.description}</p>
+
+        {a.unlocked ? (
+          <p className="mt-4 inline-block rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-600">
+            ✓ Desbloqueado
+          </p>
+        ) : (
+          <div className="mt-4">
+            <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+              <div className="h-full rounded-full bg-primary-600" style={{ width: `${pct}%` }} />
+            </div>
+            <p className="mt-1.5 text-xs text-gray-500">
+              <span className="font-bold text-gray-800">{a.current}</span> / {a.target} {a.unit} · {pct}%
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
+/** Editable weight field: the student can set/clear their own weight (kg). */
+function WeightField({ weight, onSave }: { weight: number | null; onSave: (w: number | null) => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const start = () => { setDraft(weight != null ? String(weight) : ''); setError(null); setEditing(true); };
+  const save = async () => {
+    const t = draft.trim().replace(',', '.');
+    const v = t === '' ? null : Math.max(0, parseFloat(t) || 0);
+    if (v != null && (v < 1 || v > 400)) {
+      setError('El peso debe estar entre 1 y 400 kg.');
+      return;
+    }
+    setSaving(true); setError(null);
+    try {
+      await onSave(v);
+      setEditing(false);
+    } catch {
+      setError('No se pudo guardar.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <dt className="text-xs text-gray-400">Peso</dt>
+      {editing ? (
+        <dd className="mt-0.5">
+          <div className="flex items-center gap-2">
+            <input
+              type="number" inputMode="decimal" min={1} max={400} step="0.1" autoFocus
+              value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="kg"
+              className="w-20 px-2 py-1 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            <span className="text-xs text-gray-400">kg</span>
+            <button onClick={save} disabled={saving} className="text-xs font-semibold text-primary-600 disabled:opacity-50">{saving ? '…' : 'Guardar'}</button>
+            <button onClick={() => setEditing(false)} className="text-xs text-gray-400 hover:text-gray-600">Cancelar</button>
+          </div>
+          {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+        </dd>
+      ) : (
+        <dd className="flex items-center gap-2 text-gray-800">
+          {weight != null ? `${weight} kg` : <span className="text-gray-400">Sin registrar</span>}
+          <button onClick={() => { void tapLight(); start(); }} className="text-xs font-semibold text-primary-600 hover:text-primary-700">editar</button>
+        </dd>
+      )}
+    </div>
+  );
+}
+
 /** "Perfil" — student card, personal data and enrolled plans/professors. */
-export default function PerfilSection({ student, uploading, uploadProgress, onPhotoUpload }: Props) {
+export default function PerfilSection({ student, uploading, uploadProgress, onPhotoUpload, onSaveWeight }: Props) {
   return (
     <>
       {/* Student card with editable photo */}
@@ -228,11 +429,16 @@ export default function PerfilSection({ student, uploading, uploadProgress, onPh
               <p className="text-xs text-gray-400 mt-2">📅 Ingresó el {formatDate(student.joinDate)}</p>
             )}
             {(student.disciplineBelts ?? []).length > 0 && (
-              <div className="mt-4 space-y-2" data-tour="cinturon">
+              <div className="mt-4 space-y-2.5" data-tour="cinturon">
                 {student.disciplineBelts!.map((d) => (
-                  <div key={d.disciplineId} className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400 w-20 flex-shrink-0 truncate">{d.disciplineName}</span>
-                    <BeltImage belt={d.belt} stripes={d.stripes} colorHex={d.beltColorHex ?? undefined} className="max-w-[180px]" />
+                  <div key={d.disciplineId} className="flex items-center gap-3">
+                    <BeltEmblem colorHex={d.beltColorHex ?? null} belt={d.belt} stripes={d.stripes} size={46} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">
+                        {d.belt}{d.stripes ? ` · ${d.stripes}° grado` : ''}
+                      </p>
+                      <p className="text-xs text-gray-400 truncate">{d.disciplineName}</p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -250,7 +456,7 @@ export default function PerfilSection({ student, uploading, uploadProgress, onPh
           <Field label="Teléfono" value={student.phone} />
           <Field label="Teléfono de emergencia" value={student.emergencyPhone} />
           <Field label="Edad" value={student.age != null ? `${student.age} años` : null} />
-          <Field label="Peso" value={student.weight != null ? `${student.weight} kg` : null} />
+          <WeightField weight={student.weight} onSave={onSaveWeight} />
           <Field label="Dirección" value={student.address} />
           <Field label="Grupo sanguíneo" value={student.bloodType} />
           <Field label="Previsión" value={student.healthInsuranceType} />

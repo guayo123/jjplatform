@@ -98,6 +98,7 @@ export default function PortalTabs({ active, onChange }: Props) {
           return (
             <button
               key={t.key}
+              data-tour={`tab-${t.key}`}
               onClick={() => {
                 void tapLight();
                 onChange(t.key);

@@ -40,6 +40,13 @@ public class TrainingSession {
     @Column(nullable = false)
     private LocalDate date;
 
+    /**
+     * True when the session was logged late for a past date (backdating, "Ayer"/"Anteayer").
+     * Backdated sessions count for history/volume stats but NEVER toward the day-streak.
+     */
+    @Column(columnDefinition = "boolean default false")
+    private boolean backdated;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     private Modality modality;

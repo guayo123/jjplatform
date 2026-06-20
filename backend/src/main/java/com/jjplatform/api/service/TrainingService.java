@@ -45,6 +45,7 @@ public class TrainingService {
     public static final int REPAIRS_PER_MONTH = 1;
 
     private final TrainingSessionRepository sessionRepository;
+    private final ConditioningService conditioningService;
     private final DisciplineRepository disciplineRepository;
     private final StreakRepairRepository repairRepository;
 
@@ -52,7 +53,12 @@ public class TrainingService {
     public TrainingSessionDto create(Student student, TrainingSessionDto dto) {
         TrainingSession s = new TrainingSession();
         s.setStudent(student);
+        // The device sends its own local calendar date and whether it's a late entry; we trust both.
+        // Railway runs in another timezone (Europe/UTC), so any server-clock comparison here would
+        // shift Chile's evening sessions into the next day. Fall back to the server date only if none
+        // was sent.
         s.setDate(dto.getDate() != null ? dto.getDate() : LocalDate.now());
+        s.setBackdated(Boolean.TRUE.equals(dto.getBackdated()));
         s.setModality(parseModality(dto.getModality()));
         s.setDurationMin(clampPositive(dto.getDurationMin()));
         s.setRoundsCount(clampPositive(dto.getRoundsCount()));
@@ -116,12 +122,13 @@ public class TrainingService {
         TrainingSummaryDto out = new TrainingSummaryDto();
         out.setWeeklyGoal(weeklyGoal);
 
-        // Distinct calendar days trained (for the day-streak) and sessions in the current ISO week.
-        Set<LocalDate> trainedDays = new HashSet<>();
+        // Days that count toward the day-streak + sessions in the current ISO week / month.
+        // Backdated (late) sessions still count for volume/history but NEVER extend the streak.
+        Set<LocalDate> streakDays = new HashSet<>();
         int thisWeekCount = 0, monthSessions = 0, monthMinutes = 0, monthRounds = 0;
         String currentWeek = weekKey(today);
         for (TrainingSession s : all) {
-            trainedDays.add(s.getDate());
+            if (!s.isBackdated()) streakDays.add(s.getDate());
             if (weekKey(s.getDate()).equals(currentWeek)) thisWeekCount++;
             if (s.getDate().getYear() == today.getYear() && s.getDate().getMonthValue() == today.getMonthValue()) {
                 monthSessions++;
@@ -136,8 +143,9 @@ public class TrainingService {
         out.setMonthRounds(monthRounds);
 
         // Repaired days count as trained for streak math only — never for session/volume stats.
-        Set<LocalDate> streakDays = new HashSet<>(trainedDays);
         for (StreakRepair r : repairs) streakDays.add(r.getRepairedDate());
+        // Conditioning (gym) days keep the SAME streak alive — any training day counts.
+        streakDays.addAll(conditioningService.trainedDates(studentId));
 
         out.setCurrentStreak(currentDayStreak(streakDays, today));
         out.setMaxStreak(maxDayStreak(streakDays));
@@ -163,9 +171,10 @@ public class TrainingService {
 
         Set<LocalDate> streakDays = new HashSet<>();
         for (TrainingSession s : sessionRepository.findByStudentIdOrderByDateDescCreatedAtDesc(student.getId())) {
-            streakDays.add(s.getDate());
+            if (!s.isBackdated()) streakDays.add(s.getDate()); // late entries never count for streak
         }
         for (StreakRepair r : repairs) streakDays.add(r.getRepairedDate());
+        streakDays.addAll(conditioningService.trainedDates(student.getId()));
 
         LocalDate gap = repairableGapDay(streakDays, today);
         if (gap == null) {
@@ -327,6 +336,7 @@ public class TrainingService {
             dto.setDisciplineName(s.getDiscipline().getName());
         }
         dto.setDate(s.getDate());
+        dto.setBackdated(s.isBackdated());
         dto.setModality(s.getModality() != null ? s.getModality().name() : null);
         dto.setDurationMin(s.getDurationMin());
         dto.setRoundsCount(s.getRoundsCount());
@@ -391,4 +401,5 @@ public class TrainingService {
         if (t.isEmpty()) return null;
         return t.length() > 500 ? t.substring(0, 500) : t;
     }
+
 }

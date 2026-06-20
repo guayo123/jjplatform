@@ -1,6 +1,8 @@
 package com.jjplatform.api.service;
 
+import com.jjplatform.api.dto.BirthdayDto;
 import com.jjplatform.api.dto.ClassmateDto;
+import com.jjplatform.api.dto.StudentCardDto;
 import com.jjplatform.api.dto.StudentDto;
 import com.jjplatform.api.exception.ResourceNotFoundException;
 import com.jjplatform.api.model.Academy;
@@ -100,13 +102,57 @@ public class StudentService {
             ClassmateDto dto = new ClassmateDto();
             dto.setId(s.getId());
             dto.setName(s.getName());
+            dto.setNickname(s.getNickname());
             dto.setPhotoUrl(s.getPhotoUrl());
+            dto.setAge(s.getAge());
             discsByStudent.getOrDefault(s.getId(), List.of()).stream()
                     .filter(sd -> sd.getBelt() != null)
                     .findFirst()
-                    .ifPresent(sd -> dto.setBelt(sd.getBelt()));
+                    .ifPresent(sd -> { dto.setBelt(sd.getBelt()); dto.setStripes(sd.getStripes()); });
             return dto;
         }).toList();
+    }
+
+    /** Card of one academy mate (tapped from a ranking): name, rut, belt, age, photo. */
+    @Transactional(readOnly = true)
+    public StudentCardDto getStudentCard(Long academyId, Long targetId) {
+        Student s = studentRepository.findById(targetId)
+                .orElseThrow(() -> new ResourceNotFoundException("Alumno no encontrado"));
+        if (s.getAcademy() == null || !s.getAcademy().getId().equals(academyId)
+                || !Boolean.TRUE.equals(s.getActive())) {
+            throw new ResourceNotFoundException("Alumno no encontrado");
+        }
+        StudentCardDto dto = new StudentCardDto();
+        dto.setId(s.getId());
+        dto.setName(s.getName());
+        dto.setNickname(s.getNickname());
+        dto.setAge(s.getAge());
+        dto.setWeight(s.getWeight());
+        dto.setPhotoUrl(s.getPhotoUrl());
+        studentDisciplineRepository.findByStudentIdInAndActiveTrue(List.of(s.getId())).stream()
+                .filter(sd -> sd.getBelt() != null)
+                .findFirst()
+                .ifPresent(sd -> { dto.setBelt(sd.getBelt()); dto.setStripes(sd.getStripes()); });
+        return dto;
+    }
+
+    /** Active students of the academy whose birthday falls in the given month, sorted by day. */
+    @Transactional(readOnly = true)
+    public List<BirthdayDto> getAcademyBirthdays(Long academyId, int month) {
+        return studentRepository.findByAcademyIdOrderByNameAsc(academyId).stream()
+                .filter(s -> Boolean.TRUE.equals(s.getActive()))
+                .filter(s -> s.getBirthDate() != null && s.getBirthDate().getMonthValue() == month)
+                .sorted((a, b) -> Integer.compare(a.getBirthDate().getDayOfMonth(), b.getBirthDate().getDayOfMonth()))
+                .map(s -> {
+                    BirthdayDto dto = new BirthdayDto();
+                    dto.setId(s.getId());
+                    dto.setName(s.getName());
+                    dto.setPhotoUrl(s.getPhotoUrl());
+                    dto.setDay(s.getBirthDate().getDayOfMonth());
+                    dto.setMonth(s.getBirthDate().getMonthValue());
+                    return dto;
+                })
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -173,6 +219,7 @@ public class StudentService {
                 .email(dto.getEmail())
                 .phone(dto.getPhone())
                 .joinDate(dto.getJoinDate() != null ? LocalDate.parse(dto.getJoinDate()) : null)
+                .birthDate(dto.getBirthDate() != null ? LocalDate.parse(dto.getBirthDate()) : null)
                 .age(dto.getAge())
                 .weight(dto.getWeight())
                 .photoUrl(dto.getPhotoUrl())
@@ -204,6 +251,7 @@ public class StudentService {
         student.setEmail(dto.getEmail());
         student.setPhone(dto.getPhone());
         student.setJoinDate(dto.getJoinDate() != null ? LocalDate.parse(dto.getJoinDate()) : null);
+        student.setBirthDate(dto.getBirthDate() != null ? LocalDate.parse(dto.getBirthDate()) : null);
         student.setAge(dto.getAge());
         student.setWeight(dto.getWeight());
         // belt and stripes are managed exclusively via BeltPromotionService
@@ -256,6 +304,7 @@ public class StudentService {
         dto.setEmail(student.getEmail());
         dto.setPhone(student.getPhone());
         dto.setJoinDate(student.getJoinDate() != null ? student.getJoinDate().toString() : null);
+        dto.setBirthDate(student.getBirthDate() != null ? student.getBirthDate().toString() : null);
         dto.setAge(student.getAge());
         dto.setWeight(student.getWeight());
         dto.setBelt(student.getBelt());

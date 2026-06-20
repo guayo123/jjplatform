@@ -123,6 +123,30 @@ public class StudentDisciplineService {
         return toResultDto(competitionResultRepository.save(result));
     }
 
+    /**
+     * Portal self-service: a student adds a competition result to their OWN discipline.
+     * Verifies both the academy and that the discipline belongs to the acting student.
+     */
+    @Transactional
+    public CompetitionResultDto addResultForStudent(Long studentDisciplineId, Long academyId, Long studentId, CompetitionResultDto dto) {
+        StudentDiscipline sd = findAndVerify(studentDisciplineId, academyId);
+        if (!sd.getStudent().getId().equals(studentId)) {
+            throw new ResourceNotFoundException("Ficha de disciplina no encontrada");
+        }
+        return addResult(studentDisciplineId, academyId, dto);
+    }
+
+    /** Portal self-service: a student edits a competition result on their OWN discipline. */
+    @Transactional
+    public CompetitionResultDto updateResultForStudent(Long resultId, Long academyId, Long studentId, CompetitionResultDto dto) {
+        CompetitionResult result = competitionResultRepository.findById(resultId)
+                .orElseThrow(() -> new ResourceNotFoundException("Resultado no encontrado"));
+        if (!result.getStudentDiscipline().getStudent().getId().equals(studentId)) {
+            throw new ResourceNotFoundException("Resultado no encontrado");
+        }
+        return updateResult(resultId, academyId, dto);
+    }
+
     @Transactional
     public void deleteResult(Long resultId, Long academyId) {
         CompetitionResult result = competitionResultRepository.findById(resultId)

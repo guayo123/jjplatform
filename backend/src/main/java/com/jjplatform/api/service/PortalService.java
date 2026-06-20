@@ -2,6 +2,8 @@ package com.jjplatform.api.service;
 
 import com.jjplatform.api.dto.BeltPromotionDto;
 import com.jjplatform.api.dto.ClassmateDto;
+import com.jjplatform.api.dto.StudentCardDto;
+import com.jjplatform.api.dto.CompetitionResultDto;
 import com.jjplatform.api.dto.CreateDuelRequest;
 import com.jjplatform.api.dto.DuelDto;
 import com.jjplatform.api.dto.DuelResultRequest;
@@ -53,11 +55,13 @@ public class PortalService {
     private final PaymentService paymentService;
     private final FileStorageService fileStorageService;
     private final TrainingService trainingService;
+    private final ConditioningService conditioningService;
     private final StudentService studentService;
     private final DuelService duelService;
     private final TechniqueService techniqueService;
     private final PaymentGatewayService paymentGatewayService;
     private final ClassReservationService classReservationService;
+    private final PushService pushService;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -95,6 +99,18 @@ public class PortalService {
     public List<StudentDisciplineDto> getDisciplines(Long studentId) {
         requireOwnedStudent(studentId);
         return studentDisciplineService.getByStudent(studentId);
+    }
+
+    /** Portal self-service: student adds a competition result to one of their own disciplines. */
+    public CompetitionResultDto addCompetitionResult(Long studentId, Long studentDisciplineId, CompetitionResultDto dto) {
+        Student s = requireOwnedStudent(studentId);
+        return studentDisciplineService.addResultForStudent(studentDisciplineId, s.getAcademy().getId(), studentId, dto);
+    }
+
+    /** Portal self-service: student edits one of their own competition results. */
+    public CompetitionResultDto updateCompetitionResult(Long studentId, Long resultId, CompetitionResultDto dto) {
+        Student s = requireOwnedStudent(studentId);
+        return studentDisciplineService.updateResultForStudent(resultId, s.getAcademy().getId(), studentId, dto);
     }
 
     public List<BeltPromotionDto> getBeltPromotions(Long studentId) {
@@ -209,6 +225,30 @@ public class PortalService {
         return studentService.getAcademyClassmates(s.getAcademy().getId(), studentId);
     }
 
+    /** Card of an academy mate (tapped from a ranking). Both must share the owned student's academy. */
+    public StudentCardDto getStudentCard(Long studentId, Long targetId) {
+        Student s = requireOwnedStudent(studentId);
+        return studentService.getStudentCard(s.getAcademy().getId(), targetId);
+    }
+
+    /** The student updates their own weight (kg); null clears it. */
+    @Transactional
+    public Double updateWeight(Long studentId, Double weight) {
+        if (weight != null && (weight <= 0 || weight > 400)) {
+            throw new IllegalArgumentException("El peso debe estar entre 1 y 400 kg.");
+        }
+        Student s = requireOwnedStudent(studentId);
+        s.setWeight(weight);
+        studentRepository.save(s);
+        return weight;
+    }
+
+    /** Birthdays of the student's academy that fall in the current month. */
+    public List<com.jjplatform.api.dto.BirthdayDto> getBirthdaysThisMonth(Long studentId) {
+        Student s = requireOwnedStudent(studentId);
+        return studentService.getAcademyBirthdays(s.getAcademy().getId(), java.time.LocalDate.now().getMonthValue());
+    }
+
     // --- Duels (challenges between classmates) -----------------------------
 
     public DuelDto createDuel(Long studentId, CreateDuelRequest req) {
@@ -226,6 +266,12 @@ public class PortalService {
         return duelService.feed(me.getAcademy().getId());
     }
 
+    /** Top-10 academy duel ranking (wins/losses) for the owned student's academy. */
+    public List<com.jjplatform.api.dto.DuelRankingDto> getDuelRanking(Long studentId) {
+        Student me = requireOwnedStudent(studentId);
+        return duelService.ranking(me.getAcademy().getId());
+    }
+
     public DuelDto respondDuel(Long studentId, Long duelId, boolean accept) {
         Student me = requireOwnedStudent(studentId);
         return duelService.respond(me, duelId, accept);
@@ -241,6 +287,17 @@ public class PortalService {
         duelService.cancel(me, duelId);
     }
 
+    /** Registers this device's FCM token for the owned student so it can receive academy pushes. */
+    public void registerDevice(Long studentId, String token, String platform) {
+        Student me = requireOwnedStudent(studentId);
+        pushService.registerToken(me, token, platform);
+    }
+
+    public void unregisterDevice(Long studentId, String token) {
+        requireOwnedStudent(studentId);
+        pushService.removeToken(token);
+    }
+
     public TrainingSessionDto createTrainingSession(Long studentId, TrainingSessionDto dto) {
         Student s = requireOwnedStudent(studentId);
         return trainingService.create(s, dto);
@@ -249,6 +306,24 @@ public class PortalService {
     public void deleteTrainingSession(Long studentId, Long sessionId) {
         requireOwnedStudent(studentId);
         trainingService.delete(studentId, sessionId);
+    }
+
+    // --- Conditioning (strength & physical prep) journal -------------------
+
+    public List<com.jjplatform.api.dto.ConditioningSessionDto> getConditioningSessions(Long studentId) {
+        requireOwnedStudent(studentId);
+        return conditioningService.listByStudent(studentId);
+    }
+
+    public com.jjplatform.api.dto.ConditioningSessionDto createConditioningSession(
+            Long studentId, com.jjplatform.api.dto.ConditioningSessionDto dto) {
+        Student s = requireOwnedStudent(studentId);
+        return conditioningService.create(s, dto);
+    }
+
+    public void deleteConditioningSession(Long studentId, Long sessionId) {
+        requireOwnedStudent(studentId);
+        conditioningService.delete(studentId, sessionId);
     }
 
     /** Current student's weekly training goal (null when not set). */

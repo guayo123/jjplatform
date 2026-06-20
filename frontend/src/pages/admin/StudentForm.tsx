@@ -18,6 +18,21 @@ function todayYMD(): string {
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
 }
 
+/** Completed years between a YYYY-MM-DD birth date and today. Null if unparseable/out of range. */
+function ageFromBirthDate(ymd: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return null;
+  const birth = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (Number.isNaN(birth.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - birth.getFullYear();
+  const hadBirthday =
+    now.getMonth() > birth.getMonth() ||
+    (now.getMonth() === birth.getMonth() && now.getDate() >= birth.getDate());
+  if (!hadBirthday) age--;
+  return age >= 0 && age <= 150 ? age : null;
+}
+
 function formatRut(value: string): string {
   const clean = value.replace(/[^0-9kK]/g, '').toUpperCase();
   if (clean.length < 2) return clean;
@@ -65,7 +80,7 @@ export default function StudentForm() {
 
   const [form, setForm] = useState<StudentFormType>({
     name: '', nickname: null, rut: null, email: null, phone: null,
-    emergencyPhone: null, joinDate: null, age: null, weight: null,
+    emergencyPhone: null, joinDate: null, birthDate: null, age: null, weight: null,
     photoUrl: null, address: null, medicalNotes: null,
     bloodType: null, healthInsuranceType: null, healthInsuranceCompany: null,
     active: true, planIds: [],
@@ -108,7 +123,9 @@ export default function StudentForm() {
         setForm({
           name: s.name, nickname: s.nickname, rut: s.rut, email: s.email,
           phone: s.phone, emergencyPhone: s.emergencyPhone, joinDate: s.joinDate,
-          age: s.age, weight: s.weight, photoUrl: s.photoUrl,
+          // When a birth date exists, the age is derived from it (kept current to today).
+          birthDate: s.birthDate, age: (s.birthDate ? ageFromBirthDate(s.birthDate) : null) ?? s.age,
+          weight: s.weight, photoUrl: s.photoUrl,
           address: s.address, medicalNotes: s.medicalNotes, bloodType: s.bloodType,
           healthInsuranceType: s.healthInsuranceType, healthInsuranceCompany: s.healthInsuranceCompany,
           active: s.active, planIds: s.enrolledPlans?.map(p => p.id) || [],
@@ -295,12 +312,29 @@ export default function StudentForm() {
           {errors.joinDate && <p className={err}>{errors.joinDate}</p>}
         </div>
 
+        <div>
+          <label className={lbl}>Fecha de nacimiento</label>
+          <DatePicker
+            value={form.birthDate ?? ''}
+            max={todayYMD()}
+            onChange={(v) => {
+              const bd = v || null;
+              // Auto-fill the age from the birth date so the two never drift apart.
+              const computed = bd ? ageFromBirthDate(bd) : null;
+              setForm((f) => ({ ...f, birthDate: bd, ...(computed !== null ? { age: computed } : {}) }));
+              if (computed !== null) setErrors((er) => ({ ...er, age: undefined }));
+            }}
+          />
+          <p className="text-xs text-gray-500 mt-1">Opcional. Calcula la edad automáticamente y habilita la tarjeta "Cumpleaños del mes" en el portal del alumno.</p>
+        </div>
+
         <div className={isEdit ? '' : 'grid grid-cols-2 gap-4'}>
           <div>
             <label className={lbl}>Edad *</label>
             <FormInput
               type="number"
               value={form.age ?? ''}
+              disabled={!!form.birthDate}
               onChange={(e) => {
                 const val = e.target.value ? Number(e.target.value) : null;
                 setForm({ ...form, age: val });
@@ -311,7 +345,9 @@ export default function StudentForm() {
               min={1} max={150}
               error={errors.age}
             />
-            {errors.age && <p className={err}>{errors.age}</p>}
+            {form.birthDate
+              ? <p className="text-xs text-gray-500 mt-1">Calculada desde la fecha de nacimiento.</p>
+              : errors.age && <p className={err}>{errors.age}</p>}
           </div>
           {!isEdit && (
             <div className="col-span-2 bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3 text-xs text-blue-300">

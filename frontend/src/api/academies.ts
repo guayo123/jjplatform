@@ -1,5 +1,5 @@
 import client from './client';
-import type { AcademyPublic, AcademySettings, Discipline, Plan, PlanForm, Schedule, ScheduleForm } from '../types';
+import type { AcademyPublic, AcademySettings, Discipline, Plan, PlanForm, ReservationRoster, Schedule, ScheduleForm } from '../types';
 
 export const academiesApi = {
   list: () =>
@@ -53,6 +53,12 @@ export const academiesApi = {
 
   deleteSchedule: (id: number) =>
     client.delete(`/academy/schedules/${id}`).then((r) => r.data),
+
+  // Who reserved a given class occurrence (date = ISO yyyy-MM-dd).
+  getReservations: (scheduleId: number, date: string) =>
+    client
+      .get<ReservationRoster[]>(`/academy/schedules/${scheduleId}/reservations`, { params: { date } })
+      .then((r) => r.data),
 
   testBot: (message: string) =>
     client.post<{ response: string }>('/academy/chat/test', { message }).then((r) => r.data),

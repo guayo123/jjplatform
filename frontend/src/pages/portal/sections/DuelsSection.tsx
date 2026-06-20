@@ -1,24 +1,57 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Classmate, Duel, DuelMethod, TrainingModality } from '../../../types';
+import type { Classmate, Duel, DuelFormat, DuelMethod, DuelRankingEntry, TrainingModality } from '../../../types';
 import { duelsApi } from '../../../api/duels';
 import { trainingApi } from '../../../api/training';
 import { useToast } from '../../../components/ToastContext';
 import { notifyNow } from '../../../native/notifications';
 import { tapLight, notifySuccess } from '../../../native/haptics';
-import { formatDate, Spinner } from './shared';
+import { playDuelo } from '../../../native/sound';
+import BeltImage from '../../../components/BeltImage';
+import StudentInfoModal from './StudentInfoModal';
+import { formatDate, CardSkeleton } from './shared';
 
 interface Props {
   studentId: number;
 }
 
 const MODALITY_LABEL: Record<string, string> = { GI: 'Gi', NOGI: 'No-Gi' };
+const FORMAT_LABEL: Record<DuelFormat, string> = {
+  SUBMISSION: 'Sumisión',
+  COMBAT_JJ: 'Combat Jiu-Jitsu',
+  MMA: 'MMA',
+  NO_RULES: 'Sin reglas (ADCC)',
+};
+
+/** "Sumisión · Gi", "MMA", or just "Gi" for legacy duels with no explicit format. */
+function formatLabel(d: Duel): string | null {
+  const parts: string[] = [];
+  if (d.format) parts.push(FORMAT_LABEL[d.format]);
+  if (d.modality && (d.format === 'SUBMISSION' || d.format == null)) parts.push(MODALITY_LABEL[d.modality]);
+  return parts.length ? parts.join(' · ') : null;
+}
 const METHOD_LABEL: Record<DuelMethod, string> = {
   SUBMISSION: 'Sumisión',
   POINTS: 'Puntos',
   DECISION: 'Decisión',
   DRAW: 'Empate',
+  DISQUALIFICATION: 'Descalificación',
 };
 const SUBMISSION_CHIPS = ['Mataleón', 'Llave de brazo', 'Triángulo', 'Kimura', 'Guillotina', 'Americana'];
+
+/** "📅 sáb 21 jun, 18:30 · 📍 Tatami 2" — omits whichever piece wasn't set. */
+function formatSchedule(scheduledAt: string | null, location: string | null): string | null {
+  const parts: string[] = [];
+  if (scheduledAt) {
+    const d = new Date(scheduledAt);
+    if (!Number.isNaN(d.getTime())) {
+      parts.push('📅 ' + d.toLocaleString('es-CL', {
+        weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+      }));
+    }
+  }
+  if (location) parts.push('📍 ' + location);
+  return parts.length ? parts.join(' · ') : null;
+}
 
 function other(d: Duel, me: number) {
   return d.challengerId === me
@@ -31,10 +64,12 @@ export default function DuelsSection({ studentId }: Props) {
   const { toast } = useToast();
   const [duels, setDuels] = useState<Duel[]>([]);
   const [feed, setFeed] = useState<Duel[]>([]);
+  const [ranking, setRanking] = useState<DuelRankingEntry[]>([]);
   const [classmates, setClassmates] = useState<Classmate[]>([]);
   const [loading, setLoading] = useState(true);
   const [challengeOpen, setChallengeOpen] = useState(false);
   const [resultFor, setResultFor] = useState<Duel | null>(null);
+  const [cardFor, setCardFor] = useState<number | null>(null); // ranking → student info modal
 
   // Fire toast + local notification for status changes the student hasn't seen yet.
   const notifyChanges = useCallback((current: Duel[]) => {
@@ -60,35 +95,80 @@ export default function DuelsSection({ studentId }: Props) {
       } else if (d.opponentId === studentId && prev === undefined && d.status === 'PENDING') {
         toast.success(`${o.name} te retó a una lucha ⚔️`);
         void notifyNow('¡Nuevo reto! ⚔️', `${o.name} te retó a una lucha.`);
+      } else if (d.refereeId === studentId && prev === undefined) {
+        toast.success(`Te eligieron como árbitro ⚖️`);
+        void notifyNow('Eres árbitro ⚖️', `${d.challengerName} vs ${d.opponentName} — tú das el veredicto.`);
+      } else if (d.refereeId === studentId && prev === 'PENDING' && d.status === 'ACCEPTED') {
+        void notifyNow('Duelo listo para arbitrar ⚖️', `${d.challengerName} vs ${d.opponentName} — registra el resultado al terminar.`);
       }
     }
     localStorage.setItem(key, JSON.stringify(curMap));
   }, [studentId, toast]);
 
+  // Broadcast academy-wide: announce duel milestones (confirmed bout + result) to the whole academy
+  // as a local notification on each device's next refresh — we have no server push. A status map
+  // (id → last-seen status) fires once per transition: once when ACCEPTED, once when COMPLETED.
+  const notifyFeedResults = useCallback((current: Duel[]) => {
+    const key = `jjp_duel_feed_seen_${studentId}`;
+    const relevant = current.filter((d) => d.status === 'ACCEPTED' || d.status === 'COMPLETED');
+    const curMap: Record<string, string> = {};
+    relevant.forEach((d) => { curMap[d.id] = d.status; });
+    const storedRaw = localStorage.getItem(key);
+    if (storedRaw == null) {
+      localStorage.setItem(key, JSON.stringify(curMap)); // baseline, don't replay history
+      return;
+    }
+    const stored: Record<string, string> = JSON.parse(storedRaw);
+    for (const d of relevant) {
+      if (stored[d.id] === d.status) continue; // already announced this state
+      if (d.status === 'ACCEPTED') {
+        // Duel confirmed — tell the academy. Participants & referee get their own (richer) alerts.
+        if (d.challengerId === studentId || d.opponentId === studentId || d.refereeId === studentId) continue;
+        const sched = formatSchedule(d.scheduledAt, d.location);
+        void notifyNow('⚔️ Duelo confirmado', `${d.challengerName} vs ${d.opponentName}${sched ? ` — ${sched}` : ''}`);
+      } else {
+        // COMPLETED — skip the reporter, who already knows.
+        if (d.reportedBy === studentId) continue;
+        if (d.winnerStudentId == null) {
+          void notifyNow('🤝 Duelo en la academia', `${d.challengerName} y ${d.opponentName} terminaron en empate.`);
+        } else {
+          const loser = d.winnerStudentId === d.challengerId ? d.opponentName : d.challengerName;
+          void notifyNow('🏆 ¡Victoria en la academia!', `${d.winnerName} venció a ${loser}.`);
+        }
+      }
+    }
+    localStorage.setItem(key, JSON.stringify(curMap));
+  }, [studentId]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [mine, fed, mates] = await Promise.all([
+      const [mine, fed, rank, mates] = await Promise.all([
         duelsApi.mine(studentId),
         duelsApi.feed(studentId),
+        duelsApi.ranking(studentId).catch(() => [] as DuelRankingEntry[]),
         trainingApi.classmates(studentId).catch(() => [] as Classmate[]),
       ]);
       setDuels(mine);
       setFeed(fed);
+      setRanking(rank);
       setClassmates(mates);
       notifyChanges(mine);
+      notifyFeedResults(fed);
     } catch {
       setDuels([]);
       setFeed([]);
+      setRanking([]);
     } finally {
       setLoading(false);
     }
-  }, [studentId, notifyChanges]);
+  }, [studentId, notifyChanges, notifyFeedResults]);
 
   useEffect(() => { void load(); }, [load]);
 
   const respond = async (d: Duel, accept: boolean) => {
     void tapLight();
+    if (accept) playDuelo(); // duel cue on accepting, within the tap gesture
     try {
       await duelsApi.respond(studentId, d.id, accept);
       if (accept) void notifySuccess();
@@ -107,11 +187,17 @@ export default function DuelsSection({ studentId }: Props) {
     }
   };
 
-  if (loading) return <Spinner />;
+  if (loading) return <CardSkeleton lines={3} />;
 
+  const isParticipant = (d: Duel) => d.challengerId === studentId || d.opponentId === studentId;
   const incoming = duels.filter((d) => d.opponentId === studentId && d.status === 'PENDING');
   const outgoing = duels.filter((d) => d.challengerId === studentId && d.status === 'PENDING');
-  const accepted = duels.filter((d) => d.status === 'ACCEPTED');
+  const accepted = duels.filter((d) => d.status === 'ACCEPTED' && isParticipant(d));
+  // Duels I must judge as the impartial referee (I'm not a participant).
+  const toReferee = duels.filter((d) => d.status === 'ACCEPTED' && d.refereeId === studentId && !isParticipant(d));
+  // The feed also carries ACCEPTED duels (for the academy-wide "confirmed" notification); the
+  // visible results card shows only resolved ones.
+  const results = feed.filter((d) => d.status !== 'ACCEPTED');
 
   return (
     <div className="space-y-6">
@@ -130,8 +216,9 @@ export default function DuelsSection({ studentId }: Props) {
               <div key={d.id} className="p-3 rounded-lg border border-amber-200 bg-amber-50">
                 <p className="text-sm text-gray-900">
                   <span className="font-semibold">{d.challengerName}</span> te retó
-                  {d.modality && <span className="text-gray-500"> · {MODALITY_LABEL[d.modality]}</span>}
+                  {formatLabel(d) && <span className="text-gray-500"> · {formatLabel(d)}</span>}
                 </p>
+                <ScheduleLine d={d} />
                 {d.message && <p className="text-xs text-gray-500 italic mt-0.5">"{d.message}"</p>}
                 <div className="flex gap-2 mt-2">
                   <button onClick={() => respond(d, true)} className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 rounded-lg">Aceptar</button>
@@ -149,18 +236,48 @@ export default function DuelsSection({ studentId }: Props) {
           <div className="space-y-2">
             {accepted.map((d) => {
               const o = other(d, studentId);
+              const refereed = d.refereeId != null;
               return (
                 <div key={d.id} className="flex items-center gap-3 p-3 rounded-lg border border-primary-200 bg-primary-50">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-900">vs <span className="font-semibold">{o.name}</span>
-                      {d.modality && <span className="text-gray-500"> · {MODALITY_LABEL[d.modality]}</span>}
+                      {formatLabel(d) && <span className="text-gray-500"> · {formatLabel(d)}</span>}
                     </p>
-                    <p className="text-xs text-gray-400">Aceptado · registra el resultado al terminar</p>
+                    <p className="text-xs text-gray-400">
+                      {refereed
+                        ? `Esperando el veredicto de ${d.refereeName} ⚖️`
+                        : 'Aceptado · registra el resultado al terminar'}
+                    </p>
+                    <ScheduleLine d={d} />
                   </div>
-                  <button onClick={() => setResultFor(d)} className="bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium px-3 py-2 rounded-lg flex-shrink-0">Resultado</button>
+                  {/* With a referee, participants can't self-report — only the judge decides. */}
+                  {!refereed && (
+                    <button onClick={() => setResultFor(d)} className="bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium px-3 py-2 rounded-lg flex-shrink-0">Resultado</button>
+                  )}
                 </div>
               );
             })}
+          </div>
+        </Card>
+      )}
+
+      {/* Duels I must judge as the impartial referee */}
+      {toReferee.length > 0 && (
+        <Card title="Eres árbitro ⚖️">
+          <div className="space-y-2">
+            {toReferee.map((d) => (
+              <div key={d.id} className="flex items-center gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-900">
+                    <span className="font-semibold">{d.challengerName}</span> vs <span className="font-semibold">{d.opponentName}</span>
+                    {formatLabel(d) && <span className="text-gray-500"> · {formatLabel(d)}</span>}
+                  </p>
+                  <p className="text-xs text-gray-400">Tú das el veredicto al terminar</p>
+                  <ScheduleLine d={d} />
+                </div>
+                <button onClick={() => setResultFor(d)} className="bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium px-3 py-2 rounded-lg flex-shrink-0">Veredicto</button>
+              </div>
+            ))}
           </div>
         </Card>
       )}
@@ -171,7 +288,10 @@ export default function DuelsSection({ studentId }: Props) {
           <div className="space-y-2">
             {outgoing.map((d) => (
               <div key={d.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50">
-                <p className="flex-1 text-sm text-gray-700">Retaste a <span className="font-semibold">{d.opponentName}</span> — pendiente</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-700">Retaste a <span className="font-semibold">{d.opponentName}</span> — pendiente</p>
+                  <ScheduleLine d={d} />
+                </div>
                 <button onClick={() => cancel(d)} className="text-xs text-gray-400 hover:text-red-500 flex-shrink-0">Cancelar</button>
               </div>
             ))}
@@ -179,13 +299,16 @@ export default function DuelsSection({ studentId }: Props) {
         </Card>
       )}
 
+      {/* Academy ranking (top 10 by record) */}
+      <DuelRankingCard ranking={ranking} meId={studentId} onOpen={setCardFor} />
+
       {/* Academy feed */}
       <Card title="Resultados de la academia">
-        {feed.length === 0 ? (
+        {results.length === 0 ? (
           <p className="text-center text-gray-400 text-sm py-6">Aún no hay duelos resueltos. ¡Sé el primero en retar! ⚔️</p>
         ) : (
           <div className="space-y-2">
-            {feed.map((d) => <FeedRow key={d.id} d={d} />)}
+            {results.map((d) => <FeedRow key={d.id} d={d} />)}
           </div>
         )}
       </Card>
@@ -195,6 +318,7 @@ export default function DuelsSection({ studentId }: Props) {
           classmates={classmates}
           onClose={() => setChallengeOpen(false)}
           onCreate={async (req) => {
+            playDuelo(); // fire within the tap gesture, before the await (autoplay policy)
             await duelsApi.create(studentId, req);
             void notifySuccess();
             await load();
@@ -208,11 +332,16 @@ export default function DuelsSection({ studentId }: Props) {
           me={studentId}
           onClose={() => setResultFor(null)}
           onSubmit={async (data) => {
+            playDuelo(); // fire within the tap gesture, before the await (autoplay policy)
             await duelsApi.reportResult(studentId, resultFor.id, data);
             void notifySuccess();
             await load();
           }}
         />
+      )}
+
+      {cardFor != null && (
+        <StudentInfoModal viewerId={studentId} targetId={cardFor} onClose={() => setCardFor(null)} />
       )}
     </div>
   );
@@ -224,6 +353,106 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
       <div className="p-4 border-b border-gray-100"><h2 className="font-bold text-gray-900">{title}</h2></div>
       <div className="p-4">{children}</div>
     </div>
+  );
+}
+
+/** Expanded card for a picked classmate (rival/referee): photo, full name, age and belt image. */
+function ClassmateCard({ c, accent, onClear, clearLabel }: {
+  c: Classmate; accent: 'primary' | 'amber'; onClear: () => void; clearLabel: string;
+}) {
+  const ring = accent === 'amber' ? 'bg-amber-50 border-amber-200' : 'bg-primary-50 border-primary-200';
+  const clear = accent === 'amber' ? 'text-amber-500 hover:text-amber-700' : 'text-primary-400 hover:text-primary-600';
+  return (
+    <div className={`rounded-xl border p-3 ${ring}`}>
+      <div className="flex items-center gap-3">
+        {c.photoUrl ? (
+          <img src={c.photoUrl} alt="" className="w-14 h-14 rounded-full object-cover flex-shrink-0" />
+        ) : (
+          <span className="w-14 h-14 rounded-full bg-gray-200 text-gray-500 text-lg font-bold flex items-center justify-center flex-shrink-0">
+            {c.name.trim().charAt(0).toUpperCase()}
+          </span>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-semibold text-gray-900 truncate">{c.name}</p>
+          {c.nickname && <p className="text-xs text-gray-500 italic truncate">"{c.nickname}"</p>}
+          <p className="text-xs text-gray-500">
+            {c.age != null ? `${c.age} años` : 'Edad no registrada'}{c.belt ? ` · ${c.belt}` : ''}
+          </p>
+        </div>
+        <button onClick={onClear} className={`text-xs flex-shrink-0 ${clear}`}>{clearLabel}</button>
+      </div>
+      {c.belt && <div className="mt-2.5 w-32"><BeltImage belt={c.belt} stripes={c.stripes ?? 0} /></div>}
+    </div>
+  );
+}
+
+/** Renders the agreed date/place under a duel card, or nothing if neither was set. */
+function ScheduleLine({ d }: { d: Duel }) {
+  const s = formatSchedule(d.scheduledAt, d.location);
+  return s ? <p className="text-xs text-gray-500 mt-0.5">{s}</p> : null;
+}
+
+const MEDALS = ['🥇', '🥈', '🥉'];
+
+/** Top-10 academy duel ranking by record (W/L). Collapsed to 3; pins my row if I'm below. */
+function DuelRankingCard({ ranking, meId, onOpen }: { ranking: DuelRankingEntry[]; meId: number; onOpen: (studentId: number) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  if (ranking.length < 2) return null; // a lone fighter isn't a ranking
+
+  const visibleCount = expanded ? 10 : 3;
+  const top = ranking.slice(0, visibleCount);
+  const myIndex = ranking.findIndex((e) => e.studentId === meId);
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm jjp-accent-bar">
+      <div className="p-5 pl-6 border-b border-gray-100">
+        <h2 className="font-bold text-gray-900">Ranking de duelos 🥋</h2>
+        <p className="text-xs text-gray-400 mt-0.5">Top 10 de tu academia · victorias / derrotas</p>
+      </div>
+      <div className="p-3">
+        {top.map((e, i) => (
+          <RankRow key={e.studentId} e={e} rank={i + 1} isMe={e.studentId === meId} onOpen={onOpen} />
+        ))}
+        {/* Pin my position at the bottom when I'm outside the visible rows. */}
+        {myIndex >= visibleCount && (
+          <div className="mt-1 pt-2 border-t border-dashed border-gray-200">
+            <RankRow e={ranking[myIndex]} rank={myIndex + 1} isMe onOpen={onOpen} />
+          </div>
+        )}
+        {ranking.length > 3 && (
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="w-full mt-1 py-2 text-xs font-semibold text-primary-600 hover:text-primary-700 transition-colors"
+          >
+            {expanded ? 'Ver menos' : `Ver todo (${Math.min(ranking.length, 10)})`}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RankRow({ e, rank, isMe, onOpen }: { e: DuelRankingEntry; rank: number; isMe: boolean; onOpen: (studentId: number) => void }) {
+  return (
+    <button onClick={() => onOpen(e.studentId)} className={`w-full text-left flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-50 transition-colors ${isMe ? 'bg-primary-50' : ''}`}>
+      <span className="w-7 text-center text-sm font-bold text-gray-500 flex-shrink-0">{MEDALS[rank - 1] ?? rank}</span>
+      {e.photoUrl ? (
+        <img src={e.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+      ) : (
+        <span className="w-8 h-8 rounded-full bg-gray-200 text-gray-500 text-xs font-bold flex items-center justify-center flex-shrink-0">
+          {e.name.charAt(0).toUpperCase()}
+        </span>
+      )}
+      <span className={`flex-1 min-w-0 truncate text-sm ${isMe ? 'font-bold text-primary-700' : 'text-gray-700'}`}>
+        {e.name} {isMe && <span className="text-[10px] font-semibold text-primary-500">(tú)</span>}
+      </span>
+      <span className="flex-shrink-0 text-sm font-bold tabular-nums">
+        <span className="text-green-600">{e.wins}</span>
+        <span className="text-gray-300"> / </span>
+        <span className="text-red-500">{e.losses}</span>
+        {e.draws > 0 && <span className="ml-1 text-xs font-normal text-gray-400">· {e.draws}E</span>}
+      </span>
+    </button>
   );
 }
 
@@ -257,8 +486,8 @@ function FeedRow({ d }: { d: Duel }) {
           )}
         </p>
         <div className="flex flex-wrap gap-x-2 mt-0.5 text-xs text-gray-400">
-          {d.method && <span>{METHOD_LABEL[d.method]}{d.method === 'SUBMISSION' && d.submissionName ? ` · ${d.submissionName}` : ''}</span>}
-          {d.modality && <span>· {MODALITY_LABEL[d.modality]}</span>}
+          {d.method && <span>{METHOD_LABEL[d.method]}{d.method === 'SUBMISSION' && d.submissionName ? ` · ${d.submissionName}` : ''}{d.method === 'POINTS' && d.challengerScore != null ? ` · ${d.challengerScore}-${d.opponentScore}` : ''}</span>}
+          {formatLabel(d) && <span>· {formatLabel(d)}</span>}
           <span>· {formatDate((d.completedAt ?? d.createdAt).slice(0, 10))}</span>
         </div>
         {d.resultNotes && <p className="text-xs text-gray-400 italic mt-0.5">"{d.resultNotes}"</p>}
@@ -272,22 +501,42 @@ function ChallengeModal({
 }: {
   classmates: Classmate[];
   onClose: () => void;
-  onCreate: (req: { opponentStudentId: number; modality?: TrainingModality | null; message?: string | null }) => Promise<void>;
+  onCreate: (req: { opponentStudentId: number; refereeStudentId?: number | null; format?: DuelFormat | null; modality?: TrainingModality | null; message?: string | null; scheduledAt?: string | null; location?: string | null }) => Promise<void>;
 }) {
   const [search, setSearch] = useState('');
   const [opponent, setOpponent] = useState<Classmate | null>(null);
+  const [refSearch, setRefSearch] = useState('');
+  const [referee, setReferee] = useState<Classmate | null>(null);
+  const [format, setFormat] = useState<DuelFormat | null>(null);
   const [modality, setModality] = useState<TrainingModality | null>(null);
   const [message, setMessage] = useState('');
+  const [scheduledAt, setScheduledAt] = useState('');
+  const [location, setLocation] = useState('');
   const [saving, setSaving] = useState(false);
 
   const q = search.trim().toLowerCase();
   const matches = q ? classmates.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 8) : [];
 
+  // Referee must be a third person — exclude whoever is already picked as the rival.
+  const rq = refSearch.trim().toLowerCase();
+  const refMatches = rq
+    ? classmates.filter((c) => c.id !== opponent?.id && c.name.toLowerCase().includes(rq)).slice(0, 8)
+    : [];
+
   const submit = async () => {
-    if (!opponent || saving) return;
+    if (!opponent || !format || saving) return;
     setSaving(true);
     try {
-      await onCreate({ opponentStudentId: opponent.id, modality, message: message.trim() || null });
+      await onCreate({
+        opponentStudentId: opponent.id,
+        refereeStudentId: referee?.id ?? null,
+        format,
+        // Gi/No-Gi only matters for a submission bout.
+        modality: format === 'SUBMISSION' ? modality : null,
+        message: message.trim() || null,
+        scheduledAt: scheduledAt || null,
+        location: location.trim() || null,
+      });
       onClose();
     } finally {
       setSaving(false);
@@ -300,10 +549,7 @@ function ChallengeModal({
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Rival</p>
           {opponent ? (
-            <div className="flex items-center justify-between bg-primary-50 border border-primary-200 rounded-lg px-3 py-2">
-              <span className="text-sm font-medium text-primary-700">{opponent.name}{opponent.belt ? ` · ${opponent.belt}` : ''}</span>
-              <button onClick={() => setOpponent(null)} className="text-primary-400 hover:text-primary-600">cambiar</button>
-            </div>
+            <ClassmateCard c={opponent} accent="primary" clearLabel="cambiar" onClear={() => setOpponent(null)} />
           ) : (
             <>
               <input
@@ -326,18 +572,77 @@ function ChallengeModal({
         </div>
 
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Modalidad (opcional)</p>
-          <div className="flex gap-2">
-            {(['GI', 'NOGI'] as const).map((m) => (
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Modo <span className="text-red-400">*</span></p>
+          <div className="flex flex-wrap gap-2">
+            {(['SUBMISSION', 'COMBAT_JJ', 'MMA', 'NO_RULES'] as const).map((f) => (
               <button
-                key={m}
-                onClick={() => setModality(modality === m ? null : m)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium border-2 transition-colors ${modality === m ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-500'}`}
+                key={f}
+                onClick={() => setFormat(f)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border-2 transition-colors ${format === f ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-500'}`}
               >
-                {MODALITY_LABEL[m]}
+                {FORMAT_LABEL[f]}
               </button>
             ))}
           </div>
+          {/* Gi/No-Gi only applies to a submission bout — nest it clearly under Sumisión. */}
+          {format === 'SUBMISSION' && (
+            <div className="mt-3 ml-1 pl-3 border-l-2 border-primary-300">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">¿Gi o No-Gi? (opcional)</p>
+              <div className="flex gap-2">
+                {(['GI', 'NOGI'] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setModality(modality === m ? null : m)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${modality === m ? 'border-primary-500 bg-primary-600 text-white' : 'border-gray-300 bg-white text-gray-600'}`}
+                  >
+                    {MODALITY_LABEL[m]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Cuándo y dónde (opcional)</p>
+          <input
+            type="datetime-local"
+            value={scheduledAt}
+            onChange={(e) => setScheduledAt(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+          />
+          <input
+            value={location}
+            onChange={(e) => setLocation(e.target.value.slice(0, 120))}
+            placeholder="Lugar — ej. Tatami 2, academia central"
+            className="w-full mt-2 px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Árbitro (opcional)</p>
+          {referee ? (
+            <ClassmateCard c={referee} accent="amber" clearLabel="quitar" onClear={() => setReferee(null)} />
+          ) : (
+            <>
+              <input
+                value={refSearch}
+                onChange={(e) => setRefSearch(e.target.value)}
+                placeholder="Buscar árbitro…"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              {refMatches.length > 0 && (
+                <div className="mt-2 border border-gray-100 rounded-lg divide-y divide-gray-100">
+                  {refMatches.map((c) => (
+                    <button key={c.id} onClick={() => { setReferee(c); setRefSearch(''); }} className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                      {c.name}{c.belt && <span className="text-xs text-gray-400"> · {c.belt}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+          <p className="text-xs text-gray-400 mt-1.5">Si eliges árbitro, solo esa persona podrá publicar el resultado.</p>
         </div>
 
         <div>
@@ -352,8 +657,8 @@ function ChallengeModal({
         </div>
       </div>
       <SheetFooter>
-        <button onClick={submit} disabled={!opponent || saving} className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50">
-          {saving ? 'Enviando…' : 'Enviar reto'}
+        <button onClick={submit} disabled={!opponent || !format || saving} className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50">
+          {saving ? 'Enviando…' : !opponent ? 'Elige un rival' : !format ? 'Elige un modo' : 'Enviar reto'}
         </button>
       </SheetFooter>
     </Sheet>
@@ -366,14 +671,23 @@ function ResultModal({
   duel: Duel;
   me: number;
   onClose: () => void;
-  onSubmit: (data: { winnerStudentId?: number | null; method: DuelMethod; submissionName?: string | null; notes?: string | null }) => Promise<void>;
+  onSubmit: (data: { winnerStudentId?: number | null; method: DuelMethod; submissionName?: string | null; challengerScore?: number | null; opponentScore?: number | null; notes?: string | null }) => Promise<void>;
 }) {
-  const o = other(duel, me);
-  const [outcome, setOutcome] = useState<'me' | 'opp' | 'draw' | null>(null);
+  // Pick the winner by participant so the same modal works whether the reporter is a
+  // participant (their side reads "Gané yo") or the impartial referee (both read by name).
+  const firstName = (n: string) => n.split(' ')[0] || n;
+  const challengerLabel = duel.challengerId === me ? 'Gané yo' : `Ganó ${firstName(duel.challengerName)}`;
+  const opponentLabel = duel.opponentId === me ? 'Gané yo' : `Ganó ${firstName(duel.opponentName)}`;
+  const isReferee = duel.refereeId === me;
+  const [outcome, setOutcome] = useState<'challenger' | 'opponent' | 'draw' | null>(null);
   const [method, setMethod] = useState<DuelMethod>('SUBMISSION');
   const [submissionName, setSubmissionName] = useState('');
+  const [challengerScore, setChallengerScore] = useState('');
+  const [opponentScore, setOpponentScore] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const toScore = (v: string) => (v.trim() === '' ? null : Math.max(0, parseInt(v, 10) || 0));
 
   const submit = async () => {
     if (!outcome || saving) return;
@@ -382,11 +696,13 @@ function ResultModal({
       if (outcome === 'draw') {
         await onSubmit({ winnerStudentId: null, method: 'DRAW', notes: notes.trim() || null });
       } else {
-        const winnerStudentId = outcome === 'me' ? me : o.id;
+        const winnerStudentId = outcome === 'challenger' ? duel.challengerId : duel.opponentId;
         await onSubmit({
           winnerStudentId,
           method,
           submissionName: method === 'SUBMISSION' ? submissionName.trim() || null : null,
+          challengerScore: method === 'POINTS' ? toScore(challengerScore) : null,
+          opponentScore: method === 'POINTS' ? toScore(opponentScore) : null,
           notes: notes.trim() || null,
         });
       }
@@ -397,13 +713,13 @@ function ResultModal({
   };
 
   return (
-    <Sheet title="Resultado del duelo" onClose={onClose}>
+    <Sheet title={isReferee ? 'Veredicto del árbitro' : 'Resultado del duelo'} onClose={onClose}>
       <div className="p-5 space-y-5">
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">¿Cómo terminó?</p>
           <div className="grid grid-cols-3 gap-2">
-            <OutcomeBtn active={outcome === 'me'} onClick={() => setOutcome('me')}>Gané yo</OutcomeBtn>
-            <OutcomeBtn active={outcome === 'opp'} onClick={() => setOutcome('opp')}>Ganó {o.name.split(' ')[0]}</OutcomeBtn>
+            <OutcomeBtn active={outcome === 'challenger'} onClick={() => setOutcome('challenger')}>{challengerLabel}</OutcomeBtn>
+            <OutcomeBtn active={outcome === 'opponent'} onClick={() => setOutcome('opponent')}>{opponentLabel}</OutcomeBtn>
             <OutcomeBtn active={outcome === 'draw'} onClick={() => setOutcome('draw')}>Empate</OutcomeBtn>
           </div>
         </div>
@@ -413,7 +729,7 @@ function ResultModal({
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Método</p>
               <div className="flex flex-wrap gap-2">
-                {(['SUBMISSION', 'POINTS', 'DECISION'] as const).map((m) => (
+                {(['SUBMISSION', 'POINTS', 'DECISION', 'DISQUALIFICATION'] as const).map((m) => (
                   <button
                     key={m}
                     onClick={() => setMethod(m)}
@@ -445,6 +761,31 @@ function ResultModal({
                   placeholder="Otra…"
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
                 />
+              </div>
+            )}
+
+            {method === 'POINTS' && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Puntos de cada uno</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {([
+                    { name: duel.challengerName, value: challengerScore, set: setChallengerScore },
+                    { name: duel.opponentName, value: opponentScore, set: setOpponentScore },
+                  ] as const).map((f) => (
+                    <div key={f.name}>
+                      <label className="block text-xs text-gray-500 mb-1 truncate">{firstName(f.name)}</label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        value={f.value}
+                        onChange={(e) => f.set(e.target.value)}
+                        placeholder="0"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </>
