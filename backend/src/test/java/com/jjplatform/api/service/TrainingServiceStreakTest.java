@@ -37,6 +37,7 @@ class TrainingServiceStreakTest {
     private static final LocalDate TODAY = LocalDate.now();
 
     @Mock private TrainingSessionRepository sessionRepository;
+    @Mock private ConditioningService conditioningService;
     @Mock private DisciplineRepository disciplineRepository;
     @Mock private StreakRepairRepository repairRepository;
 
@@ -44,7 +45,7 @@ class TrainingServiceStreakTest {
 
     @BeforeEach
     void setUp() {
-        service = new TrainingService(sessionRepository, disciplineRepository, repairRepository);
+        service = new TrainingService(sessionRepository, conditioningService, disciplineRepository, repairRepository);
     }
 
     // --- helpers -----------------------------------------------------------
