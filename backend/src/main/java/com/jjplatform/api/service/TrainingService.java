@@ -6,6 +6,7 @@ import com.jjplatform.api.dto.TrainingSessionDto;
 import com.jjplatform.api.dto.TrainingSubmissionDto;
 import com.jjplatform.api.dto.TrainingSummaryDto;
 import com.jjplatform.api.exception.ResourceNotFoundException;
+import com.jjplatform.api.model.ConditioningSession;
 import com.jjplatform.api.model.Discipline;
 import com.jjplatform.api.model.StreakRepair;
 import com.jjplatform.api.model.Student;
@@ -144,9 +145,17 @@ public class TrainingService {
 
         // Repaired days count as trained for streak math only — never for session/volume stats.
         for (StreakRepair r : repairs) streakDays.add(r.getRepairedDate());
-        // Conditioning (gym) days keep the SAME streak alive — any training day counts.
-        streakDays.addAll(conditioningService.trainedDates(studentId));
 
+        // Conditioning (gym) sessions count toward both the streak AND the weekly goal.
+        // thisWeekCount was already set above — we add conditioning days here to finalize it.
+        for (ConditioningSession c : conditioningService.listSessions(studentId)) {
+            if (!c.isBackdated()) {
+                streakDays.add(c.getDate());
+                if (weekKey(c.getDate()).equals(currentWeek)) thisWeekCount++;
+            }
+        }
+
+        out.setThisWeekCount(thisWeekCount);
         out.setCurrentStreak(currentDayStreak(streakDays, today));
         out.setMaxStreak(maxDayStreak(streakDays));
         out.setWeeklyGoalMet(weeklyGoal != null && weeklyGoal > 0 && thisWeekCount >= weeklyGoal);

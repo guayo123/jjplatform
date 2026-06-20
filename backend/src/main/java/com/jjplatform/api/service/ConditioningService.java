@@ -76,6 +76,12 @@ public class ConditioningService {
         repository.delete(s);
     }
 
+    /** Raw entity list — used by TrainingService to fold conditioning into the weekly count + streak. */
+    @Transactional(readOnly = true)
+    public List<ConditioningSession> listSessions(Long studentId) {
+        return repository.findByStudentIdOrderByDateDescCreatedAtDesc(studentId);
+    }
+
     /** Dates with a non-backdated conditioning session — folded into the unified day-streak. */
     @Transactional(readOnly = true)
     public Set<LocalDate> trainedDates(Long studentId) {
