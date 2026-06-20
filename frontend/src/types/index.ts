@@ -19,6 +19,7 @@ export interface StudentRegisterRequest {
 }
 
 export interface ForgotPasswordRequest {
+  rut: string;
   email: string;
 }
 

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { usePlatform } from '../../native/usePlatform';
-import { getSavedCreds, saveCreds, clearSavedCreds } from '../../utils/secureStore';
+import { getSavedCreds, saveCreds, clearSavedCreds, type SavedCreds } from '../../utils/secureStore';
+import { getBiometry, verifyBiometric, type BiometryInfo } from '../../native/biometric';
 
 /**
  * Login dedicated to students (the tenant's end users), kept separate from the staff/admin
@@ -11,7 +12,8 @@ import { getSavedCreds, saveCreds, clearSavedCreds } from '../../utils/secureSto
  *
  * Skinned with the portal's dark "Ember" dojo theme so the app opens on a branded screen
  * instead of the generic web login. Offers "Recordar mis datos" to pre-fill email + password
- * for faster sign-in on a personal device.
+ * for faster sign-in; when the device has biometrics, the saved password stays behind a
+ * fingerprint / Face ID prompt instead of being pre-filled in clear text.
  */
 export default function StudentLogin() {
   const { isNative } = usePlatform();
@@ -19,30 +21,39 @@ export default function StudentLogin() {
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(isNative);
   const [error, setError] = useState('');
+  const [savedCreds, setSavedCreds] = useState<SavedCreds | null>(null);
+  const [biometry, setBiometry] = useState<BiometryInfo | null>(null);
   const { login, loading } = useAuthStore();
   const navigate = useNavigate();
 
-  // Pre-fill from saved credentials. If any were stored, the user clearly wanted to be
-  // remembered, so default the toggle on regardless of platform.
+  // Saved credentials + a biometric gate: when biometrics are available we keep the password
+  // behind the fingerprint prompt; otherwise we fall back to pre-filling it (no gate possible).
+  const biometricLock = !!savedCreds && !!biometry?.available;
+
   useEffect(() => {
     let active = true;
-    void getSavedCreds().then((creds) => {
-      if (active && creds) {
+    void (async () => {
+      const [creds, bio] = await Promise.all([getSavedCreds(), getBiometry()]);
+      if (!active) return;
+      setBiometry(bio);
+      if (creds) {
+        setSavedCreds(creds);
         setEmail(creds.email);
-        setPassword(creds.password);
         setRemember(true);
+        // Only auto-fill the password when there's no biometric gate to protect it.
+        if (!bio.available) setPassword(creds.password);
       }
-    });
+    })();
     return () => { active = false; };
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  /** Shared login path used by the manual form and the biometric unlock. */
+  const doLogin = async (em: string, pw: string) => {
     setError('');
     try {
-      await login({ email, password });
+      await login({ email: em, password: pw });
       // Persist (or forget) credentials per the toggle, before navigating away.
-      if (remember) await saveCreds({ email, password });
+      if (remember) await saveCreds({ email: em, password: pw });
       else await clearSavedCreds();
       const state = useAuthStore.getState();
       // Route by role: a student stays in the portal; a staff member who happens to use this
@@ -57,6 +68,22 @@ export default function StudentLogin() {
     } catch {
       setError('Credenciales inválidas');
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await doLogin(email, password);
+  };
+
+  const handleBiometric = async () => {
+    if (!savedCreds) return;
+    setError('');
+    const ok = await verifyBiometric('Ingresa a tu portal');
+    if (!ok) {
+      setError('No se pudo verificar tu identidad. Ingresa con tu contraseña.');
+      return;
+    }
+    await doLogin(savedCreds.email, savedCreds.password);
   };
 
   return (
@@ -84,6 +111,25 @@ export default function StudentLogin() {
         >
           {error && (
             <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg mb-4">{error}</div>
+          )}
+
+          {biometricLock && (
+            <div className="mb-5">
+              <button
+                type="button"
+                onClick={handleBiometric}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 text-white font-semibold py-2.5 rounded-lg transition-opacity disabled:opacity-50"
+                style={{ background: 'var(--gradient-acc)' }}
+              >
+                <span aria-hidden>👆</span> Ingresar con {biometry?.label}
+              </button>
+              <div className="flex items-center gap-3 my-4" aria-hidden>
+                <span className="flex-1 h-px" style={{ background: 'var(--line)' }} />
+                <span className="text-xs" style={{ color: 'var(--muted-2)' }}>o con tu contraseña</span>
+                <span className="flex-1 h-px" style={{ background: 'var(--line)' }} />
+              </div>
+            </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">

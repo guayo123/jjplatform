@@ -43,12 +43,12 @@ public class AuthController {
     }
 
     /**
-     * Forgot-password: emails a fresh temporary password to the account, if the email exists.
-     * Always returns 204 — never reveals whether the email is registered (account enumeration).
+     * Forgot-password: verifies RUT + email against a student record and emails a fresh
+     * temporary password. Returns 204 on success; 400 with a message if the data doesn't match.
      */
     @PostMapping("/forgot-password")
     public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        authService.requestPasswordReset(request.getEmail());
+        authService.requestPasswordReset(request.getRut(), request.getEmail());
         return ResponseEntity.noContent().build();
     }
 

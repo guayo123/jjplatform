@@ -5,12 +5,15 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /**
- * Payload for the "forgot password" flow. Only the email is needed: if it matches an
- * existing account we email a fresh temporary password; otherwise we respond the same
- * way to avoid revealing which emails are registered.
+ * Payload for the "forgot password" flow. Requires BOTH the RUT and the email to match an
+ * existing student record before a temporary password is issued — the same trust boundary as
+ * student self-registration, so a leaked email alone can't trigger a password reset.
  */
 @Data
 public class ForgotPasswordRequest {
+
+    @NotBlank(message = "El RUT es obligatorio")
+    private String rut;
 
     @Email
     @NotBlank(message = "El correo es obligatorio")

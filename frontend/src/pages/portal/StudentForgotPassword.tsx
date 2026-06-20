@@ -1,16 +1,15 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi } from '../../api/auth';
+import { cleanRut, formatRut } from '../../utils/rut';
 
 /**
- * "¿Olvidaste tu contraseña?" for students. Asks only for the email and triggers a
- * temporary-password email (reusing the same temp-password mechanism as registration).
- *
- * For privacy the success message is deliberately the same whether or not the email is
- * registered — the backend never reveals which addresses exist (account enumeration).
- * Skinned with the portal's dark "Ember" theme to match StudentLogin.
+ * "¿Olvidaste tu contraseña?" for students. Verifies RUT + email (the same trust boundary as
+ * registration) and triggers a temporary-password email. Requiring both means a leaked email
+ * alone can't reset someone's password. Skinned with the portal's dark "Ember" theme.
  */
 export default function StudentForgotPassword() {
+  const [rut, setRut] = useState('');
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,10 +20,11 @@ export default function StudentForgotPassword() {
     setError('');
     setLoading(true);
     try {
-      await authApi.forgotPassword({ email: email.trim() });
+      // Display is formatted (12.345.678-9); the API receives it clean (digits + verifier only).
+      await authApi.forgotPassword({ rut: cleanRut(rut), email: email.trim() });
       setDone(true);
-    } catch {
-      setError('No se pudo procesar la solicitud. Intenta de nuevo más tarde.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'No se pudo procesar la solicitud. Intenta de nuevo más tarde.');
     } finally {
       setLoading(false);
     }
@@ -58,8 +58,8 @@ export default function StudentForgotPassword() {
                 ✓
               </div>
               <p className="text-sm" style={{ color: 'var(--text)' }}>
-                Si <strong>{email}</strong> corresponde a una cuenta, te enviamos una contraseña
-                temporal. Revisa tu correo (y la carpeta de spam) e inicia sesión con ella.
+                Te enviamos una contraseña temporal a <strong>{email}</strong>. Revisa tu correo
+                (y la carpeta de spam) e inicia sesión con ella.
               </p>
               <Link
                 to="/portal/login"
@@ -76,6 +76,22 @@ export default function StudentForgotPassword() {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text)' }}>
+                    RUT
+                  </label>
+                  <input
+                    type="text"
+                    value={rut}
+                    onChange={(e) => setRut(formatRut(e.target.value))}
+                    required
+                    maxLength={12}
+                    inputMode="text"
+                    className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                    placeholder="12.345.678-9"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text)' }}>
                     Email
