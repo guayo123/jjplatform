@@ -70,6 +70,7 @@ export default function DuelsSection({ studentId }: Props) {
   const [challengeOpen, setChallengeOpen] = useState(false);
   const [resultFor, setResultFor] = useState<Duel | null>(null);
   const [cardFor, setCardFor] = useState<number | null>(null); // ranking → student info modal
+  const [detailDuel, setDetailDuel] = useState<Duel | null>(null);
 
   // Fire toast + local notification for status changes the student hasn't seen yet.
   const notifyChanges = useCallback((current: Duel[]) => {
@@ -302,13 +303,20 @@ export default function DuelsSection({ studentId }: Props) {
       {/* Academy ranking (top 10 by record) */}
       <DuelRankingCard ranking={ranking} meId={studentId} onOpen={setCardFor} />
 
-      {/* Academy feed */}
+      {/* Academy feed — grouped by date, tappable rows */}
       <Card title="Resultados de la academia">
         {results.length === 0 ? (
           <p className="text-center text-gray-400 text-sm py-6">Aún no hay duelos resueltos. ¡Sé el primero en retar! ⚔️</p>
         ) : (
-          <div className="space-y-2">
-            {results.map((d) => <FeedRow key={d.id} d={d} />)}
+          <div className="space-y-4">
+            {groupByDate(results).map(({ date, items }) => (
+              <div key={date}>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2">{formatDate(date)}</p>
+                <div className="space-y-1.5">
+                  {items.map((d) => <FeedRow key={d.id} d={d} onOpen={() => setDetailDuel(d)} />)}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </Card>
@@ -343,6 +351,8 @@ export default function DuelsSection({ studentId }: Props) {
       {cardFor != null && (
         <StudentInfoModal viewerId={studentId} targetId={cardFor} onClose={() => setCardFor(null)} />
       )}
+
+      {detailDuel && <DuelDetail d={detailDuel} onClose={() => setDetailDuel(null)} />}
     </div>
   );
 }
@@ -456,41 +466,128 @@ function RankRow({ e, rank, isMe, onOpen }: { e: DuelRankingEntry; rank: number;
   );
 }
 
-function FeedRow({ d }: { d: Duel }) {
-  if (d.status === 'REJECTED') {
-    return (
-      <div className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50">
-        <span className="text-base mt-0.5">🚫</span>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-700">
-            <span className="font-semibold">{d.opponentName}</span> rechazó el reto de{' '}
-            <span className="font-semibold">{d.challengerName}</span>
-          </p>
-          <p className="text-xs text-gray-400">{formatDate((d.respondedAt ?? d.createdAt).slice(0, 10))}</p>
-        </div>
-      </div>
-    );
+// ── helpers ─────────────────────────────────────────────────────────────────
+
+/** "Diego Andrés Rivas Palma" → "Diego Rivas" (first + last word). */
+function abbrev(name: string): string {
+  const words = name.trim().split(/\s+/);
+  return words.length <= 2 ? name : `${words[0]} ${words[words.length - 1]}`;
+}
+
+function shortDate(iso: string): string {
+  const [, m, d] = iso.split('-');
+  const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  return `${parseInt(d)} ${months[parseInt(m) - 1]}`;
+}
+
+function groupByDate(duels: Duel[]): Array<{ date: string; items: Duel[] }> {
+  const groups: Array<{ date: string; items: Duel[] }> = [];
+  for (const d of duels) {
+    const date = (d.completedAt ?? d.respondedAt ?? d.createdAt).slice(0, 10);
+    const last = groups[groups.length - 1];
+    if (last && last.date === date) last.items.push(d);
+    else groups.push({ date, items: [d] });
   }
-  // COMPLETED
-  const draw = d.winnerStudentId == null;
+  return groups;
+}
+
+// ── compact feed row ─────────────────────────────────────────────────────────
+
+function FeedRow({ d, onOpen }: { d: Duel; onOpen: () => void }) {
+  const isRejected = d.status === 'REJECTED';
+  const isDraw = !isRejected && d.winnerStudentId == null;
+  const icon = isRejected ? '🚫' : isDraw ? '🤝' : '🏆';
+
+  const mainLine = isRejected
+    ? `${abbrev(d.opponentName)} rechazó a ${abbrev(d.challengerName)}`
+    : isDraw
+    ? `${abbrev(d.challengerName)} vs ${abbrev(d.opponentName)}`
+    : `${abbrev(d.winnerName!)} vs ${abbrev(d.winnerStudentId === d.challengerId ? d.opponentName : d.challengerName)}`;
+
+  const label = formatLabel(d);
+  const subLine = !isRejected && d.method
+    ? `${METHOD_LABEL[d.method]}${label ? ` · ${label}` : ''}`
+    : label ?? null;
+
   return (
-    <div className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50">
-      <span className="text-base mt-0.5">{draw ? '🤝' : '🏆'}</span>
+    <button
+      onClick={onOpen}
+      className="w-full text-left flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 active:bg-gray-100 transition-colors"
+    >
+      <span className="text-base flex-shrink-0">{icon}</span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-gray-900">
-          {draw ? (
-            <><span className="font-semibold">{d.challengerName}</span> vs <span className="font-semibold">{d.opponentName}</span> — empate</>
-          ) : (
-            <><span className="font-semibold text-green-700">{d.winnerName}</span> venció a{' '}
-              <span className="font-semibold">{d.winnerStudentId === d.challengerId ? d.opponentName : d.challengerName}</span></>
-          )}
-        </p>
-        <div className="flex flex-wrap gap-x-2 mt-0.5 text-xs text-gray-400">
-          {d.method && <span>{METHOD_LABEL[d.method]}{d.method === 'SUBMISSION' && d.submissionName ? ` · ${d.submissionName}` : ''}{d.method === 'POINTS' && d.challengerScore != null ? ` · ${d.challengerScore}-${d.opponentScore}` : ''}</span>}
-          {formatLabel(d) && <span>· {formatLabel(d)}</span>}
-          <span>· {formatDate((d.completedAt ?? d.createdAt).slice(0, 10))}</span>
-        </div>
-        {d.resultNotes && <p className="text-xs text-gray-400 italic mt-0.5">"{d.resultNotes}"</p>}
+        <p className="text-sm font-medium text-gray-900 truncate">{mainLine}</p>
+        {subLine && <p className="text-xs text-gray-400 truncate">{subLine}</p>}
+      </div>
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        <span className="text-xs text-gray-400">{shortDate((d.completedAt ?? d.respondedAt ?? d.createdAt).slice(0, 10))}</span>
+        <span className="text-gray-300 text-xs">›</span>
+      </div>
+    </button>
+  );
+}
+
+// ── duel detail modal (same pattern as AchievementDetail) ───────────────────
+
+function DuelDetail({ d, onClose }: { d: Duel; onClose: () => void }) {
+  const isRejected = d.status === 'REJECTED';
+  const isDraw = !isRejected && d.winnerStudentId == null;
+  const date = (d.completedAt ?? d.respondedAt ?? d.createdAt).slice(0, 10);
+  const loserName = !isRejected && !isDraw && d.winnerStudentId != null
+    ? (d.winnerStudentId === d.challengerId ? d.opponentName : d.challengerName)
+    : null;
+  const label = formatLabel(d);
+  const methodDetail = d.method
+    ? `${METHOD_LABEL[d.method]}${d.submissionName ? ` · ${d.submissionName}` : ''}${d.method === 'POINTS' && d.challengerScore != null ? ` (${d.challengerScore}–${d.opponentScore})` : ''}`
+    : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-5">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl text-center jjp-pop">
+        <button onClick={onClose} className="absolute right-3 top-3 text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
+
+        <div className="text-5xl mb-3">{isRejected ? '🚫' : isDraw ? '🤝' : '🏆'}</div>
+
+        {isRejected ? (
+          <p className="text-base text-gray-700 leading-snug">
+            <span className="font-bold">{d.opponentName}</span> rechazó el reto de{' '}
+            <span className="font-bold">{d.challengerName}</span>
+          </p>
+        ) : isDraw ? (
+          <>
+            <p className="font-bold text-gray-900 text-base">{d.challengerName}</p>
+            <p className="text-sm text-gray-500 my-1">empató con</p>
+            <p className="font-bold text-gray-900 text-base">{d.opponentName}</p>
+          </>
+        ) : (
+          <>
+            <p className="font-extrabold text-green-700 text-lg leading-snug">{d.winnerName}</p>
+            <p className="text-sm text-gray-500 my-1">venció a</p>
+            <p className="font-bold text-gray-800 text-base">{loserName}</p>
+          </>
+        )}
+
+        {(methodDetail || label) && (
+          <div className="flex flex-wrap gap-2 justify-center mt-4">
+            {methodDetail && (
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-50 border border-orange-200 text-orange-700">{methodDetail}</span>
+            )}
+            {label && (
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 border border-gray-200 text-gray-600">{label}</span>
+            )}
+          </div>
+        )}
+
+        <p className="text-xs text-gray-400 mt-4">{formatDate(date)}</p>
+
+        {d.resultNotes && (
+          <p className="text-sm text-gray-500 italic mt-3 pt-3 border-t border-gray-100">"{d.resultNotes}"</p>
+        )}
+
+        {d.refereeName && (
+          <p className="text-xs text-gray-400 mt-2">🧑‍⚖️ Árbitro: {d.refereeName}</p>
+        )}
       </div>
     </div>
   );
