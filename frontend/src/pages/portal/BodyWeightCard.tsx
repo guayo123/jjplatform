@@ -109,9 +109,9 @@ function WeightModal({ onClose, onChange }: { onClose: () => void; onChange: (en
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl max-h-[88vh] overflow-y-auto shadow-2xl">
+      <div className="relative w-full max-w-lg bg-white rounded-2xl max-h-[85vh] overflow-y-auto shadow-2xl">
         <div className="sticky top-0 bg-white/95 backdrop-blur px-5 pt-5 pb-3 border-b border-gray-100 flex items-center justify-between">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500 mb-0.5">Seguimiento</p>
