@@ -18,6 +18,7 @@ import TrainingCharts from './TrainingCharts';
 import StudentInfoModal from './StudentInfoModal';
 import BodyDiagram from './BodyDiagram';
 import { getMusclesFromFocus, getMusclesFromNames } from '../exerciseCatalog';
+import ExerciseProgressModal from '../ExerciseProgressModal';
 
 interface Props {
   studentId: number;
@@ -486,7 +487,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
         <ConditioningForm recentExercises={recentExercises} onClose={() => setCondFormOpen(false)} onSave={handleSaveConditioning} />
       )}
 
-      {condDetailFor && <ConditioningDetail c={condDetailFor} onClose={() => setCondDetailFor(null)} />}
+      {condDetailFor && <ConditioningDetail c={condDetailFor} allSessions={condSessions} onClose={() => setCondDetailFor(null)} />}
 
       {/* Week-card preview + share */}
       {shareView && (
@@ -1024,7 +1025,8 @@ function ConditioningRow({ c, onDelete, onOpen }: { c: ConditioningSession; onDe
 }
 
 /** Full detail of a conditioning session (styled like the BJJ session detail). */
-function ConditioningDetail({ c, onClose }: { c: ConditioningSession; onClose: () => void }) {
+function ConditioningDetail({ c, allSessions, onClose }: { c: ConditioningSession; allSessions: ConditioningSession[]; onClose: () => void }) {
+  const [progressEx, setProgressEx] = useState<string | null>(null);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-5 pt-safe pb-safe">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
@@ -1060,7 +1062,12 @@ function ConditioningDetail({ c, onClose }: { c: ConditioningSession; onClose: (
               {c.exercises.map((ex, i) => (
                 <div key={i} className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-gray-800">{ex.name}</p>
+                    <button
+                      onClick={() => setProgressEx(ex.name)}
+                      className="text-sm font-semibold text-primary-600 hover:text-primary-700 text-left leading-tight"
+                    >
+                      {ex.name} <span className="text-[10px] font-normal text-gray-400 ml-1">ver progresión →</span>
+                    </button>
                     {ex.restSec != null && <span className="text-[11px] text-gray-400">descanso {ex.restSec}s</span>}
                   </div>
                   <div className="mt-1 flex flex-wrap gap-1.5">
@@ -1082,6 +1089,14 @@ function ConditioningDetail({ c, onClose }: { c: ConditioningSession; onClose: (
           </DetailBlock>
         )}
       </div>
+
+      {progressEx && (
+        <ExerciseProgressModal
+          exerciseName={progressEx}
+          sessions={allSessions}
+          onClose={() => setProgressEx(null)}
+        />
+      )}
     </div>
   );
 }
