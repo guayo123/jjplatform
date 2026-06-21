@@ -3,6 +3,7 @@ import type { ConditioningFocus, ConditioningSessionForm } from '../../types';
 import { tapLight } from '../../native/haptics';
 import { getMusclesFromFocus, getMusclesFromNames, suggestExercises } from './exerciseCatalog';
 import BodyDiagram from './sections/BodyDiagram';
+import { deleteTemplate, loadTemplates, saveTemplate, type RoutineTemplate } from './routineTemplates';
 
 const FOCUS_OPTIONS: Array<[ConditioningFocus, string]> = [
   ['PIERNA', '🦵 Pierna'], ['ESPALDA', '🔙 Espalda'], ['PECHO', '🎯 Pecho'], ['HOMBRO', '🤲 Hombro'],
@@ -44,6 +45,9 @@ export default function ConditioningForm({ recentExercises, onClose, onSave }: P
   const [activeEx, setActiveEx] = useState<number | null>(null); // which exercise input shows suggestions
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [templates, setTemplates] = useState<RoutineTemplate[]>(() => loadTemplates());
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [templateName, setTemplateName] = useState('');
 
   const num = (v: string): number | null => (v.trim() === '' ? null : Math.max(0, parseFloat(v.replace(',', '.')) || 0));
   const intNum = (v: string): number | null => (v.trim() === '' ? null : Math.max(0, parseInt(v, 10) || 0));
@@ -65,6 +69,43 @@ export default function ConditioningForm({ recentExercises, onClose, onSave }: P
       idx === ei ? { ...e, sets: e.sets.length > 1 ? e.sets.filter((_, j) => j !== si) : e.sets } : e));
   const addExercise = () => { void tapLight(); setExercises((prev) => [...prev, emptyExercise()]); };
   const removeExercise = (ei: number) => setExercises((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== ei) : prev));
+
+  const applyTemplate = (t: RoutineTemplate) => {
+    void tapLight();
+    if (t.focus) setFocus(t.focus as ConditioningFocus);
+    if (t.durationMin) setDurationMin(t.durationMin);
+    setExercises(t.exercises.map((ex) => ({
+      name: ex.name,
+      rest: ex.restSec != null ? String(ex.restSec) : '',
+      restUnit: 'seg' as RestUnit,
+      sets: ex.sets.map((s) => ({ reps: s.reps, weight: s.weight })),
+    })));
+  };
+
+  const handleSaveTemplate = () => {
+    const name = templateName.trim();
+    if (!name) return;
+    saveTemplate({
+      name,
+      focus: focus as string | null,
+      durationMin,
+      exercises: exercises
+        .filter((e) => e.name.trim())
+        .map((e) => ({
+          name: e.name.trim(),
+          restSec: e.rest ? Math.round(parseFloat(e.rest) * (e.restUnit === 'min' ? 60 : 1)) : null,
+          sets: e.sets.map((s) => ({ reps: s.reps, weight: s.weight })),
+        })),
+    });
+    setTemplates(loadTemplates());
+    setTemplateName('');
+    setSaveTemplateOpen(false);
+  };
+
+  const handleDeleteTemplate = (id: string) => {
+    deleteTemplate(id);
+    setTemplates(loadTemplates());
+  };
 
   const handleSave = async () => {
     if (saving) return;
@@ -104,6 +145,28 @@ export default function ConditioningForm({ recentExercises, onClose, onSave }: P
         </div>
 
         <div className="p-5 space-y-5">
+          {/* Saved templates */}
+          {templates.length > 0 && (
+            <Group label="Mis plantillas">
+              <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                {templates.map((t) => (
+                  <div key={t.id} className="flex-shrink-0 flex items-center gap-1 bg-white border border-gray-200 rounded-xl px-3 py-1.5">
+                    <button
+                      onClick={() => applyTemplate(t)}
+                      className="text-sm font-medium text-gray-700 hover:text-primary-600 whitespace-nowrap"
+                    >
+                      {t.name}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTemplate(t.id)}
+                      className="text-gray-300 hover:text-red-400 text-xs ml-1"
+                    >✕</button>
+                  </div>
+                ))}
+              </div>
+            </Group>
+          )}
+
           <Group label="Fecha">
             <div className="flex flex-wrap gap-2">
               {dateOptions.map((o) => (
@@ -240,15 +303,45 @@ export default function ConditioningForm({ recentExercises, onClose, onSave }: P
           </Group>
         </div>
 
-        <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur px-5 py-3 border-t border-gray-200 flex gap-3">
-          <button type="button" onClick={onClose} disabled={saving}
-            className="px-5 py-3 rounded-xl border border-gray-300 text-gray-600 font-semibold transition-colors hover:bg-gray-100 disabled:opacity-50">
-            Cancelar
-          </button>
-          <button onClick={handleSave} disabled={saving}
-            className="flex-1 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50">
-            {saving ? 'Guardando…' : 'Guardar'}
-          </button>
+        <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur px-5 pt-2 pb-3 border-t border-gray-200">
+          {saveTemplateOpen && (
+            <div className="flex gap-2 mb-2">
+              <input
+                autoFocus
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveTemplate()}
+                placeholder="Nombre de la plantilla"
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              <button onClick={handleSaveTemplate}
+                className="px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg">
+                OK
+              </button>
+              <button onClick={() => { setSaveTemplateOpen(false); setTemplateName(''); }}
+                className="px-3 py-2 text-gray-400 text-sm">
+                ✕
+              </button>
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose} disabled={saving}
+              className="px-5 py-3 rounded-xl border border-gray-300 text-gray-600 font-semibold transition-colors hover:bg-gray-100 disabled:opacity-50">
+              Cancelar
+            </button>
+            <button onClick={handleSave} disabled={saving}
+              className="flex-1 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50">
+              {saving ? 'Guardando…' : 'Guardar'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setSaveTemplateOpen((v) => !v); setTemplateName(''); }}
+              className="px-3 py-3 rounded-xl border border-gray-300 text-gray-500 hover:border-primary-300 hover:text-primary-600 transition-colors text-sm"
+              title="Guardar como plantilla"
+            >
+              💾
+            </button>
+          </div>
         </div>
       </div>
     </div>

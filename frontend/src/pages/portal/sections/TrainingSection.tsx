@@ -19,6 +19,7 @@ import StudentInfoModal from './StudentInfoModal';
 import BodyDiagram from './BodyDiagram';
 import { getMusclesFromFocus, getMusclesFromNames } from '../exerciseCatalog';
 import ExerciseProgressModal from '../ExerciseProgressModal';
+import BodyWeightCard from '../BodyWeightCard';
 
 interface Props {
   studentId: number;
@@ -406,6 +407,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
           {/* Narrative insights — the "at a glance" read of your game */}
           <InsightsCard insights={insights} hasSessions={sessions.length > 0} />
           <TrainingCharts sessions={sessions} />
+          <BodyWeightCard />
           <LeaderboardCard board={board} meId={studentId} onOpen={setCardFor} />
         </>
       ) : (
