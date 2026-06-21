@@ -411,12 +411,13 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
         <>
           {/* Session-type filter */}
           {(sessions.length > 0 || condSessions.length > 0) && (
-            <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-0.5">
+            <div className="flex gap-2 overflow-x-auto scroll-smooth pb-1 -mx-4 px-4"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               {HISTORY_FILTERS.map((f) => (
                 <button
                   key={f.key}
                   onClick={() => setHistoryFilter(f.key)}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                  className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-semibold border transition-colors ${
                     historyFilter === f.key
                       ? 'bg-primary-600 border-primary-600 text-white'
                       : 'bg-white border-gray-200 text-gray-500 hover:border-primary-300'
@@ -425,6 +426,8 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
                   {f.label}
                 </button>
               ))}
+              {/* Spacer so el último chip no queda pegado al borde */}
+              <div className="flex-shrink-0 w-2" />
             </div>
           )}
 
