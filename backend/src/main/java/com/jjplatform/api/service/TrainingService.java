@@ -231,6 +231,11 @@ public class TrainingService {
             if (days != null) days.add(r.getRepairedDate());
         }
 
+        // Conditioning (gym) sessions count toward the streak here too — same as the personal summary.
+        conditioningService.trainedDatesByAcademy(academyId, from).forEach((studentId, condDates) ->
+            daysByStudent.computeIfAbsent(studentId, k -> new HashSet<>()).addAll(condDates)
+        );
+
         return studentsById.values().stream()
                 .map(student -> {
                     LeaderboardEntryDto e = new LeaderboardEntryDto();

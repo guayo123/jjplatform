@@ -92,6 +92,20 @@ public class ConditioningService {
         return dates;
     }
 
+    /**
+     * Non-backdated conditioning dates per student for a whole academy, used by the leaderboard
+     * so gym days count toward the streak the same way they do in each student's personal summary.
+     * Returns a map of studentId → set of trained dates.
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, Set<LocalDate>> trainedDatesByAcademy(Long academyId, LocalDate from) {
+        Map<Long, Set<LocalDate>> result = new java.util.HashMap<>();
+        for (ConditioningSession s : repository.findByStudentAcademyIdAndBackdatedFalseAndDateGreaterThanEqual(academyId, from)) {
+            result.computeIfAbsent(s.getStudent().getId(), k -> new HashSet<>()).add(s.getDate());
+        }
+        return result;
+    }
+
     private ConditioningSessionDto toDto(ConditioningSession s) {
         ConditioningSessionDto dto = new ConditioningSessionDto();
         dto.setId(s.getId());
