@@ -9,6 +9,7 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
+        <!-- Main activity: no LAUNCHER intent-filter; aliases below provide it. -->
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"
@@ -16,13 +17,78 @@
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
             android:exported="true">
+        </activity>
 
+        <!-- Belt-icon aliases — only one is enabled at a time (switched by BeltIconPlugin). -->
+        <activity-alias
+            android:name=".MainActivityBeltWhite"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_belt_white"
+            android:roundIcon="@mipmap/ic_launcher_belt_white_round"
+            android:label="@string/title_activity_main"
+            android:exported="true"
+            android:enabled="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity-alias>
 
-        </activity>
+        <activity-alias
+            android:name=".MainActivityBeltBlue"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_belt_blue"
+            android:roundIcon="@mipmap/ic_launcher_belt_blue_round"
+            android:label="@string/title_activity_main"
+            android:exported="true"
+            android:enabled="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".MainActivityBeltPurple"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_belt_purple"
+            android:roundIcon="@mipmap/ic_launcher_belt_purple_round"
+            android:label="@string/title_activity_main"
+            android:exported="true"
+            android:enabled="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".MainActivityBeltBrown"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_belt_brown"
+            android:roundIcon="@mipmap/ic_launcher_belt_brown_round"
+            android:label="@string/title_activity_main"
+            android:exported="true"
+            android:enabled="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".MainActivityBeltBlack"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_belt_black"
+            android:roundIcon="@mipmap/ic_launcher_belt_black_round"
+            android:label="@string/title_activity_main"
+            android:exported="true"
+            android:enabled="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <provider
             android:name="androidx.core.content.FileProvider"

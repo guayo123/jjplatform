@@ -16,6 +16,7 @@ import {
 import { App } from '@capacitor/app';
 import { usePlatform } from '../../native/usePlatform';
 import { registerPush } from '../../native/push';
+import { applyBeltIcon } from '../../native/beltIcon';
 import { tapLight, notifySuccess } from '../../native/haptics';
 import PullToRefresh from '../../native/PullToRefresh';
 import PortalTabs, { type PortalTab } from './PortalTabs';
@@ -101,6 +102,7 @@ export default function Portal() {
       setCurriculum(tech);
       setPaymentOptions(opts);
       setBirthdays(bdays);
+      void applyBeltIcon(d);
     } catch {
       setDisciplines([]);
       setPromotions([]);
