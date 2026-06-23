@@ -177,19 +177,30 @@ public class DuelService {
         return toDto(duelRepository.save(duel));
     }
 
-    /** Number of days an accepted bout may sit unresolved before the daily sweep expires it. */
+    /** Number of days an accepted bout may sit unresolved before it is expired. */
     private static final long STALE_DAYS = 5;
 
     /**
-     * Daily sweep: retire accepted bouts nobody resolved {@value #STALE_DAYS} days after their
-     * agreed date (or, when no date was set, after they were accepted). Keeps the "in play" list
-     * honest when a referee never rules or fighters never report. Returns how many were expired.
+     * Daily sweep across all academies: retire accepted bouts nobody resolved {@value #STALE_DAYS}
+     * days after their agreed date (or, when no date was set, after they were accepted). Keeps the
+     * "in play" list honest when a referee never rules or fighters never report. Returns the count.
      */
     @Transactional
     public int expireStale() {
+        return expire(duelRepository.findByStatus(Duel.Status.ACCEPTED));
+    }
+
+    /** Same sweep limited to one academy — backs the admin's manual "limpiar duelos vencidos". */
+    @Transactional
+    public int expireStaleForAcademy(Long academyId) {
+        return expire(duelRepository.findByAcademyIdAndStatus(academyId, Duel.Status.ACCEPTED));
+    }
+
+    private int expire(List<Duel> accepted) {
         LocalDateTime now = LocalDateTime.now();
         int expired = 0;
-        for (Duel d : duelRepository.findByStatus(Duel.Status.ACCEPTED)) {
+        for (Duel d : accepted) {
+            // Count from the agreed date, or from acceptance when no date was set.
             LocalDateTime since = d.getScheduledAt() != null ? d.getScheduledAt() : d.getRespondedAt();
             if (since == null) continue; // no reference point yet — leave it alone
             if (since.plusDays(STALE_DAYS).isBefore(now)) {

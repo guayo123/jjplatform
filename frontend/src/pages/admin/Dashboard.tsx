@@ -3,6 +3,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { Link } from 'react-router-dom';
 import { useGuidedTour } from '../../utils/useGuidedTour';
 import AtRiskPanel from '../../components/AtRiskPanel';
+import DuelMaintenanceCard from '../../components/DuelMaintenanceCard';
 
 export default function Dashboard() {
   const academyName = useAuthStore((s) => s.academyName);
@@ -71,8 +72,9 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="mt-8 max-w-2xl">
+      <div className="mt-8 max-w-2xl space-y-6">
         <AtRiskPanel />
+        {isAdmin && <DuelMaintenanceCard />}
       </div>
     </div>
   );

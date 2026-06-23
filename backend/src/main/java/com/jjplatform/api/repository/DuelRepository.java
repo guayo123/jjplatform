@@ -20,4 +20,7 @@ public interface DuelRepository extends JpaRepository<Duel, Long> {
 
     /** All bouts in a given status — used by the daily sweep to find unresolved accepted duels. */
     List<Duel> findByStatus(Duel.Status status);
+
+    /** Bouts of one academy in a given status — used by the admin's manual expiry trigger. */
+    List<Duel> findByAcademyIdAndStatus(Long academyId, Duel.Status status);
 }
