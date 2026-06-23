@@ -180,19 +180,21 @@ export default function StudentForm() {
 
       <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-5">
 
-        {/* Foto */}
-        <div className="flex gap-5 items-start">
-          <ImageUpload
-            value={form.photoUrl}
-            onFile={handlePhotoUpload}
-            onRemove={() => setForm((f) => ({ ...f, photoUrl: null }))}
-            uploading={uploading}
-            progress={uploadProgress}
-            profile="profile"
-            label="foto del alumno"
-            aspect="portrait"
-          />
-          <div className="flex-1 space-y-4">
+        {/* Foto + campos principales — vertical en móvil, lado a lado en desktop */}
+        <div className="flex flex-col sm:flex-row gap-5 items-start">
+          <div className="w-full sm:w-auto">
+            <ImageUpload
+              value={form.photoUrl}
+              onFile={handlePhotoUpload}
+              onRemove={() => setForm((f) => ({ ...f, photoUrl: null }))}
+              uploading={uploading}
+              progress={uploadProgress}
+              profile="profile"
+              label="foto del alumno"
+              aspect="portrait"
+            />
+          </div>
+          <div className="w-full sm:flex-1 space-y-4">
             <div>
               <label className={lbl}>Nombre *</label>
               <FormInput
@@ -219,23 +221,22 @@ export default function StudentForm() {
                 placeholder="ej: El Tigre, Chico..."
               />
             </div>
+            <div>
+              <label className={lbl}>RUT *</label>
+              <FormInput
+                type="text"
+                value={form.rut ?? ''}
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, rut: formatRut(e.target.value) || null }));
+                  setErrors((er) => ({ ...er, rut: undefined }));
+                }}
+                placeholder="12.345.678-9"
+                maxLength={12}
+                error={errors.rut}
+              />
+              {errors.rut && <p className={err}>{errors.rut}</p>}
+            </div>
           </div>
-        </div>
-
-        <div>
-          <label className={lbl}>RUT *</label>
-          <FormInput
-            type="text"
-            value={form.rut ?? ''}
-            onChange={(e) => {
-              setForm((f) => ({ ...f, rut: formatRut(e.target.value) || null }));
-              setErrors((er) => ({ ...er, rut: undefined }));
-            }}
-            placeholder="12.345.678-9"
-            maxLength={12}
-            error={errors.rut}
-          />
-          {errors.rut && <p className={err}>{errors.rut}</p>}
         </div>
 
         <div>
