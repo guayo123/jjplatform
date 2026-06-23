@@ -490,7 +490,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
         <ConditioningForm recentExercises={recentExercises} onClose={() => setCondFormOpen(false)} onSave={handleSaveConditioning} />
       )}
 
-      {condDetailFor && <ConditioningDetail c={condDetailFor} allSessions={condSessions} onClose={() => setCondDetailFor(null)} />}
+      {condDetailFor && <ConditioningDetail c={condDetailFor} allSessions={condSessions} studentName={studentName} academyName={academyName} onClose={() => setCondDetailFor(null)} />}
 
       {/* Week-card preview + share */}
       {shareView && (
@@ -906,12 +906,15 @@ function SessionDetail({ s, studentName, academyName, onClose }: { s: TrainingSe
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-5 pt-safe pb-safe">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl jjp-pop max-h-[88vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute right-3 top-3 text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
-        <button onClick={handleShare} disabled={sharing} className="absolute left-3 top-3 text-xs font-semibold text-primary-600 hover:text-primary-700 disabled:opacity-40 px-2 py-1 rounded-lg hover:bg-primary-50 transition-colors" aria-label="Compartir">
-          {sharing ? '...' : '📤 Compartir'}
-        </button>
+      <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl jjp-pop max-h-[88vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-4 pt-4 pb-2">
+          <button onClick={handleShare} disabled={sharing} className="text-xs font-semibold text-primary-600 hover:text-primary-700 disabled:opacity-40 px-2 py-1 rounded-lg hover:bg-primary-50 transition-colors">
+            {sharing ? '...' : '📤 Compartir'}
+          </button>
+          <button onClick={onClose} className="text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
+        </div>
 
+        <div className="px-6 pb-6">
         <div className="text-center">
           <p className="text-lg font-extrabold text-gray-900">{formatDate(s.date)}</p>
           <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
@@ -964,6 +967,7 @@ function SessionDetail({ s, studentName, academyName, onClose }: { s: TrainingSe
             <p className="text-sm text-gray-600 italic whitespace-pre-wrap">"{s.notes}"</p>
           </DetailBlock>
         )}
+        </div>
       </div>
     </div>
   );
@@ -1057,13 +1061,50 @@ function ConditioningRow({ c, onDelete, onOpen }: { c: ConditioningSession; onDe
 }
 
 /** Full detail of a conditioning session (styled like the BJJ session detail). */
-function ConditioningDetail({ c, allSessions, onClose }: { c: ConditioningSession; allSessions: ConditioningSession[]; onClose: () => void }) {
+function ConditioningDetail({ c, allSessions, studentName, academyName, onClose }: { c: ConditioningSession; allSessions: ConditioningSession[]; studentName: string; academyName?: string | null; onClose: () => void }) {
   const [progressEx, setProgressEx] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+
+  const handleShare = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const { drawSessionCard, shareCard } = await import('../shareWeekCard');
+      const exNames = c.exercises.map((e) => e.name).filter(Boolean);
+      const totalSets = c.exercises.reduce((n, e) => n + e.sets.length, 0);
+      const canvas = drawSessionCard({
+        date: c.date,
+        modality: null,
+        disciplineName: 'Acondicionamiento' + (c.focus ? ` · ${FOCUS_LABEL[c.focus] ?? c.focus}` : ''),
+        durationMin: c.durationMin,
+        roundsCount: totalSets > 0 ? totalSets : null,
+        energy: null,
+        performance: null,
+        techniques: exNames,
+        submissionsWon: [],
+        submissionsLost: [],
+        partners: [],
+        notes: c.notes,
+        studentName,
+        academyName: academyName ?? null,
+      });
+      await shareCard(canvas, `gym-${c.date}.png`);
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-5 pt-safe pb-safe">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl jjp-pop max-h-[88vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute right-3 top-3 text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
+      <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl jjp-pop max-h-[88vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-4 pt-4 pb-2">
+          <button onClick={handleShare} disabled={sharing} className="text-xs font-semibold text-primary-600 hover:text-primary-700 disabled:opacity-40 px-2 py-1 rounded-lg hover:bg-primary-50 transition-colors">
+            {sharing ? '...' : '📤 Compartir'}
+          </button>
+          <button onClick={onClose} className="text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
+        </div>
+        <div className="px-6 pb-6">
         <div className="text-center">
           <p className="text-lg font-extrabold text-gray-900">{formatDate(c.date)}</p>
           <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
@@ -1120,6 +1161,7 @@ function ConditioningDetail({ c, allSessions, onClose }: { c: ConditioningSessio
             <p className="text-sm text-gray-600 italic whitespace-pre-wrap">"{c.notes}"</p>
           </DetailBlock>
         )}
+        </div>
       </div>
 
       {progressEx && (
