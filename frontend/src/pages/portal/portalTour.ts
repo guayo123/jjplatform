@@ -75,8 +75,8 @@ export function startPortalTour({
     {
       element: '[data-tour="registrar-entreno"]',
       popover: {
-        title: '➕ Registrar BJJ o Físico',
-        description: 'Con este botón registras tu sesión de Jiu-Jitsu o acondicionamiento físico. Solo toma 30 segundos.',
+        title: '➕ Registrar entrenamiento',
+        description: 'Toca el <b>+</b> y elige qué registrar:<br><br>🥋 <b>Jiujitsu</b> — sesión en el tatami (Gi, No-Gi, Open Mat o Competición)<br>🏋️ <b>Acondicionamiento</b> — gym, pesas o cardio',
         side: 'top',
         align: 'end',
       },
@@ -170,8 +170,8 @@ export function startPortalTourNative({
       element: '[data-tour="registrar-entreno"]',
       onHighlightStarted: () => onNavigate('entreno'),
       popover: {
-        title: '➕ Registrar BJJ o Físico',
-        description: 'Con este botón registras tu sesión de Jiu-Jitsu o acondicionamiento físico. Solo toma 30 segundos.',
+        title: '➕ Registrar entrenamiento',
+        description: 'Toca el <b>+</b> y elige qué registrar:<br><br>🥋 <b>Jiujitsu</b> — sesión en el tatami (Gi, No-Gi, Open Mat o Competición)<br>🏋️ <b>Acondicionamiento</b> — gym, pesas o cardio',
         side: 'top',
         align: 'end',
       },
