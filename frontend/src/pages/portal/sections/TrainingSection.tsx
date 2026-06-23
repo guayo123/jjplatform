@@ -590,11 +590,9 @@ function LeaderboardCard({ board, meId, onOpen }: { board: LeaderboardEntry[]; m
               <span className="text-sm font-semibold text-gray-900 flex-shrink-0">
                 {e.thisWeekCount} <span className="text-xs font-normal text-gray-400">entrenos</span>
               </span>
-              {e.currentStreak > 0 && (
-                <span className="text-xs text-orange-500 font-semibold w-12 text-right flex-shrink-0">
-                  🔥 {e.currentStreak}
-                </span>
-              )}
+              <span className="text-xs font-semibold w-12 text-right flex-shrink-0 text-orange-500">
+                {e.currentStreak > 0 ? `🔥 ${e.currentStreak}` : ''}
+              </span>
             </button>
           );
         })}
