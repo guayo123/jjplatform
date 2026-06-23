@@ -19,7 +19,16 @@ import java.time.LocalDateTime;
 @Builder
 public class Duel {
 
-    public enum Status { PENDING, ACCEPTED, REJECTED, CANCELLED, COMPLETED }
+    /**
+     * EXPIRED = an accepted bout that nobody resolved; the daily sweep retires it (see
+     * {@link com.jjplatform.api.service.DuelService#expireStale}). CANCELLED covers both a
+     * challenger pulling a pending challenge and a participant closing an accepted one
+     * (with a {@link #closeReason}). Neither EXPIRED nor CANCELLED counts toward the ranking.
+     */
+    public enum Status { PENDING, ACCEPTED, REJECTED, CANCELLED, EXPIRED, COMPLETED }
+
+    /** Why a participant closed an accepted bout before it was fought. */
+    public enum CloseReason { SCARED, POSTPONED }
 
     /** How the duel finished. DISQUALIFICATION = the other participant was disqualified. */
     public enum Method { SUBMISSION, POINTS, DECISION, DRAW, DISQUALIFICATION }
@@ -93,6 +102,11 @@ public class Duel {
 
     /** Student id who reported the result (audit / trust). */
     private Long reportedBy;
+
+    /** Set when a participant closes an accepted bout early (status → CANCELLED). */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 12)
+    private CloseReason closeReason;
 
     private LocalDateTime respondedAt;
     private LocalDateTime completedAt;

@@ -38,6 +38,9 @@ public class SchemaPatches {
             // DataIntegrityViolation (HTTP 409) when reporting a "Descalificación" result.
             dropConstraint("duels", "duels_method_check");
             widenColumn("duels", "method", 20);
+            // duels.status gained EXPIRED after the table existed: the stale CHECK rejects the new
+            // value when the daily sweep retires an unresolved bout. Enum stays the source of truth.
+            dropConstraint("duels", "duels_status_check");
         };
     }
 

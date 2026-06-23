@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Classmate, Duel, DuelFormat, DuelMethod, DuelRankingEntry, TrainingModality } from '../../../types';
+import type { Classmate, Duel, DuelCloseReason, DuelFormat, DuelMethod, DuelRankingEntry, TrainingModality } from '../../../types';
 import { duelsApi } from '../../../api/duels';
 import { trainingApi } from '../../../api/training';
 import { useToast } from '../../../components/ToastContext';
@@ -69,6 +69,7 @@ export default function DuelsSection({ studentId }: Props) {
   const [loading, setLoading] = useState(true);
   const [challengeOpen, setChallengeOpen] = useState(false);
   const [resultFor, setResultFor] = useState<Duel | null>(null);
+  const [closeFor, setCloseFor] = useState<Duel | null>(null); // accepted duel being closed early
   const [cardFor, setCardFor] = useState<number | null>(null); // ranking → student info modal
   const [detailDuel, setDetailDuel] = useState<Duel | null>(null);
 
@@ -188,6 +189,17 @@ export default function DuelsSection({ studentId }: Props) {
     }
   };
 
+  const closeDuel = async (d: Duel, reason: DuelCloseReason) => {
+    void tapLight();
+    try {
+      await duelsApi.close(studentId, d.id, reason);
+      setCloseFor(null);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo cerrar el duelo.');
+    }
+  };
+
   if (loading) return <CardSkeleton lines={3} />;
 
   const isParticipant = (d: Duel) => d.challengerId === studentId || d.opponentId === studentId;
@@ -239,22 +251,28 @@ export default function DuelsSection({ studentId }: Props) {
               const o = other(d, studentId);
               const refereed = d.refereeId != null;
               return (
-                <div key={d.id} className="flex items-center gap-3 p-3 rounded-lg border border-primary-200 bg-primary-50">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900">vs <span className="font-semibold">{o.name}</span>
-                      {formatLabel(d) && <span className="text-gray-500"> · {formatLabel(d)}</span>}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {refereed
-                        ? `Esperando el veredicto de ${d.refereeName} ⚖️`
-                        : 'Aceptado · registra el resultado al terminar'}
-                    </p>
-                    <ScheduleLine d={d} />
+                <div key={d.id} className="p-3 rounded-lg border border-primary-200 bg-primary-50">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-900">vs <span className="font-semibold">{o.name}</span>
+                        {formatLabel(d) && <span className="text-gray-500"> · {formatLabel(d)}</span>}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {refereed
+                          ? `Esperando el veredicto de ${d.refereeName} ⚖️`
+                          : 'Aceptado · registra el resultado al terminar'}
+                      </p>
+                      <ScheduleLine d={d} />
+                    </div>
+                    {/* With a referee, participants can't self-report — only the judge decides. */}
+                    {!refereed && (
+                      <button onClick={() => setResultFor(d)} className="bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium px-3 py-2 rounded-lg flex-shrink-0">Resultado</button>
+                    )}
                   </div>
-                  {/* With a referee, participants can't self-report — only the judge decides. */}
-                  {!refereed && (
-                    <button onClick={() => setResultFor(d)} className="bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium px-3 py-2 rounded-lg flex-shrink-0">Resultado</button>
-                  )}
+                  {/* Escape hatch: if the bout won't happen, either fighter can close it off. */}
+                  <button onClick={() => { void tapLight(); setCloseFor(d); }} className="mt-2 text-xs text-gray-400 hover:text-red-500">
+                    ¿No se hará? Cerrar duelo
+                  </button>
                 </div>
               );
             })}
@@ -345,6 +363,15 @@ export default function DuelsSection({ studentId }: Props) {
             void notifySuccess();
             await load();
           }}
+        />
+      )}
+
+      {closeFor && (
+        <CloseDuelModal
+          duel={closeFor}
+          me={studentId}
+          onClose={() => setCloseFor(null)}
+          onPick={(reason) => closeDuel(closeFor, reason)}
         />
       )}
 
@@ -588,6 +615,41 @@ function DuelDetail({ d, onClose }: { d: Duel; onClose: () => void }) {
         {d.refereeName && (
           <p className="text-xs text-gray-400 mt-2">🧑‍⚖️ Árbitro: {d.refereeName}</p>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Quick reason picker shown when a fighter closes an accepted bout that won't be fought. */
+function CloseDuelModal({ duel, me, onClose, onPick }: {
+  duel: Duel;
+  me: number;
+  onClose: () => void;
+  onPick: (reason: DuelCloseReason) => void;
+}) {
+  const o = other(duel, me);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-5">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl text-center jjp-pop">
+        <button onClick={onClose} className="absolute right-3 top-3 text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
+        <div className="text-4xl mb-2">🏳️</div>
+        <p className="text-base font-bold text-gray-900">Cerrar duelo vs {o.name}</p>
+        <p className="text-sm text-gray-500 mt-1 mb-5">El duelo saldrá de "en juego" y no contará en el ranking.</p>
+        <div className="space-y-2">
+          <button
+            onClick={() => onPick('SCARED')}
+            className="w-full py-3 rounded-xl text-sm font-semibold border-2 border-gray-200 text-gray-700 hover:border-primary-400 hover:bg-primary-50 transition-colors"
+          >
+            😅 Me dio miedo
+          </button>
+          <button
+            onClick={() => onPick('POSTPONED')}
+            className="w-full py-3 rounded-xl text-sm font-semibold border-2 border-gray-200 text-gray-700 hover:border-primary-400 hover:bg-primary-50 transition-colors"
+          >
+            📅 Se pospuso
+          </button>
+        </div>
       </div>
     </div>
   );

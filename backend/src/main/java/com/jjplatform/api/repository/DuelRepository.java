@@ -17,4 +17,7 @@ public interface DuelRepository extends JpaRepository<Duel, Long> {
 
     /** Academy feed: duels in the given academy with one of the statuses, newest activity first. */
     List<Duel> findByAcademyIdAndStatusInOrderByUpdatedAtDesc(Long academyId, Collection<Duel.Status> statuses);
+
+    /** All bouts in a given status — used by the daily sweep to find unresolved accepted duels. */
+    List<Duel> findByStatus(Duel.Status status);
 }

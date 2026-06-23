@@ -1,5 +1,5 @@
 import client from './client';
-import type { CreateDuelRequest, Duel, DuelRankingEntry, DuelResultRequest } from '../types';
+import type { CreateDuelRequest, Duel, DuelCloseReason, DuelRankingEntry, DuelResultRequest } from '../types';
 
 export const duelsApi = {
   /** Duels involving the student (incoming + outgoing). */
@@ -25,4 +25,8 @@ export const duelsApi = {
 
   cancel: (studentId: number, duelId: number) =>
     client.delete<void>(`/portal/students/${studentId}/duels/${duelId}`).then((r) => r.data),
+
+  /** A participant closes an accepted bout that won't be fought (chickened out / postponed). */
+  close: (studentId: number, duelId: number, reason: DuelCloseReason) =>
+    client.post<Duel>(`/portal/students/${studentId}/duels/${duelId}/close`, { reason }).then((r) => r.data),
 };

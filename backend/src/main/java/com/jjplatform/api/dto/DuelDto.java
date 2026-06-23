@@ -38,6 +38,9 @@ public class DuelDto {
     /** Who reported the result (so clients can avoid self-notifying the reporter). */
     private Long reportedBy;
 
+    /** "SCARED" / "POSTPONED" when a participant closed an accepted bout early; null otherwise. */
+    private String closeReason;
+
     private LocalDateTime createdAt;
     private LocalDateTime respondedAt;
     private LocalDateTime completedAt;

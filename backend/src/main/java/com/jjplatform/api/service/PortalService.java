@@ -291,6 +291,11 @@ public class PortalService {
         duelService.cancel(me, duelId);
     }
 
+    public DuelDto closeDuel(Long studentId, Long duelId, String reason) {
+        Student me = requireOwnedStudent(studentId);
+        return duelService.closeAccepted(me, duelId, reason);
+    }
+
     /** Registers this device's FCM token for the owned student so it can receive academy pushes. */
     public void registerDevice(Long studentId, String token, String platform) {
         Student me = requireOwnedStudent(studentId);

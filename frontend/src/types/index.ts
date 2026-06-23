@@ -555,7 +555,9 @@ export interface StudentCard {
 }
 
 // ─── Duels (challenges between classmates) ───
-export type DuelStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'COMPLETED';
+export type DuelStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED' | 'COMPLETED';
+/** Why a participant closed an accepted bout before fighting it. */
+export type DuelCloseReason = 'SCARED' | 'POSTPONED';
 export type DuelMethod = 'SUBMISSION' | 'POINTS' | 'DECISION' | 'DRAW' | 'DISQUALIFICATION';
 /** Bout ruleset. Gi/No-Gi (modality) only applies to SUBMISSION. */
 export type DuelFormat = 'SUBMISSION' | 'COMBAT_JJ' | 'MMA' | 'NO_RULES';
@@ -584,6 +586,7 @@ export interface Duel {
   opponentScore: number | null;
   resultNotes: string | null;
   reportedBy: number | null;
+  closeReason: DuelCloseReason | null;
   createdAt: string;
   respondedAt: string | null;
   completedAt: string | null;

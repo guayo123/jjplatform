@@ -307,6 +307,13 @@ public class PortalController {
         return ResponseEntity.ok(portalService.reportDuelResult(studentId, duelId, req));
     }
 
+    /** A participant closes an accepted bout that won't be fought. Body: {"reason":"SCARED"|"POSTPONED"}. */
+    @PostMapping("/students/{studentId}/duels/{duelId}/close")
+    public ResponseEntity<DuelDto> closeDuel(@PathVariable Long studentId, @PathVariable Long duelId,
+                                             @RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(portalService.closeDuel(studentId, duelId, body.get("reason")));
+    }
+
     /** Register this device's FCM token so it can receive academy push notifications. */
     @PostMapping("/students/{studentId}/devices")
     public ResponseEntity<Void> registerDevice(@PathVariable Long studentId, @RequestBody Map<String, String> body) {

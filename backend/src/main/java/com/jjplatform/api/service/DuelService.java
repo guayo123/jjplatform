@@ -158,6 +158,49 @@ public class DuelService {
         duelRepository.save(duel);
     }
 
+    /**
+     * Either participant closes an accepted bout that won't be fought (chickened out / postponed),
+     * freeing it from the "in play" list. The referee — who isn't a fighter — can't close it; only
+     * the two involved decide the bout is off. Closed bouts don't count toward the ranking.
+     */
+    @Transactional
+    public DuelDto closeAccepted(Student me, Long duelId, String reason) {
+        Duel duel = require(duelId);
+        if (!isParticipant(duel, me.getId())) {
+            throw new IllegalArgumentException("Solo un participante puede cerrar el duelo.");
+        }
+        if (duel.getStatus() != Duel.Status.ACCEPTED) {
+            throw new IllegalArgumentException("Solo puedes cerrar un duelo aceptado.");
+        }
+        duel.setStatus(Duel.Status.CANCELLED);
+        duel.setCloseReason(parseCloseReason(reason));
+        return toDto(duelRepository.save(duel));
+    }
+
+    /** Number of days an accepted bout may sit unresolved before the daily sweep expires it. */
+    private static final long STALE_DAYS = 5;
+
+    /**
+     * Daily sweep: retire accepted bouts nobody resolved {@value #STALE_DAYS} days after their
+     * agreed date (or, when no date was set, after they were accepted). Keeps the "in play" list
+     * honest when a referee never rules or fighters never report. Returns how many were expired.
+     */
+    @Transactional
+    public int expireStale() {
+        LocalDateTime now = LocalDateTime.now();
+        int expired = 0;
+        for (Duel d : duelRepository.findByStatus(Duel.Status.ACCEPTED)) {
+            LocalDateTime since = d.getScheduledAt() != null ? d.getScheduledAt() : d.getRespondedAt();
+            if (since == null) continue; // no reference point yet — leave it alone
+            if (since.plusDays(STALE_DAYS).isBefore(now)) {
+                d.setStatus(Duel.Status.EXPIRED);
+                duelRepository.save(d);
+                expired++;
+            }
+        }
+        return expired;
+    }
+
     @Transactional(readOnly = true)
     public List<DuelDto> listForStudent(Long studentId) {
         return duelRepository.findInvolving(studentId).stream().map(this::toDto).toList();
@@ -274,6 +317,7 @@ public class DuelService {
         dto.setOpponentScore(d.getOpponentScore());
         dto.setResultNotes(d.getResultNotes());
         dto.setReportedBy(d.getReportedBy());
+        dto.setCloseReason(d.getCloseReason() != null ? d.getCloseReason().name() : null);
 
         dto.setCreatedAt(d.getCreatedAt());
         dto.setRespondedAt(d.getRespondedAt());
@@ -299,6 +343,17 @@ public class DuelService {
             throw new IllegalArgumentException("Modo no válido (SUBMISSION/COMBAT_JJ/MMA/NO_RULES).");
         }
         return up;
+    }
+
+    private Duel.CloseReason parseCloseReason(String v) {
+        if (v == null || v.isBlank()) {
+            throw new IllegalArgumentException("Indica por qué cierras el duelo.");
+        }
+        try {
+            return Duel.CloseReason.valueOf(v.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Razón no válida (SCARED/POSTPONED).");
+        }
     }
 
     private Duel.Method parseMethod(String v) {
