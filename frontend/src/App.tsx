@@ -9,6 +9,7 @@ import { usePlatform } from './native/usePlatform';
 import { useAuthStore } from './stores/authStore';
 import Home from './pages/public/Home';
 import AcademyProfile from './pages/public/AcademyProfile';
+import PrivacyPolicy from './pages/public/PrivacyPolicy';
 import Login from './pages/admin/Login';
 import StudentLogin from './pages/portal/StudentLogin';
 import StudentRegister from './pages/portal/StudentRegister';
@@ -58,6 +59,8 @@ export default function App() {
       {/* Public routes */}
       <Route path="/" element={<RootEntry />} />
       <Route path="/academies/:id" element={<AcademyProfile />} />
+      <Route path="/privacidad" element={<PrivacyPolicy />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/login" element={<Login />} />
       <Route path="/portal/login" element={<StudentLogin />} />
       <Route path="/portal/registro" element={<StudentRegister />} />

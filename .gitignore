@@ -21,7 +21,9 @@ frontend/.env.production
 
 # === Mobile build artifacts (Capacitor/Android) — never commit these ===
 frontend/*.apk
+frontend/*.aab
 frontend/*.zip
+playstore/*.aab
 frontend/android/app/build/
 frontend/android/build/
 frontend/android/.gradle/
