@@ -1070,7 +1070,7 @@ function ConditioningDetail({ c, allSessions, studentName, academyName, onClose 
     setSharing(true);
     try {
       const { drawConditioningCard, shareCard } = await import('../shareWeekCard');
-      const canvas = drawConditioningCard({
+      const canvas = await drawConditioningCard({
         date: c.date,
         focus: c.focus,
         durationMin: c.durationMin,

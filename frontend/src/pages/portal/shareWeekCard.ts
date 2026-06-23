@@ -1,4 +1,5 @@
-import type { LeaderboardEntry, TrainingSession, TrainingSummary } from '../../types';
+import type { ConditioningFocus, LeaderboardEntry, TrainingSession, TrainingSummary } from '../../types';
+import { getMusclesFromFocus, getMusclesFromNames, type MuscleRegion } from './exerciseCatalog';
 
 /**
  * Shareable "my training week" card, drawn straight onto a canvas (no DOM capture
@@ -297,6 +298,65 @@ export function drawSessionCard(d: SessionCardData): HTMLCanvasElement {
   return canvas;
 }
 
+const ON   = '#f97316';
+const OFF  = '#cbd5e1';
+const BODY = '#e2e8f0';
+const EDGE = '#94a3b8';
+
+function silhouette(): string {
+  return `<g fill="${BODY}" stroke="${EDGE}" stroke-width="1.4" stroke-linejoin="round">
+    <circle cx="45" cy="17" r="11"/>
+    <rect x="40" y="26" width="10" height="7" rx="2"/>
+    <path d="M26 36 Q45 31 64 36 L61 96 Q45 101 29 96 Z"/>
+    <path d="M26 37 Q19 40 18 60 L16 100 Q20 102 23 100 L26 62 Z"/>
+    <path d="M64 37 Q71 40 72 60 L74 100 Q70 102 67 100 L64 62 Z"/>
+    <path d="M30 95 L28 150 L31 196 Q35 198 38 196 L43 100 Z"/>
+    <path d="M60 95 L62 150 L59 196 Q55 198 52 196 L47 100 Z"/>
+  </g>`;
+}
+
+function bodyDiagramSVGs(muscles: MuscleRegion[]): [string, string] {
+  const active = new Set(muscles);
+  const f = (r: MuscleRegion) => active.has(r) ? ON : OFF;
+  const front = `<svg viewBox="0 0 90 210" width="160" height="373" xmlns="http://www.w3.org/2000/svg">
+    ${silhouette()}
+    <ellipse cx="28" cy="40" rx="6" ry="5" fill="${f('shoulders')}"/>
+    <ellipse cx="62" cy="40" rx="6" ry="5" fill="${f('shoulders')}"/>
+    <path d="M33 44 Q45 41 45 41 L45 56 Q39 59 33 56 Z" fill="${f('chest')}"/>
+    <path d="M57 44 Q45 41 45 41 L45 56 Q51 59 57 56 Z" fill="${f('chest')}"/>
+    <rect x="38" y="60" width="14" height="28" rx="4" fill="${f('abs')}"/>
+    <ellipse cx="21" cy="62" rx="3.6" ry="11" fill="${f('arms')}"/>
+    <ellipse cx="69" cy="62" rx="3.6" ry="11" fill="${f('arms')}"/>
+    <ellipse cx="35" cy="125" rx="6.5" ry="22" fill="${f('legs')}"/>
+    <ellipse cx="55" cy="125" rx="6.5" ry="22" fill="${f('legs')}"/>
+  </svg>`;
+  const back = `<svg viewBox="0 0 90 210" width="160" height="373" xmlns="http://www.w3.org/2000/svg">
+    ${silhouette()}
+    <ellipse cx="28" cy="40" rx="6" ry="5" fill="${f('shoulders')}"/>
+    <ellipse cx="62" cy="40" rx="6" ry="5" fill="${f('shoulders')}"/>
+    <path d="M33 45 L45 43 L45 78 Q39 80 34 74 Z" fill="${f('back')}"/>
+    <path d="M57 45 L45 43 L45 78 Q51 80 56 74 Z" fill="${f('back')}"/>
+    <ellipse cx="21" cy="62" rx="3.6" ry="11" fill="${f('arms')}"/>
+    <ellipse cx="69" cy="62" rx="3.6" ry="11" fill="${f('arms')}"/>
+    <ellipse cx="37" cy="100" rx="6" ry="7" fill="${f('legs')}"/>
+    <ellipse cx="53" cy="100" rx="6" ry="7" fill="${f('legs')}"/>
+    <ellipse cx="35" cy="135" rx="6.5" ry="20" fill="${f('legs')}"/>
+    <ellipse cx="55" cy="135" rx="6.5" ry="20" fill="${f('legs')}"/>
+  </svg>`;
+  return [front, back] as [string, string];
+}
+
+function svgToImage(svgStr: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
 export interface ConditioningCardData {
   date: string;
   focus: string | null;
@@ -312,7 +372,7 @@ const FOCUS_ES: Record<string, string> = {
   BRAZO: '💪 Brazo', CORE: '🧱 Core', CARDIO: '🏃 Cardio', FULL_BODY: '🔥 Full Body',
 };
 
-export function drawConditioningCard(d: ConditioningCardData): HTMLCanvasElement {
+export async function drawConditioningCard(d: ConditioningCardData): Promise<HTMLCanvasElement> {
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -331,32 +391,53 @@ export function drawConditioningCard(d: ConditioningCardData): HTMLCanvasElement
   ctx.fillRect(0, 0, W, 600);
 
   // Header
-  if (d.academyName) text(ctx, d.academyName.toUpperCase(), W / 2, 130, `600 30px ${SANS}`, '#9ca3af', 'center');
-  text(ctx, '🏋️ GYM', W / 2, 210, `800 56px ${SANS}`, '#ffffff', 'center');
-  text(ctx, d.studentName, W / 2, 285, `700 42px ${SANS}`, '#fb923c', 'center');
+  if (d.academyName) text(ctx, d.academyName.toUpperCase(), W / 2, 110, `600 30px ${SANS}`, '#9ca3af', 'center');
+  text(ctx, '🏋️ GYM', W / 2, 185, `800 56px ${SANS}`, '#ffffff', 'center');
+  text(ctx, d.studentName, W / 2, 255, `700 42px ${SANS}`, '#fb923c', 'center');
 
   const dateLabel = new Date(`${d.date}T12:00:00`).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  text(ctx, dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1), W / 2, 345, `400 30px ${SANS}`, '#9ca3af', 'center');
+  text(ctx, dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1), W / 2, 310, `400 30px ${SANS}`, '#9ca3af', 'center');
   const sub = [d.focus ? (FOCUS_ES[d.focus] ?? d.focus) : null, d.durationMin ? `${d.durationMin} min` : null].filter(Boolean).join('  ·  ');
-  if (sub) text(ctx, sub, W / 2, 395, `600 28px ${SANS}`, '#fdba74', 'center');
+  if (sub) text(ctx, sub, W / 2, 358, `600 28px ${SANS}`, '#fdba74', 'center');
+
+  // Body diagram SVG
+  const exNames = d.exercises.map((e) => e.name).filter(Boolean);
+  const muscles = exNames.length > 0
+    ? getMusclesFromNames(exNames)
+    : getMusclesFromFocus(d.focus as ConditioningFocus | null);
+  if (muscles.length > 0) {
+    const [frontSvg, backSvg] = bodyDiagramSVGs(muscles);
+    const [frontImg, backImg] = await Promise.all([svgToImage(frontSvg), svgToImage(backSvg)]);
+    const svgW = 160, svgH = 373;
+    const totalW = svgW * 2 + 60;
+    const startX = (W - totalW) / 2;
+    ctx.drawImage(frontImg, startX, 385, svgW, svgH);
+    ctx.drawImage(backImg, startX + svgW + 60, 385, svgW, svgH);
+    // Legend
+    const legY = 385 + svgH + 24;
+    const dotR = 14;
+    const legX = W / 2 - 180;
+    ctx.beginPath(); ctx.arc(legX, legY, dotR, 0, Math.PI * 2); ctx.fillStyle = ON; ctx.fill();
+    text(ctx, 'Trabajado', legX + 24, legY + 9, `400 26px ${SANS}`, '#9ca3af', 'left');
+    ctx.beginPath(); ctx.arc(legX + 240, legY, dotR, 0, Math.PI * 2); ctx.fillStyle = OFF; ctx.fill();
+    text(ctx, 'No objetivo', legX + 264, legY + 9, `400 26px ${SANS}`, '#9ca3af', 'left');
+  }
 
   // Exercises
   const COL = 60;
   const COLW = W - COL * 2;
-  let y = 460;
+  let y = muscles.length > 0 ? 385 + 373 + 24 + 50 : 420;
 
   if (d.exercises.length > 0) {
     text(ctx, 'EJERCICIOS', COL, y, `700 24px ${SANS}`, '#6b7280', 'left');
     y += 44;
 
     for (const ex of d.exercises) {
-      if (y > H - 200) break; // no salirse de la tarjeta
-      // Exercise name
+      if (y > H - 150) break;
       ctx.font = `700 32px ${SANS}`;
       ctx.fillStyle = '#fb923c';
       y = wrapText(ctx, ex.name, COL, y, COLW, 44);
 
-      // Sets: "10 × 60kg  ·  10 × 80kg  ·  8 × 84kg"
       if (ex.sets.length > 0) {
         const setsStr = ex.sets
           .map((s) => [s.reps != null ? `${s.reps}` : null, s.weightKg != null ? `${s.weightKg}kg` : null].filter(Boolean).join(' × '))
@@ -373,7 +454,7 @@ export function drawConditioningCard(d: ConditioningCardData): HTMLCanvasElement
   }
 
   // Notes
-  if (d.notes && y < H - 150) {
+  if (d.notes && y < H - 120) {
     text(ctx, 'NOTAS', COL, y, `700 24px ${SANS}`, '#6b7280', 'left');
     y += 38;
     ctx.font = `italic 400 28px ${SANS}`;
