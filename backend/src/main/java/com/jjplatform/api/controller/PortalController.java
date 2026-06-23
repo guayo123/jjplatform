@@ -244,6 +244,28 @@ public class PortalController {
         return ResponseEntity.ok(out);
     }
 
+    // --- Weight history -------------------------------------------------------
+
+    @GetMapping("/students/{studentId}/weight-entries")
+    public ResponseEntity<List<com.jjplatform.api.dto.WeightEntryDto>> getWeightEntries(@PathVariable Long studentId) {
+        return ResponseEntity.ok(portalService.getWeightEntries(studentId));
+    }
+
+    @PostMapping("/students/{studentId}/weight-entries")
+    public ResponseEntity<com.jjplatform.api.dto.WeightEntryDto> saveWeightEntry(
+            @PathVariable Long studentId,
+            @RequestBody com.jjplatform.api.dto.WeightEntryDto dto) {
+        return ResponseEntity.ok(portalService.saveWeightEntry(studentId, dto));
+    }
+
+    @DeleteMapping("/students/{studentId}/weight-entries/{date}")
+    public ResponseEntity<Void> deleteWeightEntry(
+            @PathVariable Long studentId,
+            @PathVariable @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate date) {
+        portalService.deleteWeightEntry(studentId, date);
+        return ResponseEntity.noContent().build();
+    }
+
     /** Birthdays of the academy for the current month. */
     @GetMapping("/students/{studentId}/birthdays")
     public ResponseEntity<List<com.jjplatform.api.dto.BirthdayDto>> birthdays(@PathVariable Long studentId) {

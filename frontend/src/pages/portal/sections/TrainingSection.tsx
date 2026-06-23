@@ -407,7 +407,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
           {/* Narrative insights — the "at a glance" read of your game */}
           <InsightsCard insights={insights} hasSessions={sessions.length > 0} />
           <TrainingCharts sessions={sessions} />
-          <BodyWeightCard />
+          <BodyWeightCard studentId={studentId} />
           <LeaderboardCard board={board} meId={studentId} onOpen={setCardFor} />
         </>
       ) : (

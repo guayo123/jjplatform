@@ -14,11 +14,14 @@ import com.jjplatform.api.dto.TechniqueCurriculumDto;
 import com.jjplatform.api.dto.TrainingSessionDto;
 import com.jjplatform.api.dto.UpcomingClassDto;
 import com.jjplatform.api.dto.TrainingSummaryDto;
+import com.jjplatform.api.dto.WeightEntryDto;
 import com.jjplatform.api.exception.ResourceNotFoundException;
 import com.jjplatform.api.model.Student;
 import com.jjplatform.api.model.User;
+import com.jjplatform.api.model.WeightEntry;
 import com.jjplatform.api.repository.StudentRepository;
 import com.jjplatform.api.repository.UserRepository;
+import com.jjplatform.api.repository.WeightEntryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -62,6 +65,7 @@ public class PortalService {
     private final PaymentGatewayService paymentGatewayService;
     private final ClassReservationService classReservationService;
     private final PushService pushService;
+    private final WeightEntryRepository weightEntryRepository;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -343,5 +347,39 @@ public class PortalService {
         user.setTrainingWeeklyGoal(value);
         userRepository.save(user);
         return value;
+    }
+
+    // --- Weight history -------------------------------------------------------
+
+    public List<WeightEntryDto> getWeightEntries(Long studentId) {
+        requireOwnedStudent(studentId);
+        return weightEntryRepository.findByStudentIdOrderByDateAsc(studentId)
+                .stream().map(this::toWeightDto).toList();
+    }
+
+    @Transactional
+    public WeightEntryDto saveWeightEntry(Long studentId, WeightEntryDto dto) {
+        Student student = requireOwnedStudent(studentId);
+        if (dto.getDate() == null || dto.getWeightKg() == null
+                || dto.getWeightKg() < 20 || dto.getWeightKg() > 300) {
+            throw new IllegalArgumentException("Datos de peso inválidos.");
+        }
+        WeightEntry entry = weightEntryRepository.findByStudentIdAndDate(studentId, dto.getDate())
+                .orElseGet(() -> { WeightEntry e = new WeightEntry(); e.setStudent(student); e.setDate(dto.getDate()); return e; });
+        entry.setWeightKg(dto.getWeightKg());
+        return toWeightDto(weightEntryRepository.save(entry));
+    }
+
+    @Transactional
+    public void deleteWeightEntry(Long studentId, java.time.LocalDate date) {
+        requireOwnedStudent(studentId);
+        weightEntryRepository.deleteByStudentIdAndDate(studentId, date);
+    }
+
+    private WeightEntryDto toWeightDto(WeightEntry e) {
+        WeightEntryDto dto = new WeightEntryDto();
+        dto.setDate(e.getDate());
+        dto.setWeightKg(e.getWeightKg());
+        return dto;
     }
 }

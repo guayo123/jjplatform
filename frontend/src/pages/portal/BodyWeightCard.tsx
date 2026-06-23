@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { deleteWeightEntry, loadWeightEntries, logWeight, todayYmd, type WeightEntry } from './bodyWeight';
+import { useEffect, useState } from 'react';
+import { migrateLegacyWeights, todayYmd, weightApi, type WeightEntry } from './bodyWeight';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -83,29 +83,41 @@ function WeightChart({ entries }: { entries: WeightEntry[] }) {
 
 // ── weight modal ───────────────────────────────────────────────────────────
 
-function WeightModal({ onClose, onChange }: { onClose: () => void; onChange: (entries: WeightEntry[]) => void }) {
-  const [entries, setEntries] = useState<WeightEntry[]>(() => loadWeightEntries());
+function WeightModal({ studentId, onClose, onChange }: {
+  studentId: number;
+  onClose: () => void;
+  onChange: (entries: WeightEntry[]) => void;
+}) {
+  const [entries, setEntries] = useState<WeightEntry[]>([]);
   const [input, setInput] = useState('');
+  const [saving, setSaving] = useState(false);
   const today = todayYmd();
   const todayEntry = entries.find((e) => e.date === today);
 
-  const refresh = () => {
-    const updated = loadWeightEntries();
+  useEffect(() => {
+    weightApi.list(studentId).then((data) => { setEntries(data); onChange(data); });
+  }, [studentId]);
+
+  const handleLog = async () => {
+    const kg = parseFloat(input.replace(',', '.'));
+    if (!kg || kg < 20 || kg > 300 || saving) return;
+    setSaving(true);
+    try {
+      await weightApi.save(studentId, today, kg);
+      const updated = await weightApi.list(studentId);
+      setEntries(updated);
+      onChange(updated);
+      setInput('');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (date: string) => {
+    await weightApi.remove(studentId, date);
+    const updated = await weightApi.list(studentId);
     setEntries(updated);
     onChange(updated);
-  };
-
-  const handleLog = () => {
-    const kg = parseFloat(input.replace(',', '.'));
-    if (!kg || kg < 20 || kg > 300) return;
-    logWeight(today, kg);
-    setInput('');
-    refresh();
-  };
-
-  const handleDelete = (date: string) => {
-    deleteWeightEntry(date);
-    refresh();
   };
 
   return (
@@ -121,7 +133,6 @@ function WeightModal({ onClose, onChange }: { onClose: () => void; onChange: (en
         </div>
 
         <div className="p-5 space-y-5">
-          {/* Quick entry */}
           <div className="bg-orange-50 rounded-xl p-4 border border-orange-100">
             <p className="text-xs font-semibold text-gray-600 mb-2">
               {todayEntry ? `Hoy: ${todayEntry.weightKg} kg — actualizar` : 'Registrar peso de hoy'}
@@ -138,21 +149,20 @@ function WeightModal({ onClose, onChange }: { onClose: () => void; onChange: (en
               <span className="self-center text-sm text-gray-500">kg</span>
               <button
                 onClick={handleLog}
-                className="px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 transition-colors"
+                disabled={saving}
+                className="px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
               >
-                Guardar
+                {saving ? '...' : 'Guardar'}
               </button>
             </div>
           </div>
 
-          {/* Chart */}
           {entries.length >= 2 && (
             <div className="bg-white rounded-xl border border-gray-100 p-3">
               <WeightChart entries={entries} />
             </div>
           )}
 
-          {/* History table */}
           {entries.length > 0 ? (
             <div className="rounded-xl border border-gray-100 overflow-hidden">
               <table className="w-full text-sm">
@@ -187,9 +197,13 @@ function WeightModal({ onClose, onChange }: { onClose: () => void; onChange: (en
 
 // ── main card ──────────────────────────────────────────────────────────────
 
-export default function BodyWeightCard() {
-  const [entries, setEntries] = useState<WeightEntry[]>(() => loadWeightEntries());
+export default function BodyWeightCard({ studentId }: { studentId: number }) {
+  const [entries, setEntries] = useState<WeightEntry[]>([]);
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    migrateLegacyWeights(studentId).then(() => weightApi.list(studentId).then(setEntries));
+  }, [studentId]);
 
   const latest = entries[entries.length - 1];
   const prev = entries[entries.length - 2];
@@ -228,7 +242,13 @@ export default function BodyWeightCard() {
         )}
       </div>
 
-      {open && <WeightModal onClose={() => setOpen(false)} onChange={setEntries} />}
+      {open && (
+        <WeightModal
+          studentId={studentId}
+          onClose={() => setOpen(false)}
+          onChange={setEntries}
+        />
+      )}
     </>
   );
 }
