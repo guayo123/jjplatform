@@ -297,6 +297,94 @@ export function drawSessionCard(d: SessionCardData): HTMLCanvasElement {
   return canvas;
 }
 
+export interface ConditioningCardData {
+  date: string;
+  focus: string | null;
+  durationMin: number | null;
+  exercises: Array<{ name: string; sets: Array<{ reps: number | null; weightKg: number | null }> }>;
+  notes: string | null;
+  studentName: string;
+  academyName: string | null;
+}
+
+const FOCUS_ES: Record<string, string> = {
+  PIERNA: '🦵 Pierna', ESPALDA: '🔙 Espalda', PECHO: '🎯 Pecho', HOMBRO: '🤲 Hombro',
+  BRAZO: '💪 Brazo', CORE: '🧱 Core', CARDIO: '🏃 Cardio', FULL_BODY: '🔥 Full Body',
+};
+
+export function drawConditioningCard(d: ConditioningCardData): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d')!;
+
+  // Background
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#1f2937');
+  bg.addColorStop(1, '#0b101b');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+  const glow = ctx.createRadialGradient(W / 2, 0, 80, W / 2, 0, 600);
+  glow.addColorStop(0, 'rgba(249,115,22,0.22)');
+  glow.addColorStop(1, 'rgba(249,115,22,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, 600);
+
+  // Header
+  if (d.academyName) text(ctx, d.academyName.toUpperCase(), W / 2, 130, `600 30px ${SANS}`, '#9ca3af', 'center');
+  text(ctx, '🏋️ GYM', W / 2, 210, `800 56px ${SANS}`, '#ffffff', 'center');
+  text(ctx, d.studentName, W / 2, 285, `700 42px ${SANS}`, '#fb923c', 'center');
+
+  const dateLabel = new Date(`${d.date}T12:00:00`).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  text(ctx, dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1), W / 2, 345, `400 30px ${SANS}`, '#9ca3af', 'center');
+  const sub = [d.focus ? (FOCUS_ES[d.focus] ?? d.focus) : null, d.durationMin ? `${d.durationMin} min` : null].filter(Boolean).join('  ·  ');
+  if (sub) text(ctx, sub, W / 2, 395, `600 28px ${SANS}`, '#fdba74', 'center');
+
+  // Exercises
+  const COL = 60;
+  const COLW = W - COL * 2;
+  let y = 460;
+
+  if (d.exercises.length > 0) {
+    text(ctx, 'EJERCICIOS', COL, y, `700 24px ${SANS}`, '#6b7280', 'left');
+    y += 44;
+
+    for (const ex of d.exercises) {
+      if (y > H - 200) break; // no salirse de la tarjeta
+      // Exercise name
+      ctx.font = `700 32px ${SANS}`;
+      ctx.fillStyle = '#fb923c';
+      y = wrapText(ctx, ex.name, COL, y, COLW, 44);
+
+      // Sets: "10 × 60kg  ·  10 × 80kg  ·  8 × 84kg"
+      if (ex.sets.length > 0) {
+        const setsStr = ex.sets
+          .map((s) => [s.reps != null ? `${s.reps}` : null, s.weightKg != null ? `${s.weightKg}kg` : null].filter(Boolean).join(' × '))
+          .filter(Boolean)
+          .join('  ·  ');
+        if (setsStr) {
+          ctx.font = `400 26px ${SANS}`;
+          ctx.fillStyle = '#9ca3af';
+          y = wrapText(ctx, setsStr, COL, y, COLW, 38);
+        }
+      }
+      y += 16;
+    }
+  }
+
+  // Notes
+  if (d.notes && y < H - 150) {
+    text(ctx, 'NOTAS', COL, y, `700 24px ${SANS}`, '#6b7280', 'left');
+    y += 38;
+    ctx.font = `italic 400 28px ${SANS}`;
+    ctx.fillStyle = '#9ca3af';
+    wrapText(ctx, `"${d.notes}"`, COL, y, COLW, 40);
+  }
+
+  text(ctx, 'JJPlatform', W / 2, H - 60, `600 28px ${SANS}`, '#4b5563', 'center');
+  return canvas;
+}
+
 /**
  * Share the card via the Web Share API when the platform supports sharing files
  * (mobile browsers / WebViews); otherwise download it as a PNG. Returns what happened

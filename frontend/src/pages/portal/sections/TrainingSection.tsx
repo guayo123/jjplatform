@@ -1069,21 +1069,12 @@ function ConditioningDetail({ c, allSessions, studentName, academyName, onClose 
     if (sharing) return;
     setSharing(true);
     try {
-      const { drawSessionCard, shareCard } = await import('../shareWeekCard');
-      const exNames = c.exercises.map((e) => e.name).filter(Boolean);
-      const totalSets = c.exercises.reduce((n, e) => n + e.sets.length, 0);
-      const canvas = drawSessionCard({
+      const { drawConditioningCard, shareCard } = await import('../shareWeekCard');
+      const canvas = drawConditioningCard({
         date: c.date,
-        modality: null,
-        disciplineName: 'Acondicionamiento' + (c.focus ? ` · ${FOCUS_LABEL[c.focus] ?? c.focus}` : ''),
+        focus: c.focus,
         durationMin: c.durationMin,
-        roundsCount: totalSets > 0 ? totalSets : null,
-        energy: null,
-        performance: null,
-        techniques: exNames,
-        submissionsWon: [],
-        submissionsLost: [],
-        partners: [],
+        exercises: c.exercises.map((e) => ({ name: e.name, sets: e.sets })),
         notes: c.notes,
         studentName,
         academyName: academyName ?? null,
