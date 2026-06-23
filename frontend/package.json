@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "sync:android": "npm run build && npx cap sync android",
-    "apk:android": "npm run build && npx cap sync android && cd android && .\\gradlew.bat assembleRelease && node -e \"const fs=require('fs'),g=fs.readFileSync('app/build.gradle','utf8'),m=g.match(/versionName \\\"([^\\\"]+)\\\"/),v=m[1];fs.copyFileSync('app/build/outputs/apk/release/app-release.apk',`../jjplatform-v${v}.apk`);console.log('APK: jjplatform-v'+v+'.apk')\""
+    "apk:android": "npm run build && npx cap sync android && cd android && .\\gradlew.bat assembleRelease && node ../scripts/rename-apk.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",
