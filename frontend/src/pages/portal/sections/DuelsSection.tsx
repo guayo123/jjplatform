@@ -72,6 +72,7 @@ export default function DuelsSection({ studentId }: Props) {
   const [closeFor, setCloseFor] = useState<Duel | null>(null); // accepted duel being closed early
   const [cardFor, setCardFor] = useState<number | null>(null); // ranking → student info modal
   const [detailDuel, setDetailDuel] = useState<Duel | null>(null);
+  const [feedTab, setFeedTab] = useState<'results' | 'unresolved'>('results'); // academy feed tabs
 
   // Fire toast + local notification for status changes the student hasn't seen yet.
   const notifyChanges = useCallback((current: Duel[]) => {
@@ -208,9 +209,10 @@ export default function DuelsSection({ studentId }: Props) {
   const accepted = duels.filter((d) => d.status === 'ACCEPTED' && isParticipant(d));
   // Duels I must judge as the impartial referee (I'm not a participant).
   const toReferee = duels.filter((d) => d.status === 'ACCEPTED' && d.refereeId === studentId && !isParticipant(d));
-  // The feed also carries ACCEPTED duels (for the academy-wide "confirmed" notification); the
-  // visible results card shows only resolved ones.
-  const results = feed.filter((d) => d.status !== 'ACCEPTED');
+  // The feed carries several groups (the ACCEPTED ones only drive the "confirmed" notification).
+  // Split into two tabs: settled results vs. bouts that never resolved (closed or expired).
+  const results = feed.filter((d) => d.status === 'COMPLETED' || d.status === 'REJECTED');
+  const unresolved = feed.filter((d) => d.status === 'EXPIRED' || (d.status === 'CANCELLED' && d.closeReason != null));
 
   return (
     <div className="space-y-6">
@@ -321,21 +323,27 @@ export default function DuelsSection({ studentId }: Props) {
       {/* Academy ranking (top 10 by record) */}
       <DuelRankingCard ranking={ranking} meId={studentId} onOpen={setCardFor} />
 
-      {/* Academy feed — grouped by date, tappable rows */}
-      <Card title="Resultados de la academia">
-        {results.length === 0 ? (
-          <p className="text-center text-gray-400 text-sm py-6">Aún no hay duelos resueltos. ¡Sé el primero en retar! ⚔️</p>
+      {/* Academy feed — two tabs (settled results / unresolved), grouped by date, tappable rows */}
+      <Card title="Duelos de la academia">
+        <div className="flex gap-2 mb-4">
+          <FeedTab active={feedTab === 'results'} onClick={() => setFeedTab('results')}>
+            🏆 Resultados {results.length > 0 && <span className="opacity-60">({results.length})</span>}
+          </FeedTab>
+          <FeedTab active={feedTab === 'unresolved'} onClick={() => setFeedTab('unresolved')}>
+            🏳️ Sin resolver {unresolved.length > 0 && <span className="opacity-60">({unresolved.length})</span>}
+          </FeedTab>
+        </div>
+
+        {feedTab === 'results' ? (
+          results.length === 0 ? (
+            <p className="text-center text-gray-400 text-sm py-6">Aún no hay duelos resueltos. ¡Sé el primero en retar! ⚔️</p>
+          ) : (
+            <FeedGroups items={results} onOpen={setDetailDuel} />
+          )
+        ) : unresolved.length === 0 ? (
+          <p className="text-center text-gray-400 text-sm py-6">Sin duelos pendientes por aquí. Todo lo aceptado se peleó o sigue en juego. 👌</p>
         ) : (
-          <div className="space-y-4">
-            {groupByDate(results).map(({ date, items }) => (
-              <div key={date}>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2">{formatDate(date)}</p>
-                <div className="space-y-1.5">
-                  {items.map((d) => <FeedRow key={d.id} d={d} onOpen={() => setDetailDuel(d)} />)}
-                </div>
-              </div>
-            ))}
-          </div>
+          <FeedGroups items={unresolved} onOpen={setDetailDuel} />
         )}
       </Card>
 
@@ -518,9 +526,71 @@ function groupByDate(duels: Duel[]): Array<{ date: string; items: Duel[] }> {
   return groups;
 }
 
+/** True for a bout that never resolved: closed by a fighter (CANCELLED + reason) or swept (EXPIRED). */
+function isUnresolved(d: Duel): boolean {
+  return d.status === 'EXPIRED' || (d.status === 'CANCELLED' && d.closeReason != null);
+}
+
+/** Icon + reason text for an unresolved bout, by how it ended. */
+function unresolvedMeta(d: Duel): { icon: string; label: string } {
+  if (d.status === 'EXPIRED') return { icon: '⌛', label: 'Venció el plazo · nadie reportó' };
+  if (d.closeReason === 'SCARED') return { icon: '😅', label: 'Cerrado · le dio miedo' };
+  if (d.closeReason === 'POSTPONED') return { icon: '📅', label: 'Cerrado · se pospuso' };
+  return { icon: '🏳️', label: 'Cancelado' };
+}
+
+/** Tab pill for the academy-feed switcher. */
+function FeedTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 py-2 rounded-lg text-sm font-semibold border-2 transition-colors ${active ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-500'}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Date-grouped list of tappable feed rows, shared by both tabs. */
+function FeedGroups({ items, onOpen }: { items: Duel[]; onOpen: (d: Duel) => void }) {
+  return (
+    <div className="space-y-4">
+      {groupByDate(items).map(({ date, items: rows }) => (
+        <div key={date}>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2">{formatDate(date)}</p>
+          <div className="space-y-1.5">
+            {rows.map((d) => <FeedRow key={d.id} d={d} onOpen={() => onOpen(d)} />)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── compact feed row ─────────────────────────────────────────────────────────
 
 function FeedRow({ d, onOpen }: { d: Duel; onOpen: () => void }) {
+  // Unresolved bouts (closed / expired) read differently: no winner, just who-vs-who + reason.
+  if (isUnresolved(d)) {
+    const { icon, label } = unresolvedMeta(d);
+    return (
+      <button
+        onClick={onOpen}
+        className="w-full text-left flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 active:bg-gray-100 transition-colors"
+      >
+        <span className="text-base flex-shrink-0">{icon}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-700 truncate">{abbrev(d.challengerName)} vs {abbrev(d.opponentName)}</p>
+          <p className="text-xs text-gray-400 truncate">{label}</p>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className="text-xs text-gray-400">{shortDate((d.completedAt ?? d.respondedAt ?? d.createdAt).slice(0, 10))}</span>
+          <span className="text-gray-300 text-xs">›</span>
+        </div>
+      </button>
+    );
+  }
+
   const isRejected = d.status === 'REJECTED';
   const isDraw = !isRejected && d.winnerStudentId == null;
   const icon = isRejected ? '🚫' : isDraw ? '🤝' : '🏆';
@@ -557,16 +627,18 @@ function FeedRow({ d, onOpen }: { d: Duel; onOpen: () => void }) {
 // ── duel detail modal (same pattern as AchievementDetail) ───────────────────
 
 function DuelDetail({ d, onClose }: { d: Duel; onClose: () => void }) {
+  const unresolved = isUnresolved(d);
   const isRejected = d.status === 'REJECTED';
-  const isDraw = !isRejected && d.winnerStudentId == null;
+  const isDraw = !unresolved && !isRejected && d.winnerStudentId == null;
   const date = (d.completedAt ?? d.respondedAt ?? d.createdAt).slice(0, 10);
-  const loserName = !isRejected && !isDraw && d.winnerStudentId != null
+  const loserName = !unresolved && !isRejected && !isDraw && d.winnerStudentId != null
     ? (d.winnerStudentId === d.challengerId ? d.opponentName : d.challengerName)
     : null;
   const label = formatLabel(d);
   const methodDetail = d.method
     ? `${METHOD_LABEL[d.method]}${d.submissionName ? ` · ${d.submissionName}` : ''}${d.method === 'POINTS' && d.challengerScore != null ? ` (${d.challengerScore}–${d.opponentScore})` : ''}`
     : null;
+  const unres = unresolved ? unresolvedMeta(d) : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-5">
@@ -574,9 +646,16 @@ function DuelDetail({ d, onClose }: { d: Duel; onClose: () => void }) {
       <div className="relative w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl text-center jjp-pop">
         <button onClick={onClose} className="absolute right-3 top-3 text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
 
-        <div className="text-5xl mb-3">{isRejected ? '🚫' : isDraw ? '🤝' : '🏆'}</div>
+        <div className="text-5xl mb-3">{unres ? unres.icon : isRejected ? '🚫' : isDraw ? '🤝' : '🏆'}</div>
 
-        {isRejected ? (
+        {unres ? (
+          <>
+            <p className="font-bold text-gray-900 text-base">{d.challengerName}</p>
+            <p className="text-sm text-gray-500 my-1">vs</p>
+            <p className="font-bold text-gray-900 text-base">{d.opponentName}</p>
+            <p className="text-sm font-semibold text-gray-600 mt-3">{unres.label}</p>
+          </>
+        ) : isRejected ? (
           <p className="text-base text-gray-700 leading-snug">
             <span className="font-bold">{d.opponentName}</span> rechazó el reto de{' '}
             <span className="font-bold">{d.challengerName}</span>

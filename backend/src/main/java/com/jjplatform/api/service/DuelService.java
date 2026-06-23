@@ -218,16 +218,20 @@ public class DuelService {
     }
 
     /**
-     * Academy activity: completed + rejected duels (the visible "results" feed) plus accepted ones,
-     * which clients use to broadcast a "duel confirmed" notification to the whole academy. The UI
-     * filters accepted out of the results card; only the notifier reads them.
+     * Academy activity, newest first. Carries three groups the UI splits into tabs:
+     * <ul>
+     *   <li>COMPLETED + REJECTED — the visible "Resultados" tab.</li>
+     *   <li>CANCELLED (closed by a fighter) + EXPIRED (retired by the sweep) — the "Sin resolver" tab.</li>
+     *   <li>ACCEPTED — not shown; only the client's academy-wide "duel confirmed" notifier reads these.</li>
+     * </ul>
      */
     @Transactional(readOnly = true)
     public List<DuelDto> feed(Long academyId) {
         return duelRepository
                 .findByAcademyIdAndStatusInOrderByUpdatedAtDesc(
-                        academyId, List.of(Duel.Status.COMPLETED, Duel.Status.REJECTED, Duel.Status.ACCEPTED))
-                .stream().limit(40).map(this::toDto).toList();
+                        academyId, List.of(Duel.Status.COMPLETED, Duel.Status.REJECTED, Duel.Status.ACCEPTED,
+                                Duel.Status.CANCELLED, Duel.Status.EXPIRED))
+                .stream().limit(60).map(this::toDto).toList();
     }
 
     /**
