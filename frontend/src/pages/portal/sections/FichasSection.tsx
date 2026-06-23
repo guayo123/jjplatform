@@ -146,7 +146,7 @@ export default function FichasSection({ disciplines, promotions, detailLoading, 
 
     <CurriculumCard curriculum={curriculum} loading={detailLoading} onToggle={onToggleTechnique} />
 
-    <BirthdaysCard birthdays={birthdays} />
+    <div data-tour="cumpleanos"><BirthdaysCard birthdays={birthdays} /></div>
 
     {editing && (
       <ResultFormModal

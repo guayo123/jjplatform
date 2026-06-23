@@ -73,6 +73,33 @@ export function startPortalTour({
         ]
       : []),
     {
+      element: '[data-tour="registrar-entreno"]',
+      popover: {
+        title: '➕ Registrar BJJ o Físico',
+        description: 'Con este botón registras tu sesión de Jiu-Jitsu o acondicionamiento físico. Solo toma 30 segundos.',
+        side: 'top',
+        align: 'end',
+      },
+    },
+    {
+      element: '[data-tour="peso"]',
+      popover: {
+        title: '⚖️ Control de peso',
+        description: 'Registra tu peso corporal y sigue tu evolución con un gráfico. Disponible desde cualquier dispositivo.',
+        side: 'top',
+        align: 'center',
+      },
+    },
+    {
+      element: '[data-tour="cumpleanos"]',
+      popover: {
+        title: '🎂 Cumpleaños del mes',
+        description: 'Los cumpleaños de tus compañeros de academia este mes para que no se te pase ninguno.',
+        side: 'top',
+        align: 'center',
+      },
+    },
+    {
       element: '[data-tour="pagos"]',
       popover: {
         title: '💳 Tus pagos',
@@ -139,6 +166,26 @@ export function startPortalTourNative({
       '🥋 Entreno',
       'Toca aquí para registrar cada entrenamiento al salir del tatami, mantener tu racha de días y cumplir tu meta semanal.',
     ),
+    {
+      element: '[data-tour="registrar-entreno"]',
+      onHighlightStarted: () => onNavigate('entreno'),
+      popover: {
+        title: '➕ Registrar BJJ o Físico',
+        description: 'Con este botón registras tu sesión de Jiu-Jitsu o acondicionamiento físico. Solo toma 30 segundos.',
+        side: 'top',
+        align: 'end',
+      },
+    },
+    {
+      element: '[data-tour="peso"]',
+      onHighlightStarted: () => onNavigate('entreno'),
+      popover: {
+        title: '⚖️ Control de peso',
+        description: 'Registra tu peso corporal y sigue tu evolución con un gráfico. Tus datos se guardan en la nube — disponibles desde cualquier dispositivo.',
+        side: 'top',
+        align: 'center',
+      },
+    },
     tabStep(
       'retos',
       '⚔️ Retos',
@@ -151,6 +198,16 @@ export function startPortalTourNative({
         ? 'Aquí ves tu cinturón actual, tus grados (★) y el historial de promociones, cambios de cinturón y torneos.'
         : 'Aquí aparecerá tu cinturón, tus grados y tu historial cuando tu academia los registre.',
     ),
+    {
+      element: '[data-tour="cumpleanos"]',
+      onHighlightStarted: () => onNavigate('fichas'),
+      popover: {
+        title: '🎂 Cumpleaños del mes',
+        description: 'Aquí ves los cumpleaños de tus compañeros de academia este mes para que no se te pase ninguno.',
+        side: 'top',
+        align: 'center',
+      },
+    },
     tabStep('pagos', '💳 Pagos', 'En esta pestaña consultas tus cuotas mensuales y cualquier saldo pendiente.'),
     tabStep(
       'perfil',

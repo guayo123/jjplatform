@@ -407,7 +407,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
           {/* Narrative insights — the "at a glance" read of your game */}
           <InsightsCard insights={insights} hasSessions={sessions.length > 0} />
           <TrainingCharts sessions={sessions} />
-          <BodyWeightCard studentId={studentId} />
+          <div data-tour="peso"><BodyWeightCard studentId={studentId} /></div>
           <LeaderboardCard board={board} meId={studentId} onOpen={setCardFor} />
         </>
       ) : (
@@ -460,6 +460,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
 
       {/* Floating action button: the one primary action, always within thumb reach. */}
       <button
+        data-tour="registrar-entreno"
         onClick={() => setChooserOpen(true)}
         aria-label="Registrar entrenamiento"
         title="Registrar entrenamiento"
