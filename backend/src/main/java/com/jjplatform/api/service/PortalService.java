@@ -270,6 +270,11 @@ public class PortalService {
         return duelService.feed(me.getAcademy().getId());
     }
 
+    public com.jjplatform.api.dto.DuelFeedPageDto getDuelFeedPage(Long studentId, String tab, String cursor, int size) {
+        Student me = requireOwnedStudent(studentId);
+        return duelService.feedPage(me.getAcademy().getId(), tab, cursor, size);
+    }
+
     /** Top-10 academy duel ranking (wins/losses) for the owned student's academy. */
     public List<com.jjplatform.api.dto.DuelRankingDto> getDuelRanking(Long studentId) {
         Student me = requireOwnedStudent(studentId);

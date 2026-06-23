@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Classmate, Duel, DuelCloseReason, DuelFormat, DuelMethod, DuelRankingEntry, TrainingModality } from '../../../types';
-import { duelsApi } from '../../../api/duels';
+import { duelsApi, type DuelFeedTab } from '../../../api/duels';
 import { trainingApi } from '../../../api/training';
 import { useToast } from '../../../components/ToastContext';
 import { notifyNow } from '../../../native/notifications';
@@ -59,11 +59,68 @@ function other(d: Duel, me: number) {
     : { id: d.challengerId, name: d.challengerName, photo: d.challengerPhotoUrl };
 }
 
+const FEED_PAGE_SIZE = 20;
+
+interface FeedState {
+  items: Duel[];
+  hasMore: boolean;
+  loading: boolean;
+  loadMore: () => void;
+  reload: () => void;
+}
+
+/**
+ * Keyset-paginated academy feed for one tab. Loads the first page on mount and appends older pages
+ * on demand (scroll / button). Cursor + hasMore live in refs so the callbacks stay stable and free
+ * of stale closures; an in-flight guard prevents double fetches from a fast scroll.
+ */
+function usePaginatedFeed(studentId: number, tab: DuelFeedTab): FeedState {
+  const [items, setItems] = useState<Duel[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const cursorRef = useRef<string | null>(null);
+  const hasMoreRef = useRef(true);
+  const busyRef = useRef(false);
+
+  const load = useCallback(async (reset: boolean) => {
+    if (busyRef.current) return;
+    if (!reset && !hasMoreRef.current) return;
+    busyRef.current = true;
+    setLoading(true);
+    try {
+      const page = await duelsApi.feedPage(studentId, tab, reset ? null : cursorRef.current, FEED_PAGE_SIZE);
+      cursorRef.current = page.nextCursor;
+      hasMoreRef.current = page.nextCursor != null;
+      setHasMore(page.nextCursor != null);
+      setItems((prev) => (reset ? page.items : [...prev, ...page.items]));
+    } catch {
+      if (reset) { setItems([]); hasMoreRef.current = false; setHasMore(false); }
+    } finally {
+      setLoading(false);
+      busyRef.current = false;
+    }
+  }, [studentId, tab]);
+
+  // (Re)load the first page on mount and whenever the student/tab changes.
+  useEffect(() => {
+    cursorRef.current = null;
+    hasMoreRef.current = true;
+    void load(true);
+  }, [load]);
+
+  return {
+    items,
+    hasMore,
+    loading,
+    loadMore: useCallback(() => void load(false), [load]),
+    reload: useCallback(() => void load(true), [load]),
+  };
+}
+
 /** "Retos" — challenge classmates, respond, report results, and see the academy feed. */
 export default function DuelsSection({ studentId }: Props) {
   const { toast } = useToast();
   const [duels, setDuels] = useState<Duel[]>([]);
-  const [feed, setFeed] = useState<Duel[]>([]);
   const [ranking, setRanking] = useState<DuelRankingEntry[]>([]);
   const [classmates, setClassmates] = useState<Classmate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,7 +129,13 @@ export default function DuelsSection({ studentId }: Props) {
   const [closeFor, setCloseFor] = useState<Duel | null>(null); // accepted duel being closed early
   const [cardFor, setCardFor] = useState<number | null>(null); // ranking → student info modal
   const [detailDuel, setDetailDuel] = useState<Duel | null>(null);
-  const [feedTab, setFeedTab] = useState<'results' | 'unresolved'>('results'); // academy feed tabs
+  const [feedTab, setFeedTab] = useState<DuelFeedTab>('results'); // academy feed tabs
+
+  // Each tab is its own keyset-paginated stream (separate queries → accurate, scalable).
+  const resultsFeed = usePaginatedFeed(studentId, 'results');
+  const unresolvedFeed = usePaginatedFeed(studentId, 'unresolved');
+  const activeFeed = feedTab === 'results' ? resultsFeed : unresolvedFeed;
+  const reloadFeeds = useCallback(() => { resultsFeed.reload(); unresolvedFeed.reload(); }, [resultsFeed, unresolvedFeed]);
 
   // Fire toast + local notification for status changes the student hasn't seen yet.
   const notifyChanges = useCallback((current: Duel[]) => {
@@ -153,14 +216,12 @@ export default function DuelsSection({ studentId }: Props) {
         trainingApi.classmates(studentId).catch(() => [] as Classmate[]),
       ]);
       setDuels(mine);
-      setFeed(fed);
       setRanking(rank);
       setClassmates(mates);
       notifyChanges(mine);
       notifyFeedResults(fed);
     } catch {
       setDuels([]);
-      setFeed([]);
       setRanking([]);
     } finally {
       setLoading(false);
@@ -176,6 +237,7 @@ export default function DuelsSection({ studentId }: Props) {
       await duelsApi.respond(studentId, d.id, accept);
       if (accept) void notifySuccess();
       await load();
+      reloadFeeds(); // a rejection lands in the results tab
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo responder.');
     }
@@ -196,6 +258,7 @@ export default function DuelsSection({ studentId }: Props) {
       await duelsApi.close(studentId, d.id, reason);
       setCloseFor(null);
       await load();
+      reloadFeeds(); // closed bout lands in the "unresolved" tab
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo cerrar el duelo.');
     }
@@ -209,10 +272,6 @@ export default function DuelsSection({ studentId }: Props) {
   const accepted = duels.filter((d) => d.status === 'ACCEPTED' && isParticipant(d));
   // Duels I must judge as the impartial referee (I'm not a participant).
   const toReferee = duels.filter((d) => d.status === 'ACCEPTED' && d.refereeId === studentId && !isParticipant(d));
-  // The feed carries several groups (the ACCEPTED ones only drive the "confirmed" notification).
-  // Split into two tabs: settled results vs. bouts that never resolved (closed or expired).
-  const results = feed.filter((d) => d.status === 'COMPLETED' || d.status === 'REJECTED');
-  const unresolved = feed.filter((d) => d.status === 'EXPIRED' || (d.status === 'CANCELLED' && d.closeReason != null));
 
   return (
     <div className="space-y-6">
@@ -272,8 +331,11 @@ export default function DuelsSection({ studentId }: Props) {
                     )}
                   </div>
                   {/* Escape hatch: if the bout won't happen, either fighter can close it off. */}
-                  <button onClick={() => { void tapLight(); setCloseFor(d); }} className="mt-2 text-xs text-gray-400 hover:text-red-500">
-                    ¿No se hará? Cerrar duelo
+                  <button
+                    onClick={() => { void tapLight(); setCloseFor(d); }}
+                    className="mt-3 w-full inline-flex items-center justify-center gap-1.5 text-sm font-medium text-gray-500 hover:text-red-500 px-3 py-2 rounded-lg border border-gray-200 active:bg-gray-50 transition-colors"
+                  >
+                    🏳️ ¿No se hará? Cerrar duelo
                   </button>
                 </div>
               );
@@ -323,28 +385,31 @@ export default function DuelsSection({ studentId }: Props) {
       {/* Academy ranking (top 10 by record) */}
       <DuelRankingCard ranking={ranking} meId={studentId} onOpen={setCardFor} />
 
-      {/* Academy feed — two tabs (settled results / unresolved), grouped by date, tappable rows */}
+      {/* Academy feed — two keyset-paginated tabs (results / unresolved) with infinite scroll */}
       <Card title="Duelos de la academia">
         <div className="flex gap-2 mb-4">
           <FeedTab active={feedTab === 'results'} onClick={() => setFeedTab('results')}>
-            🏆 Resultados {results.length > 0 && <span className="opacity-60">({results.length})</span>}
+            🏆 Resultados <FeedCount feed={resultsFeed} />
           </FeedTab>
           <FeedTab active={feedTab === 'unresolved'} onClick={() => setFeedTab('unresolved')}>
-            🏳️ Sin resolver {unresolved.length > 0 && <span className="opacity-60">({unresolved.length})</span>}
+            🏳️ Sin resolver <FeedCount feed={unresolvedFeed} />
           </FeedTab>
         </div>
 
-        {feedTab === 'results' ? (
-          results.length === 0 ? (
-            <p className="text-center text-gray-400 text-sm py-6">Aún no hay duelos resueltos. ¡Sé el primero en retar! ⚔️</p>
+        {/* key={feedTab} remounts the list on tab change so no rows from the other tab linger. */}
+        <div key={feedTab}>
+          {activeFeed.items.length === 0 && !activeFeed.loading ? (
+            <p className="text-center text-gray-400 text-sm py-6">
+              {feedTab === 'results'
+                ? 'Aún no hay duelos resueltos. ¡Sé el primero en retar! ⚔️'
+                : 'Sin duelos pendientes por aquí. Todo lo aceptado se peleó o sigue en juego. 👌'}
+            </p>
           ) : (
-            <FeedGroups items={results} onOpen={setDetailDuel} />
-          )
-        ) : unresolved.length === 0 ? (
-          <p className="text-center text-gray-400 text-sm py-6">Sin duelos pendientes por aquí. Todo lo aceptado se peleó o sigue en juego. 👌</p>
-        ) : (
-          <FeedGroups items={unresolved} onOpen={setDetailDuel} />
-        )}
+            <FeedGroups items={activeFeed.items} onOpen={setDetailDuel} />
+          )}
+
+          <FeedMore feed={activeFeed} />
+        </div>
       </Card>
 
       {challengeOpen && (
@@ -370,6 +435,7 @@ export default function DuelsSection({ studentId }: Props) {
             await duelsApi.reportResult(studentId, resultFor.id, data);
             void notifySuccess();
             await load();
+            reloadFeeds(); // result lands in the results tab
           }}
         />
       )}
@@ -563,6 +629,45 @@ function FeedGroups({ items, onOpen }: { items: Duel[]; onOpen: (d: Duel) => voi
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Loaded-count badge for a tab: "(12)" when fully loaded, "(20+)" while more pages remain. */
+function FeedCount({ feed }: { feed: FeedState }) {
+  if (feed.items.length === 0) return null;
+  return <span className="opacity-60">({feed.items.length}{feed.hasMore ? '+' : ''})</span>;
+}
+
+/** Infinite-scroll trigger + "Cargar más" fallback for the active tab. */
+function FeedMore({ feed }: { feed: FeedState }) {
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const { loadMore, hasMore, loading } = feed;
+
+  // Auto-load the next page when the sentinel scrolls into view (300px early for a smooth feel).
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) loadMore();
+    }, { rootMargin: '300px' });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [loadMore, hasMore]);
+
+  if (!hasMore && !loading) return null;
+  return (
+    <div className="pt-3">
+      <div ref={sentinelRef} className="h-px" />
+      {loading ? (
+        <div className="flex justify-center py-2">
+          <div className="w-5 h-5 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : (
+        <button onClick={loadMore} className="w-full py-2 text-xs font-semibold text-primary-600 hover:text-primary-700 transition-colors">
+          Cargar más
+        </button>
+      )}
     </div>
   );
 }

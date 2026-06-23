@@ -2,6 +2,7 @@ package com.jjplatform.api.service;
 
 import com.jjplatform.api.dto.CreateDuelRequest;
 import com.jjplatform.api.dto.DuelDto;
+import com.jjplatform.api.dto.DuelFeedPageDto;
 import com.jjplatform.api.dto.DuelRankingDto;
 import com.jjplatform.api.dto.DuelResultRequest;
 import com.jjplatform.api.exception.ResourceNotFoundException;
@@ -10,6 +11,9 @@ import com.jjplatform.api.model.Student;
 import com.jjplatform.api.repository.DuelRepository;
 import com.jjplatform.api.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -232,6 +236,63 @@ public class DuelService {
                         academyId, List.of(Duel.Status.COMPLETED, Duel.Status.REJECTED, Duel.Status.ACCEPTED,
                                 Duel.Status.CANCELLED, Duel.Status.EXPIRED))
                 .stream().limit(60).map(this::toDto).toList();
+    }
+
+    // --- Paginated feed (keyset / cursor) ---------------------------------
+
+    private static final int FEED_PAGE_MAX = 50;
+    private static final int FEED_PAGE_DEFAULT = 20;
+    /** First-page sentinel: a date no real row reaches, so the cursor predicate includes everything. */
+    private static final LocalDateTime FAR_FUTURE = LocalDateTime.of(9999, 12, 31, 23, 59, 59);
+
+    /**
+     * One page of the academy feed for the given tab, newest first, via keyset pagination.
+     * {@code tab} = "unresolved" returns closed/expired bouts; anything else returns the results
+     * tab (completed + rejected). {@code cursor} is the opaque token from the previous page (null
+     * for the first page). The returned {@code nextCursor} is null once there are no older rows.
+     */
+    @Transactional(readOnly = true)
+    public DuelFeedPageDto feedPage(Long academyId, String tab, String cursor, int size) {
+        int pageSize = Math.min(Math.max(size, 1), FEED_PAGE_MAX);
+        if (size <= 0) pageSize = FEED_PAGE_DEFAULT;
+
+        LocalDateTime cursorTime = FAR_FUTURE;
+        Long cursorId = Long.MAX_VALUE;
+        long[] decoded = decodeCursor(cursor);
+        if (decoded != null) {
+            cursorTime = LocalDateTime.ofEpochSecond(decoded[0], (int) decoded[1], java.time.ZoneOffset.UTC);
+            cursorId = decoded[2];
+        }
+
+        Pageable pageable = PageRequest.of(0, pageSize,
+                Sort.by(Sort.Order.desc("updatedAt"), Sort.Order.desc("id")));
+
+        List<Duel> rows = "unresolved".equalsIgnoreCase(tab)
+                ? duelRepository.feedUnresolvedPage(academyId, Duel.Status.EXPIRED, Duel.Status.CANCELLED, cursorTime, cursorId, pageable)
+                : duelRepository.feedResultsPage(academyId, List.of(Duel.Status.COMPLETED, Duel.Status.REJECTED), cursorTime, cursorId, pageable);
+
+        // A full page means there may be more; encode the last row as the next cursor.
+        String next = rows.size() == pageSize ? encodeCursor(rows.get(rows.size() - 1)) : null;
+        return new DuelFeedPageDto(rows.stream().map(this::toDto).toList(), next);
+    }
+
+    /** Cursor = "<epochSeconds>_<nanoOfSecond>_<id>" of the last row (UTC). Full precision, index-friendly. */
+    private String encodeCursor(Duel d) {
+        LocalDateTime t = d.getUpdatedAt();
+        long epochSecond = t.toEpochSecond(java.time.ZoneOffset.UTC);
+        return epochSecond + "_" + t.getNano() + "_" + d.getId();
+    }
+
+    /** Returns {epochSecond, nanoOfSecond, id} or null when the cursor is absent/malformed. */
+    private long[] decodeCursor(String cursor) {
+        if (cursor == null || cursor.isBlank()) return null;
+        try {
+            String[] parts = cursor.split("_");
+            if (parts.length != 3) return null;
+            return new long[]{ Long.parseLong(parts[0]), Long.parseLong(parts[1]), Long.parseLong(parts[2]) };
+        } catch (NumberFormatException e) {
+            return null; // tolerate a bad token by serving the first page
+        }
     }
 
     /**

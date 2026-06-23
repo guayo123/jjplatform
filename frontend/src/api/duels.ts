@@ -1,14 +1,24 @@
 import client from './client';
-import type { CreateDuelRequest, Duel, DuelCloseReason, DuelRankingEntry, DuelResultRequest } from '../types';
+import type { CreateDuelRequest, Duel, DuelCloseReason, DuelFeedPage, DuelRankingEntry, DuelResultRequest } from '../types';
+
+export type DuelFeedTab = 'results' | 'unresolved';
 
 export const duelsApi = {
   /** Duels involving the student (incoming + outgoing). */
   mine: (studentId: number) =>
     client.get<Duel[]>(`/portal/students/${studentId}/duels`).then((r) => r.data),
 
-  /** Academy feed: completed (with winner) + rejected duels. */
+  /** Academy feed (full recent set) — used only to detect status changes for local notifications. */
   feed: (studentId: number) =>
     client.get<Duel[]>(`/portal/students/${studentId}/duels/feed`).then((r) => r.data),
+
+  /** One keyset page of the visible academy feed for a tab. Pass the previous nextCursor to page on. */
+  feedPage: (studentId: number, tab: DuelFeedTab, cursor: string | null, size = 20) =>
+    client
+      .get<DuelFeedPage>(`/portal/students/${studentId}/duels/feed/page`, {
+        params: { tab, size, ...(cursor ? { cursor } : {}) },
+      })
+      .then((r) => r.data),
 
   /** Top-10 academy duel ranking by win/loss record. */
   ranking: (studentId: number) =>

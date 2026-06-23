@@ -132,9 +132,12 @@ button {
        neutral/primary subset so semantic accent colors (green/red/amber) stay. --- */
 .portal-theme .bg-white,
 .portal-theme .bg-gray-50,
-/* Opacity variants (e.g. sticky headers `bg-gray-50/95` with backdrop-blur) must be remapped
-   too — otherwise they keep Tailwind's light gray and the near-white title text on them turns
-   into an unreadable white-on-gray smear in the dark theme. */
+/* Opacity variants (e.g. sticky headers `bg-gray-50/95` or `bg-white/95` with backdrop-blur) must
+   be remapped too — otherwise they keep Tailwind's light surface and the near-white title text on
+   them turns into an unreadable white-on-white/gray smear in the dark theme. */
+.portal-theme .bg-white\/95,
+.portal-theme .bg-white\/90,
+.portal-theme .bg-white\/80,
 .portal-theme .bg-gray-50\/95,
 .portal-theme .bg-gray-50\/90,
 .portal-theme .bg-gray-50\/80 { background-color: var(--surface) !important; }

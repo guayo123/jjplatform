@@ -592,6 +592,12 @@ export interface Duel {
   completedAt: string | null;
 }
 
+/** One keyset page of the academy feed. nextCursor is opaque; null means no more rows. */
+export interface DuelFeedPage {
+  items: Duel[];
+  nextCursor: string | null;
+}
+
 export interface DuelRankingEntry {
   studentId: number;
   name: string;

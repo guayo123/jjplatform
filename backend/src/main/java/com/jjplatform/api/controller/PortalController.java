@@ -284,6 +284,16 @@ public class PortalController {
         return ResponseEntity.ok(portalService.getDuelFeed(studentId));
     }
 
+    /** Paginated academy feed by tab ("results" | "unresolved"), keyset cursor, newest first. */
+    @GetMapping("/students/{studentId}/duels/feed/page")
+    public ResponseEntity<com.jjplatform.api.dto.DuelFeedPageDto> duelFeedPage(
+            @PathVariable Long studentId,
+            @RequestParam(defaultValue = "results") String tab,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(portalService.getDuelFeedPage(studentId, tab, cursor, size));
+    }
+
     /** Top-10 academy duel ranking by win/loss record. */
     @GetMapping("/students/{studentId}/duels/ranking")
     public ResponseEntity<List<com.jjplatform.api.dto.DuelRankingDto>> duelRanking(@PathVariable Long studentId) {

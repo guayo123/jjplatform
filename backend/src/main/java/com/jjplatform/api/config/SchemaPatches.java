@@ -41,6 +41,8 @@ public class SchemaPatches {
             // duels.status gained EXPIRED after the table existed: the stale CHECK rejects the new
             // value when the daily sweep retires an unresolved bout. Enum stays the source of truth.
             dropConstraint("duels", "duels_status_check");
+            // Backs the keyset-paginated academy feed: filter by (academy, status) + walk updated_at desc.
+            createIndex("idx_duels_academy_status_updated", "duels", "academy_id, status, updated_at");
         };
     }
 
@@ -61,6 +63,16 @@ public class SchemaPatches {
             log.info("SchemaPatches: ensured {}.{} is VARCHAR({})", table, column, length);
         } catch (Exception e) {
             log.warn("SchemaPatches: could not widen {}.{}: {}", table, column, e.getMessage());
+        }
+    }
+
+    /** Create a composite index if it doesn't exist yet (Postgres). Idempotent and non-fatal. */
+    private void createIndex(String name, String table, String columns) {
+        try {
+            jdbc.execute("CREATE INDEX IF NOT EXISTS " + name + " ON " + table + " (" + columns + ")");
+            log.info("SchemaPatches: ensured index {} on {} ({})", name, table, columns);
+        } catch (Exception e) {
+            log.warn("SchemaPatches: could not create index {} on {}: {}", name, table, e.getMessage());
         }
     }
 }
