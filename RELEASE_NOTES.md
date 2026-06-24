@@ -5,6 +5,12 @@
 
 ## Actualización — Junio 2026
 
+### Ícono de la app por cinturón (Android)
+- El **ícono del lanzador Android cambia según el cinturón** del alumno (manteniendo el nombre "JJPlatform"), tomando el **cinturón más alto** entre sus disciplinas. Se aplica en cada carga del portal (`applyBeltIcon` en `Portal.tsx`).
+- Diseño: **marco oscuro** (`#111418`) + **panel blanco redondeado** + la **"X" del logo recoloreada al color del cinturón** (Blanco, Azul, Morado, Café, Negro), preservando el degradé de dos tonos. El blanco usa gris pizarra para no quedar invisible.
+- Técnicamente: 5 `activity-alias` (uno por color) que un plugin Capacitor propio (`BeltIcon.setBelt`) habilita/deshabilita vía `setComponentEnabledSetting(... DONT_KILL_APP)`; cada alias usa su adaptive icon con foreground propio por densidad (+ PNG legacy para Android 7−).
+- Solo **color** en el ícono (los grados/rayas se ven dentro de la app). Solo Android por ahora.
+
 ### Portal del Alumno — Cuenta y autogestión
 - Los alumnos pueden **crear su propia cuenta** desde el login ("¿Eres alumno? Crea tu cuenta de alumno" → `/portal/registro`)
 - Se identifican con **RUT + email**: el sistema busca su ficha de alumno y, si coincide, crea una cuenta con rol `STUDENT` y le envía una **clave temporal por correo** (mismo flujo que el staff; en desarrollo la clave se imprime en la consola del backend)
