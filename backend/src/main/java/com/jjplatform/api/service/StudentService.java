@@ -9,10 +9,12 @@ import com.jjplatform.api.model.Academy;
 import com.jjplatform.api.model.Plan;
 import com.jjplatform.api.model.Student;
 import com.jjplatform.api.model.StudentDiscipline;
+import com.jjplatform.api.model.User;
 import com.jjplatform.api.repository.AcademyRepository;
 import com.jjplatform.api.repository.PlanRepository;
 import com.jjplatform.api.repository.StudentDisciplineRepository;
 import com.jjplatform.api.repository.StudentRepository;
+import com.jjplatform.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +33,7 @@ public class StudentService {
     private final PlanRepository planRepository;
     private final StudentDisciplineRepository studentDisciplineRepository;
     private final SecurityHelper securityHelper;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public List<StudentDto> getStudentsByAcademy(Long academyId) {
@@ -177,6 +180,27 @@ public class StudentService {
                 .toList();
     }
 
+    /**
+     * When staff edits a student's email, update the linked login's email too so the portal lookup
+     * (by user id) and the reset/registration flow (by email) stay consistent. No-op if the student
+     * has no login yet or the email didn't change. Blocks if the email already belongs to another login.
+     */
+    private void syncLoginEmail(Student student, String rawEmail) {
+        User login = student.getUser();
+        if (login == null || rawEmail == null || rawEmail.isBlank()) return;
+        String email = rawEmail.trim().toLowerCase();
+        if (email.equalsIgnoreCase(login.getEmail())) return;
+        boolean takenByOther = userRepository.findByEmail(email)
+                .map(u -> !u.getId().equals(login.getId()))
+                .orElse(false);
+        if (takenByOther) {
+            throw new IllegalArgumentException(
+                    "El correo '" + email + "' ya pertenece a otra cuenta de acceso. Usa otro o contacta a soporte.");
+        }
+        login.setEmail(email);
+        userRepository.save(login);
+    }
+
     /** Adds the per-discipline belt list to a DTO and syncs the legacy belt/stripes fields from it. */
     private StudentDto enrichWithDisciplineBelts(StudentDto dto, Long studentId) {
         List<StudentDiscipline> discs = studentDisciplineRepository
@@ -248,6 +272,10 @@ public class StudentService {
 
         student.setName(dto.getName());
         student.setRut(dto.getRut());
+        // Keep the linked login's email in sync with the student's: the portal resolves the student
+        // by the login's user id, and the reset/registration flow matches by email — if they diverge,
+        // the student can end up unable to find their own record after signing in.
+        syncLoginEmail(student, dto.getEmail());
         student.setEmail(dto.getEmail());
         student.setPhone(dto.getPhone());
         student.setJoinDate(dto.getJoinDate() != null ? LocalDate.parse(dto.getJoinDate()) : null);

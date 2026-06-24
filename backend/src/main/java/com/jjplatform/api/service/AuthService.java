@@ -142,37 +142,11 @@ public class AuthService {
                     "No encontramos un alumno con ese RUT y correo en la plataforma. Verifica los datos o contacta a tu academia.");
         }
 
-        User user = userRepository.findByEmail(email).orElse(null);
-        if (user != null && user.getRole() != User.Role.STUDENT) {
-            throw new IllegalArgumentException(
-                    "El correo '" + email + "' ya está en uso por una cuenta del sistema. Contacta a tu academia.");
-        }
-
         String tempPassword = generateTempPassword(12);
-        if (user == null) {
-            user = User.builder()
-                    .email(email)
-                    .password(passwordEncoder.encode(tempPassword))
-                    .role(User.Role.STUDENT)
-                    .mustChangePassword(true)
-                    .build();
-        } else {
-            // Existing student account: re-issue a temporary password (doubles as access recovery).
-            user.setPassword(passwordEncoder.encode(tempPassword));
-            user.setMustChangePassword(true);
-        }
-        final User savedUser = userRepository.save(user);
+        linkStudentsToLogin(matches, email, tempPassword);
 
-        // Link every matching record that isn't already linked to this user.
-        String studentName = matches.get(0).getName();
-        matches.stream()
-                .filter(s -> s.getUser() == null)
-                .forEach(s -> {
-                    s.setUser(savedUser);
-                    studentRepository.save(s);
-                });
-
-        emailService.sendStudentWelcomeEmail(email, tempPassword, studentName, matches.get(0).getAcademy().getName());
+        emailService.sendStudentWelcomeEmail(email, tempPassword,
+                matches.get(0).getName(), matches.get(0).getAcademy().getName());
     }
 
     /**
@@ -198,38 +172,67 @@ public class AuthService {
                     "No encontramos un alumno con ese RUT y correo en la plataforma. Verifica los datos o contacta a tu academia.");
         }
 
-        User user = userRepository.findByEmail(email).orElse(null);
-        if (user != null && user.getRole() != User.Role.STUDENT) {
-            throw new IllegalArgumentException(
-                    "El correo '" + email + "' ya está en uso por una cuenta del sistema. Contacta a tu academia.");
-        }
-
         String tempPassword = generateTempPassword(12);
-        if (user == null) {
-            // Matched a student record but no login exists yet — create it (recovery doubles as first access).
-            user = User.builder()
-                    .email(email)
-                    .password(passwordEncoder.encode(tempPassword))
-                    .role(User.Role.STUDENT)
-                    .mustChangePassword(true)
-                    .build();
-        } else {
-            user.setPassword(passwordEncoder.encode(tempPassword));
-            user.setMustChangePassword(true);
-        }
-        final User savedUser = userRepository.save(user);
-
-        // Link any matching record that isn't linked yet (consistent with registration).
-        matches.stream()
-                .filter(s -> s.getUser() == null)
-                .forEach(s -> {
-                    s.setUser(savedUser);
-                    studentRepository.save(s);
-                });
+        linkStudentsToLogin(matches, email, tempPassword);
 
         Student first = matches.get(0);
         emailService.sendPasswordResetEmail(email, tempPassword, first.getName(),
                 first.getAcademy() != null ? first.getAcademy().getName() : null);
+    }
+
+    /**
+     * Resolves the single STUDENT login for a set of matched student records and (re)issues the
+     * given temporary password, then links every matched record to that one login.
+     *
+     * <p>Crucially it respects the EXISTING link first: if any matched record already belongs to a
+     * login, that login IS the account — we only sync its email to the current value (the student's
+     * email may have been changed by staff) instead of creating a second, student-less login.
+     * Otherwise we reuse a login that already has this email, or create one.
+     *
+     * <p>This is the fix for the bug where changing a student's email and then resetting the
+     * password produced a duplicate login with no student attached, so the portal — which resolves
+     * the student by the login's user id — reported "el correo no está asociado a un alumno".
+     */
+    private void linkStudentsToLogin(List<Student> matches, String email, String tempPassword) {
+        User user = matches.stream()
+                .map(Student::getUser)
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+
+        if (user != null) {
+            // Existing account: bring its login email in line with the student's current email,
+            // unless that email already belongs to a different account.
+            final User linked = user;
+            if (!linked.getEmail().equalsIgnoreCase(email)) {
+                userRepository.findByEmail(email)
+                        .filter(other -> !other.getId().equals(linked.getId()))
+                        .ifPresent(other -> { throw new IllegalArgumentException(
+                                "El correo '" + email + "' ya pertenece a otra cuenta. Contacta a tu academia."); });
+                linked.setEmail(email);
+            }
+        } else {
+            user = userRepository.findByEmail(email).orElse(null);
+            if (user != null && user.getRole() != User.Role.STUDENT) {
+                throw new IllegalArgumentException(
+                        "El correo '" + email + "' ya está en uso por una cuenta del sistema. Contacta a tu academia.");
+            }
+            if (user == null) {
+                user = User.builder().email(email).role(User.Role.STUDENT).build();
+            }
+        }
+
+        user.setPassword(passwordEncoder.encode(tempPassword));
+        user.setMustChangePassword(true);
+        final User saved = userRepository.save(user);
+
+        // Link/relink every matched record to this single login.
+        matches.forEach(s -> {
+            if (s.getUser() == null || !s.getUser().getId().equals(saved.getId())) {
+                s.setUser(saved);
+                studentRepository.save(s);
+            }
+        });
     }
 
     /**
