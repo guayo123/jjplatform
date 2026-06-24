@@ -3,7 +3,7 @@ import type { Classmate, ConditioningSession, ConditioningSessionForm, Leaderboa
 import { trainingApi } from '../../../api/training';
 import { conditioningApi } from '../../../api/conditioning';
 import { notifySuccess } from '../../../native/haptics';
-import { playOss } from '../../../native/sound';
+import { playOss, primeOss } from '../../../native/sound';
 import { scheduleStreakReminders } from '../../../native/notifications';
 import TrainingForm from '../TrainingForm';
 import ConditioningForm from '../ConditioningForm';
@@ -161,11 +161,14 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
   const handleSave = async (data: TrainingSessionForm) => {
     const prevStreak = summary?.currentStreak ?? 0;
     const prevGoalMet = summary?.weeklyGoalMet ?? false;
-    // Play the cue synchronously, still inside the tap's user-gesture window — after the
-    // `await` below the browser drops user activation and autoplay-blocks the audio.
-    playOss();
+    // Unlock the cue inside the tap's user-gesture window (after the `await` the browser
+    // drops user activation and autoplay-blocks the audio). It only actually sounds once
+    // the backend confirms the save below — a failed save throws and the OSS never plays.
+    primeOss();
     await trainingApi.create(studentId, data);
+    playOss();
     void notifySuccess();
+    try {
     // Fetch fresh stats directly (load()'s state update isn't visible in this closure)
     // so we can tell whether this session hit a milestone.
     const [sum, list] = await Promise.all([trainingApi.summary(studentId), trainingApi.list(studentId)]);
@@ -199,15 +202,19 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     celebrateAchievements(takeNewlyUnlocked(computeAchievements(list, sum)));
     // Refresh the leaderboard in the background — the new session may move positions.
     trainingApi.leaderboard(studentId).then(setBoard).catch(() => { /* keep the stale board */ });
+    } catch { /* the session saved; a failed stats refresh shouldn't look like a save error */ }
   };
 
   const handleSaveConditioning = async (data: ConditioningSessionForm) => {
     const prevStreak = summary?.currentStreak ?? 0;
     // Snapshot history BEFORE saving so we can compare for PRs
     const historySnapshot = [...condSessions];
-    playOss();
+    // Unlock the cue within the tap gesture; it only sounds after a confirmed save below.
+    primeOss();
     await conditioningApi.create(studentId, data);
+    playOss();
     void notifySuccess();
+    try {
     const [sum, cond, list] = await Promise.all([
       trainingApi.summary(studentId),
       conditioningApi.list(studentId),
@@ -238,6 +245,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
       const prs = detectPRs(data.exercises, historySnapshot);
       if (prs.length > 0) setPrResults(prs);
     }
+    } catch { /* the session saved; a failed stats refresh shouldn't look like a save error */ }
   };
 
   const handleRepair = async () => {

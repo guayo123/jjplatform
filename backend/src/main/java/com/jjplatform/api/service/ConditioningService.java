@@ -53,7 +53,9 @@ public class ConditioningService {
                 es.setExerciseOrder(exOrder);
                 es.setRestSec(rest);
                 es.setReps(clampPositive(set.getReps()));
-                es.setWeightKg(set.getWeightKg() != null && set.getWeightKg() < 0 ? 0.0 : set.getWeightKg());
+                Double weightKg = set.getWeightKg();
+                if (weightKg != null && weightKg < 0) weightKg = 0.0;
+                es.setWeightKg(weightKg);
                 s.getSets().add(es);
             }
             exOrder++;

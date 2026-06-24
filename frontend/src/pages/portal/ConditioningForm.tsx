@@ -45,6 +45,7 @@ export default function ConditioningForm({ recentExercises, onClose, onSave }: P
   const [activeEx, setActiveEx] = useState<number | null>(null); // which exercise input shows suggestions
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<RoutineTemplate[]>(() => loadTemplates());
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   const [templateName, setTemplateName] = useState('');
@@ -120,6 +121,7 @@ export default function ConditioningForm({ recentExercises, onClose, onSave }: P
         };
       });
     setSaving(true);
+    setSaveError(null);
     try {
       await onSave({
         date,
@@ -130,6 +132,8 @@ export default function ConditioningForm({ recentExercises, onClose, onSave }: P
         exercises: cleaned,
       });
       onClose();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'No se pudo guardar la sesión. Intenta de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -323,6 +327,9 @@ export default function ConditioningForm({ recentExercises, onClose, onSave }: P
                 ✕
               </button>
             </div>
+          )}
+          {saveError && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{saveError}</p>
           )}
           <div className="flex gap-3">
             <button type="button" onClick={onClose} disabled={saving}

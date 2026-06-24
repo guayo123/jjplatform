@@ -48,7 +48,32 @@ function synthThunk(): void {
   }
 }
 
-/** Play the "oss" cue (or the synth fallback). Must run from a user gesture. */
+/**
+ * "Unlock" the cue from within a user gesture without making noise, so a later
+ * playOss() — fired after an `await` (e.g. once the backend confirms the save) —
+ * isn't autoplay-blocked. Plays muted, then rewinds. Call this on the tap; call
+ * playOss() once the action actually succeeds.
+ */
+export function primeOss(): void {
+  if (!isSoundEnabled()) return;
+  try {
+    if (!audio) {
+      audio = new Audio('/sounds/oss3.mp3');
+      audio.preload = 'auto';
+    }
+    const a = audio;
+    a.muted = true;
+    a.currentTime = 0;
+    const reset = () => { a.pause(); a.currentTime = 0; a.muted = false; };
+    const p = a.play();
+    if (p && typeof p.then === 'function') p.then(reset).catch(() => { a.muted = false; });
+    else reset();
+  } catch {
+    /* ignore — playOss() will fall back to the synth */
+  }
+}
+
+/** Play the "oss" cue (or the synth fallback). Must run from a user gesture (or after primeOss()). */
 export function playOss(): void {
   if (!isSoundEnabled()) return;
   try {
@@ -56,6 +81,7 @@ export function playOss(): void {
       audio = new Audio('/sounds/oss3.mp3');
       audio.preload = 'auto';
     }
+    audio.muted = false;
     audio.currentTime = 0;
     const p = audio.play();
     if (p && typeof p.then === 'function') p.catch(() => synthThunk());

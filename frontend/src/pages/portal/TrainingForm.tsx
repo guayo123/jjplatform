@@ -73,6 +73,7 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
   const [techInput, setTechInput] = useState('');
   const [partnerInput, setPartnerInput] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Merge the user's most-used values with the default catalog so repeat entries are one tap.
   const techChips = useMemo(
@@ -135,6 +136,7 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
   const handleSave = async () => {
     if (saving) return;
     setSaving(true);
+    setSaveError(null);
     try {
       await onSave({
         disciplineId,
@@ -152,6 +154,8 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
         partners,
       });
       onClose();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'No se pudo guardar el entrenamiento. Intenta de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -338,7 +342,11 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
 
         {/* Save bar — Cancelar lives here too so closing is always within reach
             (the header × can sit far up the top of a long form). */}
-        <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur px-5 py-3 border-t border-gray-200 flex gap-3">
+        <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur px-5 py-3 border-t border-gray-200 flex flex-col gap-3">
+          {saveError && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{saveError}</p>
+          )}
+          <div className="flex gap-3">
           <button
             type="button"
             onClick={onClose}
@@ -354,6 +362,7 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
           >
             {saving ? 'Guardando…' : 'Guardar entrenamiento'}
           </button>
+          </div>
         </div>
       </div>
     </div>
