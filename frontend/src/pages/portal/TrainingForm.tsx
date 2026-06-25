@@ -19,9 +19,18 @@ const DEFAULT_TECHNIQUES = [
   'Guardia cerrada', 'Paso de guardia', 'Montada', 'Control lateral',
   'Raspado', 'Toma de espalda', 'Derribo', 'Defensa', 'Media guardia',
 ];
+// Chips visibles de un toque (los más comunes + Mano de vaca y Botinha pedidas aparte).
 const DEFAULT_SUBMISSIONS = [
   'Mataleón', 'Llave de brazo', 'Triángulo', 'Kimura', 'Guillotina',
   'Americana', 'Omoplata', 'Estrangulación', 'Darce', 'Ezekiel',
+  'Mano de vaca', 'Botinha',
+];
+// Catálogo completo para el autocompletado del buscador "Agregar otra".
+const SUBMISSION_CATALOG = [
+  ...DEFAULT_SUBMISSIONS,
+  'Arco y flecha', 'Heel hook', 'Kneebar', 'Toe hold', 'Estrangulación norte-sur',
+  'Anaconda', 'Peruvian necktie', 'Gogoplata', 'Biceps slicer', 'Calf slicer',
+  'Llave de tobillo', 'Estrangulación en triángulo', 'Crucifijo', 'Bate de béisbol',
 ];
 
 const DURATIONS = [30, 45, 60, 90];
@@ -71,6 +80,7 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
   const [partners, setPartners] = useState<TrainingPartner[]>([]);
   const [notes, setNotes] = useState('');
   const [techInput, setTechInput] = useState('');
+  const [subInput, setSubInput] = useState('');
   const [partnerInput, setPartnerInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -81,9 +91,17 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
     [recentSessions],
   );
   const subChips = useMemo(
-    () => mergeChips(DEFAULT_SUBMISSIONS, recentSessions.flatMap((s) => s.submissions.map((x) => x.name))),
+    () => mergeChips(DEFAULT_SUBMISSIONS, recentSessions.flatMap((s) => s.submissions.map((x) => x.name)), 14),
     [recentSessions],
   );
+  // Autocomplete for the submission search: suggest from the full catalog + the user's own history,
+  // matching accent-insensitively, hiding the ones already shown as chips.
+  const subSuggestions = useMemo(() => {
+    const q = normalize(subInput);
+    if (!q) return [];
+    const pool = mergeChips([...SUBMISSION_CATALOG, ...recentSessions.flatMap((s) => s.submissions.map((x) => x.name))], [], 100);
+    return pool.filter((s) => normalize(s).includes(q) && !subChips.includes(s)).slice(0, 6);
+  }, [subInput, subChips, recentSessions]);
 
   // Partner suggestions: real classmates first, then names used in past sessions, filtered
   // by the search box and excluding ones already added.
@@ -119,6 +137,11 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
   };
   const removeSubmission = (idx: number) => {
     setSubmissions((prev) => prev.filter((_, i) => i !== idx));
+  };
+  const addSubmissionInput = () => {
+    const t = subInput.trim();
+    if (t) addSubmission(t);
+    setSubInput('');
   };
   const addPartner = (p: TrainingPartner) => {
     void tapLight();
@@ -235,6 +258,30 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
               {subChips.map((s) => (
                 <Chip key={s} onClick={() => addSubmission(s)}>+ {s}</Chip>
               ))}
+            </div>
+            <div className="mb-3">
+              <div className="flex gap-2">
+                <input
+                  value={subInput}
+                  onChange={(e) => setSubInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSubmissionInput(); } }}
+                  placeholder="Buscar o agregar otra…"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <button onClick={addSubmissionInput} className="px-3 py-2 text-sm bg-gray-200 rounded-lg text-gray-700">Añadir</button>
+              </div>
+              {/* Smart search: suggestions from the full catalog as the user types. */}
+              {subSuggestions.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {subSuggestions.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => { addSubmission(s); setSubInput(''); }}
+                      className="px-3 py-1.5 rounded-full text-sm font-medium border bg-primary-50 text-primary-700 border-primary-500"
+                    >+ {s}</button>
+                  ))}
+                </div>
+              )}
             </div>
             {submissions.length > 0 && (
               <div className="space-y-2">
@@ -371,7 +418,12 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
 }
 
 // Most-used first (by frequency), then any catalog defaults not already present.
-function mergeChips(defaults: string[], used: string[]): string[] {
+/** Lowercase + strip accents so "mataleon" matches "Mataleón". */
+function normalize(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+}
+
+function mergeChips(defaults: string[], used: string[], limit = 12): string[] {
   const freq = new Map<string, number>();
   for (const u of used) freq.set(u, (freq.get(u) ?? 0) + 1);
   const ranked = [...freq.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name);
@@ -379,7 +431,7 @@ function mergeChips(defaults: string[], used: string[]): string[] {
   for (const name of [...ranked, ...defaults]) {
     if (!out.includes(name)) out.push(name);
   }
-  return out.slice(0, 12);
+  return out.slice(0, limit);
 }
 
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
