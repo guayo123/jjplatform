@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -57,10 +58,32 @@ public class PushService {
      */
     @Transactional(readOnly = true)
     public void sendToAcademy(Long academyId, String title, String body, Long exceptStudentId) {
+        sendToAcademy(academyId, title, body,
+                exceptStudentId == null ? List.of() : List.of(exceptStudentId));
+    }
+
+    /** Same as above but excludes several students (e.g. the duel's people already pushed directly). */
+    @Transactional(readOnly = true)
+    public void sendToAcademy(Long academyId, String title, String body, Collection<Long> exceptStudentIds) {
         if (academyId == null || FirebaseApp.getApps().isEmpty()) return; // push disabled / no academy
         List<String> tokens = new ArrayList<>();
         for (DeviceToken dt : tokenRepository.findByAcademyId(academyId)) {
-            if (exceptStudentId != null && exceptStudentId.equals(dt.getStudent().getId())) continue;
+            if (exceptStudentIds != null && exceptStudentIds.contains(dt.getStudent().getId())) continue;
+            tokens.add(dt.getToken());
+        }
+        if (tokens.isEmpty()) return;
+        CompletableFuture.runAsync(() -> dispatch(tokens, title, body));
+    }
+
+    /**
+     * Send a push to the devices of specific students (e.g. the opponent + referee when a duel
+     * is created). No-op when push is off or none of them have a registered device.
+     */
+    @Transactional(readOnly = true)
+    public void sendToStudents(Collection<Long> studentIds, String title, String body) {
+        if (studentIds == null || studentIds.isEmpty() || FirebaseApp.getApps().isEmpty()) return;
+        List<String> tokens = new ArrayList<>();
+        for (DeviceToken dt : tokenRepository.findByStudentIdIn(studentIds)) {
             tokens.add(dt.getToken());
         }
         if (tokens.isEmpty()) return;

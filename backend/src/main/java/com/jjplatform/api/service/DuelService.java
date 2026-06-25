@@ -73,7 +73,24 @@ public class DuelService {
                 .scheduledAt(req.getScheduledAt())
                 .location(trim(req.getLocation()))
                 .build();
-        return toDto(duelRepository.save(duel));
+        Duel saved = duelRepository.save(duel);
+
+        // Always tell the challenged opponent they were called out.
+        pushService.sendToStudents(List.of(opponent.getId()),
+                "⚔️ ¡Te retaron a un duelo!",
+                challenger.getName() + " te desafió. Entra para aceptar o rechazar.");
+        if (referee != null) {
+            // Officiated bout: tell the referee personally, and let the WHOLE academy know it's on
+            // (excluding the three already pushed directly, so nobody gets a duplicate).
+            pushService.sendToStudents(List.of(referee.getId()),
+                    "🧑‍⚖️ Te nombraron árbitro",
+                    challenger.getName() + " vs " + opponent.getName() + " · darás el veredicto al terminar.");
+            pushService.sendToAcademy(saved.getAcademy().getId(),
+                    "⚔️ Duelo con árbitro en la academia",
+                    challenger.getName() + " vs " + opponent.getName() + " · con árbitro designado",
+                    List.of(challenger.getId(), opponent.getId(), referee.getId()));
+        }
+        return toDto(saved);
     }
 
     @Transactional
