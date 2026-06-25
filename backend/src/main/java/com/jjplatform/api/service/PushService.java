@@ -1,6 +1,7 @@
 package com.jjplatform.api.service;
 
 import com.google.firebase.FirebaseApp;
+import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.BatchResponse;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.MessagingErrorCode;
@@ -15,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -111,11 +113,19 @@ public class PushService {
     private void dispatch(List<String> tokens, String title, String body) {
         try {
             Notification notification = Notification.builder().setTitle(title).setBody(body).build();
+            // HIGH priority wakes the device immediately. Without it FCM uses "normal" priority,
+            // which Android can hold for a long time in Doze / battery saver (the >1h delays).
+            // A TTL avoids a stale duel alert popping up hours later if the phone was offline.
+            AndroidConfig androidConfig = AndroidConfig.builder()
+                    .setPriority(AndroidConfig.Priority.HIGH)
+                    .setTtl(Duration.ofHours(4).toMillis())
+                    .build();
             List<String> invalid = new ArrayList<>();
             for (int i = 0; i < tokens.size(); i += FCM_MULTICAST_LIMIT) {
                 List<String> chunk = tokens.subList(i, Math.min(i + FCM_MULTICAST_LIMIT, tokens.size()));
                 MulticastMessage message = MulticastMessage.builder()
                         .setNotification(notification)
+                        .setAndroidConfig(androidConfig)
                         .addAllTokens(chunk)
                         .build();
                 BatchResponse resp = FirebaseMessaging.getInstance().sendEachForMulticast(message);
