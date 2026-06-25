@@ -166,8 +166,10 @@ export default function StudentForm() {
       if (result.status === 'rejected') throw result.reason;
       toast.success(isEdit ? 'Alumno actualizado correctamente' : 'Alumno creado correctamente');
       setTimeout(() => navigate('/admin/students'), 1500);
-    } catch {
-      toast.error('Ocurrió un error al guardar. Intente nuevamente.');
+    } catch (err) {
+      // Surface the API's message (e.g. "Ya existe un alumno con ese RUT en esta academia.")
+      // instead of a generic one, so the admin knows exactly what to fix.
+      toast.error(err instanceof Error ? err.message : 'Ocurrió un error al guardar. Intente nuevamente.');
     } finally {
       setSaving(false);
     }

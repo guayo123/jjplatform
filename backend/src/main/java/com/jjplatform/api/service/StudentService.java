@@ -235,6 +235,7 @@ public class StudentService {
     public StudentDto createStudent(StudentDto dto, Long academyId) {
         Academy academy = academyRepository.findById(academyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Academy not found"));
+        requireRutNotTaken(dto.getRut(), academyId, null);
 
         Student student = Student.builder()
                 .academy(academy)
@@ -269,6 +270,7 @@ public class StudentService {
     @Transactional
     public StudentDto updateStudent(Long id, StudentDto dto, Long academyId) {
         Student student = findStudentByIdAndAcademy(id, academyId);
+        requireRutNotTaken(dto.getRut(), academyId, id);
 
         student.setName(dto.getName());
         student.setRut(dto.getRut());
@@ -309,6 +311,28 @@ public class StudentService {
         Student student = findStudentByIdAndAcademy(id, academyId);
         student.setActive(false);
         studentRepository.save(student);
+    }
+
+    /**
+     * Reject creating/updating a student whose RUT already belongs to another active student of the
+     * same academy. RUT is compared format-tolerant (sin puntos ni guion, K en mayúscula), igual que
+     * el flujo de registro. Un RUT vacío no se valida (es opcional). The same person CAN exist across
+     * different academies — by design — so the check is scoped to this academy only.
+     */
+    private void requireRutNotTaken(String rut, Long academyId, Long excludeStudentId) {
+        String normalized = normalizeRut(rut);
+        if (normalized.isEmpty()) return;
+        boolean taken = studentRepository.findByAcademyIdAndActiveTrue(academyId).stream()
+                .filter(s -> excludeStudentId == null || !s.getId().equals(excludeStudentId))
+                .anyMatch(s -> normalizeRut(s.getRut()).equals(normalized));
+        if (taken) {
+            throw new IllegalArgumentException("Ya existe un alumno con ese RUT en esta academia.");
+        }
+    }
+
+    private static String normalizeRut(String rut) {
+        if (rut == null) return "";
+        return rut.replaceAll("[^0-9kK]", "").toUpperCase();
     }
 
     private Student findStudentByIdAndAcademy(Long id, Long academyId) {
