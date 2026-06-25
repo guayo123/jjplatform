@@ -259,7 +259,8 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
           {/* Techniques */}
           <Group label="Técnicas trabajadas">
             <div className="flex flex-wrap gap-2 mb-2">
-              {techChips.map((t) => (
+              {/* Show the fixed catalog plus any custom technique the user typed in, so "Añadir" gives visible feedback. */}
+              {[...techChips, ...techniques.filter((t) => !techChips.includes(t))].map((t) => (
                 <Chip key={t} active={techniques.includes(t)} onClick={() => toggleTechnique(t)}>{t}</Chip>
               ))}
             </div>
