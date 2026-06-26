@@ -179,6 +179,13 @@ public class PortalController {
         return ResponseEntity.noContent().build();
     }
 
+    /** Kickboxing log — a striking TrainingSession against the academy's "Kickboxing" discipline. */
+    @PostMapping("/students/{studentId}/kickboxing")
+    public ResponseEntity<TrainingSessionDto> createKickboxing(@PathVariable Long studentId,
+                                                               @RequestBody TrainingSessionDto dto) {
+        return ResponseEntity.ok(portalService.createKickboxingSession(studentId, dto));
+    }
+
     // --- Conditioning (strength & physical prep) journal ------------------
 
     @GetMapping("/students/{studentId}/conditioning")

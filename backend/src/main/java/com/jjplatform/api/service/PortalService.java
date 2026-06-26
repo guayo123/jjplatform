@@ -16,9 +16,11 @@ import com.jjplatform.api.dto.UpcomingClassDto;
 import com.jjplatform.api.dto.TrainingSummaryDto;
 import com.jjplatform.api.dto.WeightEntryDto;
 import com.jjplatform.api.exception.ResourceNotFoundException;
+import com.jjplatform.api.model.Discipline;
 import com.jjplatform.api.model.Student;
 import com.jjplatform.api.model.User;
 import com.jjplatform.api.model.WeightEntry;
+import com.jjplatform.api.repository.DisciplineRepository;
 import com.jjplatform.api.repository.StudentRepository;
 import com.jjplatform.api.repository.UserRepository;
 import com.jjplatform.api.repository.WeightEntryRepository;
@@ -66,6 +68,7 @@ public class PortalService {
     private final ClassReservationService classReservationService;
     private final PushService pushService;
     private final WeightEntryRepository weightEntryRepository;
+    private final DisciplineRepository disciplineRepository;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -320,6 +323,32 @@ public class PortalService {
     public void deleteTrainingSession(Long studentId, Long sessionId) {
         requireOwnedStudent(studentId);
         trainingService.delete(studentId, sessionId);
+    }
+
+    /** Discipline name used for kickboxing sessions (one per academy, resolved/created on demand). */
+    private static final String KICKBOXING_DISCIPLINE = "Kickboxing";
+
+    /**
+     * Log a kickboxing session. Available to ALL students (not only those enrolled in a kickboxing
+     * discipline): it resolves — or creates once — the academy's "Kickboxing" discipline and stores a
+     * regular TrainingSession against it, with no Gi/No-Gi modality. Submissions simply aren't sent.
+     */
+    public TrainingSessionDto createKickboxingSession(Long studentId, TrainingSessionDto dto) {
+        Student s = requireOwnedStudent(studentId);
+        Discipline kickboxing = resolveKickboxingDiscipline(s);
+        dto.setDisciplineId(kickboxing.getId());
+        dto.setModality(null); // striking, not BJJ — no Gi/No-Gi dimension
+        return trainingService.create(s, dto);
+    }
+
+    private Discipline resolveKickboxingDiscipline(Student student) {
+        Long academyId = student.getAcademy().getId();
+        return disciplineRepository.findFirstByAcademyIdAndNameIgnoreCase(academyId, KICKBOXING_DISCIPLINE)
+                .orElseGet(() -> disciplineRepository.save(Discipline.builder()
+                        .academy(student.getAcademy())
+                        .name(KICKBOXING_DISCIPLINE)
+                        .active(true)
+                        .build()));
     }
 
     // --- Conditioning (strength & physical prep) journal -------------------
