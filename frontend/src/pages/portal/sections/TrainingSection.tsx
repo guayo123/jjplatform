@@ -1070,7 +1070,7 @@ function LogChooser({ onClose, onPick }: { onClose: () => void; onPick: (kind: '
           </button>
           <button onClick={() => onPick('cond')} className={opt}>
             <span className={badge}><DumbbellIcon className="w-6 h-6" /></span>
-            <span className={label}>Acondicionamiento</span>
+            <span className={label}>Físico</span>
           </button>
         </div>
       </div>

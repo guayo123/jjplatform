@@ -38,6 +38,9 @@ const DEFAULT_STRIKING = [
   'Jab', 'Cross', 'Hook', 'Uppercut', 'Low kick', 'Patada media', 'Patada alta',
   'Teep', 'Rodillazo', 'Codazo', 'Clinch', 'Combinaciones',
 ];
+// Discipline name kickboxing sessions are stored under (matches the backend). Used to keep the
+// technique catalog separated: the Kickboxing log shouldn't surface BJJ techniques and vice-versa.
+const KICKBOXING_DISCIPLINE = 'Kickboxing';
 
 const DURATIONS = [30, 45, 60, 90];
 
@@ -96,11 +99,13 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // Merge the user's most-used values with the default catalog so repeat entries are one tap.
-  // Kickboxing swaps the BJJ technique catalog for striking moves.
-  const techChips = useMemo(
-    () => mergeChips(striking ? DEFAULT_STRIKING : DEFAULT_TECHNIQUES, recentSessions.flatMap((s) => s.techniques)),
-    [recentSessions, striking],
-  );
+  // Kickboxing swaps the BJJ catalog for striking moves AND only folds in history from kickboxing
+  // sessions (otherwise the student's BJJ techniques would pollute the striking chips, and vice-versa).
+  const techChips = useMemo(() => {
+    const sameKind = recentSessions.filter((s) =>
+      striking ? s.disciplineName === KICKBOXING_DISCIPLINE : s.disciplineName !== KICKBOXING_DISCIPLINE);
+    return mergeChips(striking ? DEFAULT_STRIKING : DEFAULT_TECHNIQUES, sameKind.flatMap((s) => s.techniques));
+  }, [recentSessions, striking]);
   const subChips = useMemo(
     () => mergeChips(DEFAULT_SUBMISSIONS, recentSessions.flatMap((s) => s.submissions.map((x) => x.name)), 14),
     [recentSessions],
