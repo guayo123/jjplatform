@@ -33,6 +33,10 @@ export const trainingApi = {
   create: (studentId: number, data: TrainingSessionForm) =>
     client.post<TrainingSession>(`/portal/students/${studentId}/training`, data).then((r) => r.data),
 
+  /** Kickboxing session — striking TrainingSession; the backend resolves the academy's discipline. */
+  createKickboxing: (studentId: number, data: TrainingSessionForm) =>
+    client.post<TrainingSession>(`/portal/students/${studentId}/kickboxing`, data).then((r) => r.data),
+
   remove: (studentId: number, sessionId: number) =>
     client.delete<void>(`/portal/students/${studentId}/training/${sessionId}`).then((r) => r.data),
 

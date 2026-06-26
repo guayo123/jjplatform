@@ -48,9 +48,15 @@ const HISTORY_FILTERS: Array<{ key: HistoryFilter; label: string }> = [
   { key: 'FISICO', label: 'Físico' },
 ];
 
-/** Local YYYY-MM-DD for "today" — matches the backend LocalDate string on sessions. */
-const trainedToday = (sessions: TrainingSession[]) =>
-  sessions.some((s) => s.date === new Date().toLocaleDateString('en-CA'));
+/**
+ * "Trained today" across BOTH journals — a gym (físico) day keeps the streak warm too, same as it
+ * counts toward the streak on the backend. Used so the streak chip / reminders don't show "running
+ * out" when the only session today was conditioning. Local YYYY-MM-DD matches the backend date string.
+ */
+const trainedTodayAny = (sessions: TrainingSession[], cond: ConditioningSession[]) => {
+  const today = new Date().toLocaleDateString('en-CA');
+  return sessions.some((s) => s.date === today) || cond.some((c) => !c.backdated && c.date === today);
+};
 
 /** "Entreno" — personal training journal: weekly goal/streak + quick log + recent sessions. */
 export default function TrainingSection({ studentId, disciplines, studentName, academyName }: Props) {
@@ -65,8 +71,9 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
   const [shareNote, setShareNote] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
+  const [kickFormOpen, setKickFormOpen] = useState(false); // log a kickboxing (striking) session
   const [condSessions, setCondSessions] = useState<ConditioningSession[]>([]);
-  const [chooserOpen, setChooserOpen] = useState(false); // pick BJJ vs conditioning to log
+  const [chooserOpen, setChooserOpen] = useState(false); // pick BJJ / kickboxing / conditioning to log
   const [condFormOpen, setCondFormOpen] = useState(false);
   const [condDetailFor, setCondDetailFor] = useState<ConditioningSession | null>(null);
   // Home shows the summary; history (sessions + trends) lives one tap away.
@@ -110,7 +117,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
       setBoard(ranking);
       setCondSessions(cond);
       // Refresh the native streak reminders so their copy reflects the current state.
-      void scheduleStreakReminders(sum.currentStreak, trainedToday(list), {
+      void scheduleStreakReminders(sum.currentStreak, trainedTodayAny(list, cond), {
         lostStreak: sum.lostStreak,
         repairAvailable: sum.repairAvailable,
       });
@@ -158,14 +165,18 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     return out.slice(0, 20);
   }, [condSessions]);
 
-  const handleSave = async (data: TrainingSessionForm) => {
+  const handleSave = (data: TrainingSessionForm) => saveTrainingSession(() => trainingApi.create(studentId, data));
+  // Kickboxing is a TrainingSession too, so it shares the exact same post-save flow (streak, goal, badges).
+  const handleSaveKickboxing = (data: TrainingSessionForm) => saveTrainingSession(() => trainingApi.createKickboxing(studentId, data));
+
+  const saveTrainingSession = async (create: () => Promise<unknown>) => {
     const prevStreak = summary?.currentStreak ?? 0;
     const prevGoalMet = summary?.weeklyGoalMet ?? false;
     // Unlock the cue inside the tap's user-gesture window (after the `await` the browser
     // drops user activation and autoplay-blocks the audio). It only actually sounds once
     // the backend confirms the save below — a failed save throws and the OSS never plays.
     primeOss();
-    await trainingApi.create(studentId, data);
+    await create();
     playOss();
     void notifySuccess();
     try {
@@ -174,7 +185,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     const [sum, list] = await Promise.all([trainingApi.summary(studentId), trainingApi.list(studentId)]);
     setSummary(sum);
     setSessions(list);
-    void scheduleStreakReminders(sum.currentStreak, trainedToday(list), {
+    void scheduleStreakReminders(sum.currentStreak, trainedTodayAny(list, condSessions), {
       lostStreak: sum.lostStreak,
       repairAvailable: sum.repairAvailable,
     });
@@ -222,10 +233,8 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     ]);
     setSummary(sum);
     setCondSessions(cond);
-    // "Trained today" now spans both journals (a gym day keeps the streak too).
-    const todayStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
-    const didToday = trainedToday(list) || cond.some((c) => !c.backdated && c.date === todayStr);
-    void scheduleStreakReminders(sum.currentStreak, didToday, {
+    // "Trained today" spans both journals (a gym day keeps the streak too).
+    void scheduleStreakReminders(sum.currentStreak, trainedTodayAny(list, cond), {
       lostStreak: sum.lostStreak,
       repairAvailable: sum.repairAvailable,
     });
@@ -255,7 +264,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
       const sum = await trainingApi.repairStreak(studentId);
       setSummary(sum);
       void notifySuccess();
-      void scheduleStreakReminders(sum.currentStreak, trainedToday(sessions), {
+      void scheduleStreakReminders(sum.currentStreak, trainedTodayAny(sessions, condSessions), {
         lostStreak: sum.lostStreak,
         repairAvailable: sum.repairAvailable,
       });
@@ -388,7 +397,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
       ) : (
         <ProgressCard
           summary={summary!}
-          trainedToday={trainedToday(sessions)}
+          trainedToday={trainedTodayAny(sessions, condSessions)}
           onChangeGoal={handleSetGoal}
           savingGoal={savingGoal}
           onShare={sessions.length > 0 ? openShare : undefined}
@@ -480,7 +489,12 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
       {chooserOpen && (
         <LogChooser
           onClose={() => setChooserOpen(false)}
-          onPick={(kind) => { setChooserOpen(false); if (kind === 'bjj') setFormOpen(true); else setCondFormOpen(true); }}
+          onPick={(kind) => {
+            setChooserOpen(false);
+            if (kind === 'bjj') setFormOpen(true);
+            else if (kind === 'kick') setKickFormOpen(true);
+            else setCondFormOpen(true);
+          }}
         />
       )}
 
@@ -491,6 +505,17 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
           classmates={classmates}
           onClose={() => setFormOpen(false)}
           onSave={handleSave}
+        />
+      )}
+
+      {kickFormOpen && (
+        <TrainingForm
+          variant="striking"
+          disciplines={[]}
+          recentSessions={sessions}
+          classmates={classmates}
+          onClose={() => setKickFormOpen(false)}
+          onSave={handleSaveKickboxing}
         />
       )}
 
@@ -1013,32 +1038,39 @@ function DumbbellIcon({ className = '' }: { className?: string }) {
   );
 }
 
-/** Chooser shown when tapping +: log a BJJ session or a conditioning (gym) session. Centered. */
-function LogChooser({ onClose, onPick }: { onClose: () => void; onPick: (kind: 'bjj' | 'cond') => void }) {
+function GlovesIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8 11V8a2.5 2.5 0 0 1 5 0v2" />
+      <path d="M13 9h2.5A2.5 2.5 0 0 1 18 11.5v2A3.5 3.5 0 0 1 14.5 17H10a3 3 0 0 1-3-3v-2a1.5 1.5 0 0 1 1.5-1.5H13" />
+      <path d="M8 17.3v1.2A1.5 1.5 0 0 0 9.5 20h4a1.5 1.5 0 0 0 1.5-1.5v-1.6" />
+    </svg>
+  );
+}
+
+/** Chooser shown when tapping +: log a BJJ, kickboxing, or conditioning (gym) session. Centered. */
+function LogChooser({ onClose, onPick }: { onClose: () => void; onPick: (kind: 'bjj' | 'kick' | 'cond') => void }) {
+  const opt = 'flex flex-col items-center gap-2 py-5 rounded-xl border-2 border-gray-200 hover:border-primary-400 hover:bg-primary-50/40 transition-colors';
+  const badge = 'w-11 h-11 rounded-full bg-primary-50 text-primary-600 flex items-center justify-center';
+  const label = 'text-xs font-semibold text-gray-800 text-center leading-tight';
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-5 pt-safe pb-safe">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl jjp-pop">
         <button onClick={onClose} className="absolute right-3 top-3 text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
         <h2 className="text-center font-bold text-gray-900">¿Qué quieres registrar?</h2>
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <button
-            onClick={() => onPick('bjj')}
-            className="flex flex-col items-center gap-2.5 py-6 rounded-xl border-2 border-gray-200 hover:border-primary-400 hover:bg-primary-50/40 transition-colors"
-          >
-            <span className="w-12 h-12 rounded-full bg-primary-50 text-primary-600 flex items-center justify-center">
-              <BeltKnotIcon className="w-7 h-7" />
-            </span>
-            <span className="text-sm font-semibold text-gray-800">Jiujitsu</span>
+        <div className="mt-5 grid grid-cols-3 gap-3">
+          <button onClick={() => onPick('bjj')} className={opt}>
+            <span className={badge}><BeltKnotIcon className="w-6 h-6" /></span>
+            <span className={label}>Jiujitsu</span>
           </button>
-          <button
-            onClick={() => onPick('cond')}
-            className="flex flex-col items-center gap-2.5 py-6 rounded-xl border-2 border-gray-200 hover:border-primary-400 hover:bg-primary-50/40 transition-colors"
-          >
-            <span className="w-12 h-12 rounded-full bg-primary-50 text-primary-600 flex items-center justify-center">
-              <DumbbellIcon className="w-7 h-7" />
-            </span>
-            <span className="text-sm font-semibold text-gray-800">Acondicionamiento</span>
+          <button onClick={() => onPick('kick')} className={opt}>
+            <span className={badge}><GlovesIcon className="w-6 h-6" /></span>
+            <span className={label}>Kickboxing</span>
+          </button>
+          <button onClick={() => onPick('cond')} className={opt}>
+            <span className={badge}><DumbbellIcon className="w-6 h-6" /></span>
+            <span className={label}>Acondicionamiento</span>
           </button>
         </div>
       </div>

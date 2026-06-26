@@ -33,6 +33,12 @@ const SUBMISSION_CATALOG = [
   'Llave de tobillo', 'Estrangulación en triángulo', 'Crucifijo', 'Bate de béisbol',
 ];
 
+// Striking catalog for the Kickboxing log (chips + free-text "Agregar otra"). No submissions here.
+const DEFAULT_STRIKING = [
+  'Jab', 'Cross', 'Hook', 'Uppercut', 'Low kick', 'Patada media', 'Patada alta',
+  'Teep', 'Rodillazo', 'Codazo', 'Clinch', 'Combinaciones',
+];
+
 const DURATIONS = [30, 45, 60, 90];
 
 // Backdating: a forgotten session can be logged for today or the two previous days only
@@ -54,13 +60,16 @@ interface Props {
   classmates: Classmate[];
   onClose: () => void;
   onSave: (data: TrainingSessionForm) => Promise<void>;
+  /** 'striking' = Kickboxing log: no discipline picker, no Gi/No-Gi, no submissions, striking catalog. */
+  variant?: 'bjj' | 'striking';
 }
 
 /**
  * Quick training-log sheet. Designed to be completable in < 30s: modality + Guardar
  * is enough; everything else is optional and tap-driven (chips, steppers, ratings).
  */
-export default function TrainingForm({ disciplines, recentSessions, classmates, onClose, onSave }: Props) {
+export default function TrainingForm({ disciplines, recentSessions, classmates, onClose, onSave, variant = 'bjj' }: Props) {
+  const striking = variant === 'striking';
   const bjjDisc = disciplines.find((d) => isBjj(d.disciplineName));
   const dateOptions = useMemo(() => DATE_OPTIONS.map((o) => ({ ...o, value: ymdOffset(o.days) })), []);
   const [date, setDate] = useState<string>(dateOptions[0].value);
@@ -68,7 +77,8 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
     bjjDisc?.disciplineId ?? disciplines[0]?.disciplineId ?? null,
   );
   const selectedDisc = disciplines.find((d) => d.disciplineId === disciplineId);
-  const showModality = isBjj(selectedDisc?.disciplineName);
+  // Kickboxing has no Gi/No-Gi dimension; otherwise it follows the discipline.
+  const showModality = !striking && isBjj(selectedDisc?.disciplineName);
 
   const [modality, setModality] = useState<TrainingModality | null>('GI');
   const [durationMin, setDurationMin] = useState<number | null>(null);
@@ -86,9 +96,10 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // Merge the user's most-used values with the default catalog so repeat entries are one tap.
+  // Kickboxing swaps the BJJ technique catalog for striking moves.
   const techChips = useMemo(
-    () => mergeChips(DEFAULT_TECHNIQUES, recentSessions.flatMap((s) => s.techniques)),
-    [recentSessions],
+    () => mergeChips(striking ? DEFAULT_STRIKING : DEFAULT_TECHNIQUES, recentSessions.flatMap((s) => s.techniques)),
+    [recentSessions, striking],
   );
   const subChips = useMemo(
     () => mergeChips(DEFAULT_SUBMISSIONS, recentSessions.flatMap((s) => s.submissions.map((x) => x.name)), 14),
@@ -162,7 +173,8 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
     setSaveError(null);
     try {
       await onSave({
-        disciplineId,
+        // Kickboxing: the backend resolves the academy's discipline; no Gi/No-Gi, no submissions.
+        disciplineId: striking ? null : disciplineId,
         date,
         // Anything other than "Hoy" is a late entry → recorded, but won't extend the streak.
         backdated: date !== dateOptions[0].value,
@@ -173,7 +185,7 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
         performance,
         notes: notes.trim() || null,
         techniques,
-        submissions,
+        submissions: striking ? [] : submissions,
         partners,
       });
       onClose();
@@ -190,7 +202,7 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
       <div className="relative w-full sm:max-w-lg bg-gray-50 rounded-t-2xl sm:rounded-2xl max-h-[92vh] overflow-y-auto pb-safe shadow-2xl">
         {/* Header */}
         <div className="sticky top-0 bg-gray-50/95 backdrop-blur px-5 pt-4 pb-3 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="font-bold text-gray-900">Registrar entrenamiento</h2>
+          <h2 className="font-bold text-gray-900">{striking ? 'Registrar Kickboxing' : 'Registrar entrenamiento'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
         </div>
 
@@ -211,8 +223,8 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
             )}
           </Group>
 
-          {/* Discipline (only if more than one) */}
-          {disciplines.length > 1 && (
+          {/* Discipline (only if more than one) — hidden for Kickboxing (fixed discipline). */}
+          {!striking && disciplines.length > 1 && (
             <Group label="Disciplina">
               <div className="flex flex-wrap gap-2">
                 {disciplines.map((d) => (
@@ -252,7 +264,8 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
             <Stepper value={roundsCount} onChange={setRoundsCount} />
           </Group>
 
-          {/* Submissions with direction */}
+          {/* Submissions with direction — not applicable to striking (Kickboxing). */}
+          {!striking && (
           <Group label="Sumisiones">
             <div className="flex flex-wrap gap-2 mb-3">
               {subChips.map((s) => (
@@ -302,6 +315,7 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
               </div>
             )}
           </Group>
+          )}
 
           {/* Techniques */}
           <Group label="Técnicas trabajadas">
