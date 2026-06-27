@@ -18,8 +18,9 @@ export async function registerPush(studentId: number): Promise<void> {
     const perm = await PushNotifications.requestPermissions();
     if (perm.receive !== 'granted') return;
 
-    await PushNotifications.register();
-
+    // Attach the listeners BEFORE register(): register() can emit the 'registration' token event
+    // immediately, and a listener added afterwards misses it — so that device never sends its token
+    // to the backend and never receives pushes. (Race that left some students out of notifications.)
     // Fresh listeners each call would stack up; clear any from a previous registration first.
     await PushNotifications.removeAllListeners();
 
@@ -33,6 +34,8 @@ export async function registerPush(studentId: number): Promise<void> {
       // eslint-disable-next-line no-console
       console.warn('[push] registration error', err);
     });
+
+    await PushNotifications.register();
   } catch {
     /* push unavailable — non-critical */
   }
