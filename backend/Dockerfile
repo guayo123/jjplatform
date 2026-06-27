@@ -20,4 +20,6 @@ COPY --from=build /app/target/jjplatform-api-*.jar app.jar
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Cap the JVM heap: without -Xmx the container-aware JVM can size MaxHeap off the host's
+# total RAM (Railway), ballooning memory to several GB. 512m max keeps the footprint small.
+ENTRYPOINT ["java", "-Xmx512m", "-Xms256m", "-XX:+ExitOnOutOfMemoryError", "-jar", "app.jar"]
