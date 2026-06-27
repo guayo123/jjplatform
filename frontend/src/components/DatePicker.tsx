@@ -128,7 +128,8 @@ export default function DatePicker({ value, onChange, max, min, required, placeh
     ...Array.from({ length: totalDays }, (_, i) => i + 1),
   ];
 
-  const minYear = min ? parseInt(min.slice(0, 4)) : 1990;
+  // Default lower bound: 100 years back so birth dates of any realistic age can be picked.
+  const minYear = min ? parseInt(min.slice(0, 4)) : new Date().getFullYear() - 100;
   const maxYear = max ? parseInt(max.slice(0, 4)) : new Date().getFullYear();
   const years = Array.from({ length: maxYear - minYear + 1 }, (_, i) => maxYear - i);
 
