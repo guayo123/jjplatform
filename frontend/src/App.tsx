@@ -10,6 +10,7 @@ import { useAuthStore } from './stores/authStore';
 import Home from './pages/public/Home';
 import AcademyProfile from './pages/public/AcademyProfile';
 import PrivacyPolicy from './pages/public/PrivacyPolicy';
+import DeleteAccount from './pages/public/DeleteAccount';
 import Login from './pages/admin/Login';
 import StudentLogin from './pages/portal/StudentLogin';
 import StudentRegister from './pages/portal/StudentRegister';
@@ -60,6 +61,7 @@ export default function App() {
       <Route path="/" element={<RootEntry />} />
       <Route path="/academies/:id" element={<AcademyProfile />} />
       <Route path="/privacidad" element={<PrivacyPolicy />} />
+      <Route path="/eliminar-cuenta" element={<DeleteAccount />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/login" element={<Login />} />
       <Route path="/portal/login" element={<StudentLogin />} />
