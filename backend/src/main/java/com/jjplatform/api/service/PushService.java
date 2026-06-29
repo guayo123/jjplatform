@@ -19,7 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -73,7 +75,10 @@ public class PushService {
             if (exceptStudentIds != null && exceptStudentIds.contains(dt.getStudent().getId())) continue;
             tokens.add(dt.getToken());
         }
-        if (tokens.isEmpty()) return;
+        if (tokens.isEmpty()) {
+            log.info("Push skipped: academy {} has no registered devices to notify", academyId);
+            return;
+        }
         CompletableFuture.runAsync(() -> dispatch(tokens, title, body));
     }
 
@@ -88,7 +93,10 @@ public class PushService {
         for (DeviceToken dt : tokenRepository.findByStudentIdIn(studentIds)) {
             tokens.add(dt.getToken());
         }
-        if (tokens.isEmpty()) return;
+        if (tokens.isEmpty()) {
+            log.info("Push skipped: students {} have no registered devices", studentIds);
+            return;
+        }
         CompletableFuture.runAsync(() -> dispatch(tokens, title, body));
     }
 
@@ -111,6 +119,7 @@ public class PushService {
     }
 
     private void dispatch(List<String> tokens, String title, String body) {
+        log.info("Push dispatch start: '{}' → {} device(s)", title, tokens.size());
         try {
             Notification notification = Notification.builder().setTitle(title).setBody(body).build();
             // HIGH priority wakes the device immediately. Without it FCM uses "normal" priority,
@@ -121,6 +130,8 @@ public class PushService {
                     .setTtl(Duration.ofHours(4).toMillis())
                     .build();
             List<String> invalid = new ArrayList<>();
+            int sent = 0, failed = 0;
+            Map<String, Integer> errors = new HashMap<>(); // FCM error code → count, for the summary line
             for (int i = 0; i < tokens.size(); i += FCM_MULTICAST_LIMIT) {
                 List<String> chunk = tokens.subList(i, Math.min(i + FCM_MULTICAST_LIMIT, tokens.size()));
                 MulticastMessage message = MulticastMessage.builder()
@@ -129,11 +140,14 @@ public class PushService {
                         .addAllTokens(chunk)
                         .build();
                 BatchResponse resp = FirebaseMessaging.getInstance().sendEachForMulticast(message);
+                sent += resp.getSuccessCount();
                 List<SendResponse> responses = resp.getResponses();
                 for (int j = 0; j < responses.size(); j++) {
                     SendResponse r = responses.get(j);
                     if (r.isSuccessful()) continue;
+                    failed++;
                     MessagingErrorCode code = r.getException() != null ? r.getException().getMessagingErrorCode() : null;
+                    errors.merge(code != null ? code.name() : "UNKNOWN", 1, Integer::sum);
                     // Token gone for good → drop it so we stop trying.
                     if (code == MessagingErrorCode.UNREGISTERED || code == MessagingErrorCode.INVALID_ARGUMENT) {
                         invalid.add(chunk.get(j));
@@ -142,6 +156,8 @@ public class PushService {
             }
             invalid.forEach(this::removeToken);
             if (!invalid.isEmpty()) log.info("Pruned {} stale FCM tokens", invalid.size());
+            log.info("Push dispatch done: '{}' → {} delivered, {} failed{}",
+                    title, sent, failed, errors.isEmpty() ? "" : " " + errors);
         } catch (Exception e) {
             log.warn("Failed to send academy push", e);
         }
