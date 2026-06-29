@@ -39,17 +39,34 @@ public class PushService {
 
     private final DeviceTokenRepository tokenRepository;
 
-    /** Upsert a device token for the student (re-registering the same token refreshes its owner). */
-    @Transactional
+    /**
+     * Upsert a device token for the student (re-registering the same token refreshes its owner).
+     * Not @Transactional on purpose: each repo op runs in its own transaction so we can catch a
+     * concurrent-insert collision cleanly. The app sometimes fires registration twice in quick
+     * succession, so two requests race to insert the same token — the loser hits the UNIQUE
+     * constraint; that's harmless (the token is already registered) and is swallowed below.
+     */
     public void registerToken(Student student, String token, String platform) {
         if (token == null || token.isBlank()) return;
-        DeviceToken dt = tokenRepository.findByToken(token).orElseGet(DeviceToken::new);
-        boolean isNew = dt.getId() == null;
-        dt.setStudent(student);
-        dt.setToken(token);
-        dt.setPlatform(platform);
-        tokenRepository.save(dt);
-        log.info("Device token {} for {} ({})", isNew ? "registered" : "refreshed", label(student), platform);
+        DeviceToken existing = tokenRepository.findByToken(token).orElse(null);
+        if (existing != null) {
+            existing.setStudent(student);
+            existing.setPlatform(platform);
+            tokenRepository.save(existing);
+            log.info("Device token refreshed for {} ({})", label(student), platform);
+            return;
+        }
+        try {
+            DeviceToken dt = new DeviceToken();
+            dt.setStudent(student);
+            dt.setToken(token);
+            dt.setPlatform(platform);
+            tokenRepository.saveAndFlush(dt);
+            log.info("Device token registered for {} ({})", label(student), platform);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // A concurrent request just inserted the same token — the device is registered; ignore.
+            log.info("Device token already registered (concurrent) for {} ({})", label(student), platform);
+        }
     }
 
     @Transactional
