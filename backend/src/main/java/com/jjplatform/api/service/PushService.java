@@ -44,10 +44,12 @@ public class PushService {
     public void registerToken(Student student, String token, String platform) {
         if (token == null || token.isBlank()) return;
         DeviceToken dt = tokenRepository.findByToken(token).orElseGet(DeviceToken::new);
+        boolean isNew = dt.getId() == null;
         dt.setStudent(student);
         dt.setToken(token);
         dt.setPlatform(platform);
         tokenRepository.save(dt);
+        log.info("Device token {} for {} ({})", isNew ? "registered" : "refreshed", label(student), platform);
     }
 
     @Transactional
