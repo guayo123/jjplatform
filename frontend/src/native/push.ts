@@ -14,8 +14,13 @@ import { devicesApi } from '../api/devices';
 export async function registerPush(studentId: number): Promise<void> {
   if (!getPlatformInfo().isNative) return;
   if (import.meta.env.VITE_ENABLE_PUSH !== 'true') return;
+  const platform = getPlatformInfo().platform;
+  // Debug events (best-effort) so we can see in Railway exactly where push registration stops.
+  const log = (event: string, detail?: string) => { void devicesApi.clientLog(studentId, event, detail).catch(() => {}); };
+  log('push_start', platform);
   try {
     const perm = await PushNotifications.requestPermissions();
+    log('push_permission', perm.receive);
     if (perm.receive !== 'granted') return;
 
     // Attach the listeners BEFORE register(): register() can emit the 'registration' token event
@@ -25,18 +30,19 @@ export async function registerPush(studentId: number): Promise<void> {
     await PushNotifications.removeAllListeners();
 
     await PushNotifications.addListener('registration', (token) => {
+      log('push_token_received', platform);
       devicesApi
-        .register(studentId, token.value, getPlatformInfo().platform)
-        .catch(() => { /* token sync is best-effort; retried next app open */ });
+        .register(studentId, token.value, platform)
+        .then(() => log('push_register_ok', platform))
+        .catch(() => log('push_register_fail', platform)); // token sync is best-effort; retried next app open
     });
 
     await PushNotifications.addListener('registrationError', (err) => {
-      // eslint-disable-next-line no-console
-      console.warn('[push] registration error', err);
+      log('push_registration_error', String(err?.error ?? err));
     });
 
     await PushNotifications.register();
-  } catch {
-    /* push unavailable — non-critical */
+  } catch (e) {
+    log('push_exception', String(e));
   }
 }

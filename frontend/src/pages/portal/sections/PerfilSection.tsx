@@ -17,6 +17,7 @@ import { conditioningApi } from '../../../api/conditioning';
 import { formatDate, Field } from './shared';
 import { useThemeStore, THEME_OPTIONS } from '../theme';
 import { isSoundEnabled, setSoundEnabled, playOss, isDuelSoundEnabled, setDuelSoundEnabled, playDuelo } from '../../../native/sound';
+import { APP_ICON_OPTIONS, getChosenAppIcon, applyAppIcon } from '../../../native/beltIcon';
 
 interface Props {
   student: Student;
@@ -46,6 +47,8 @@ function SettingsSection({ studentId }: { studentId: number }) {
   const [goal, setGoal] = useState<number | null>(null);
   const [savingGoal, setSavingGoal] = useState(false);
   const [prefs, setPrefs] = useState<ReminderPrefs>(() => getReminderPrefs());
+  const [appIcon, setAppIcon] = useState<string>(() => getChosenAppIcon());
+  const [pendingIcon, setPendingIcon] = useState<string | null>(null);
 
   useEffect(() => {
     trainingApi.getGoal().then(setGoal).catch(() => { /* leave unset */ });
@@ -151,6 +154,32 @@ function SettingsSection({ studentId }: { studentId: number }) {
         </div>
       </div>
 
+      {/* App icon picker — native only (changing it swaps the launcher alias and restarts the app) */}
+      {isNative && (
+        <div className="mt-5 pt-5 border-t border-gray-100">
+          <p className="text-sm font-semibold text-gray-700">Ícono de la app 🥋</p>
+          <p className="text-xs text-gray-400 mb-3">Elige el color del ícono. La app se cerrará para aplicarlo.</p>
+          <div className="flex flex-wrap gap-3">
+            {APP_ICON_OPTIONS.map((opt) => {
+              const active = appIcon === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  onClick={() => { if (opt.key !== appIcon) setPendingIcon(opt.key); }}
+                  className="flex flex-col items-center gap-1"
+                >
+                  <span
+                    className="w-11 h-11 rounded-2xl border-2 transition-colors"
+                    style={{ background: opt.color, borderColor: active ? 'var(--acc, #FF5436)' : '#e5e7eb' }}
+                  />
+                  <span className={`text-[11px] ${active ? 'font-bold text-gray-800' : 'text-gray-500'}`}>{opt.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Sounds */}
       <div className="mt-5 pt-5 border-t border-gray-100">
         <div className="flex items-center justify-between gap-3">
@@ -220,6 +249,34 @@ function SettingsSection({ studentId }: { studentId: number }) {
               </select>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Confirm icon change — warns the app will close, then applies + exits. */}
+      {pendingIcon && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-5">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setPendingIcon(null)} />
+          <div className="relative bg-white rounded-2xl p-6 max-w-xs text-center shadow-2xl">
+            <div className="text-3xl mb-2">🥋</div>
+            <h3 className="font-bold text-gray-900">Cambiar ícono de la app</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              La app se cerrará para aplicar el nuevo ícono. Vuelve a abrirla y lo verás cambiado.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setPendingIcon(null)}
+                className="flex-1 bg-gray-100 text-gray-700 font-semibold py-2.5 rounded-xl"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => { const b = pendingIcon; setAppIcon(b); setPendingIcon(null); void applyAppIcon(b, studentId); }}
+                className="flex-1 bg-primary-600 text-white font-semibold py-2.5 rounded-xl"
+              >
+                Continuar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

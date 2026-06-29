@@ -7,4 +7,8 @@ export const devicesApi = {
 
   unregister: (studentId: number, token: string) =>
     client.delete<void>(`/portal/students/${studentId}/devices`, { params: { token } }).then((r) => r.data),
+
+  /** Debug-only: report a small client event (push lifecycle, icon change) so it shows in Railway logs. */
+  clientLog: (studentId: number, event: string, detail?: string) =>
+    client.post<void>(`/portal/students/${studentId}/client-log`, { event, detail: detail ?? '' }).then((r) => r.data),
 };

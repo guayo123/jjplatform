@@ -1,4 +1,6 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import { App } from '@capacitor/app';
+import { devicesApi } from '../api/devices';
 
 interface BeltIconPlugin {
   setBelt(options: { belt: string }): Promise<void>;
@@ -6,37 +8,43 @@ interface BeltIconPlugin {
 
 const BeltIcon = registerPlugin<BeltIconPlugin>('BeltIcon');
 
-const BELT_ORDER = ['WHITE', 'BLUE', 'PURPLE', 'BROWN', 'BLACK'];
+/** The five app-icon options (one per belt color). `key` is what the native plugin expects. */
+export const APP_ICON_OPTIONS = [
+  { key: 'WHITE',  label: 'Blanco', color: '#E5E7EB' },
+  { key: 'BLUE',   label: 'Azul',   color: '#2563EB' },
+  { key: 'PURPLE', label: 'Morado', color: '#7C3AED' },
+  { key: 'BROWN',  label: 'Café',   color: '#7C4A1E' },
+  { key: 'BLACK',  label: 'Negro',  color: '#111827' },
+] as const;
 
-const BELT_MAP: Record<string, string> = {
-  // English
-  white: 'WHITE', blue: 'BLUE', purple: 'PURPLE', brown: 'BROWN', black: 'BLACK',
-  // Spanish
-  blanco: 'WHITE', azul: 'BLUE', morado: 'PURPLE',
-  café: 'BROWN', cafe: 'BROWN', marrón: 'BROWN', marron: 'BROWN',
-  negro: 'BLACK',
-};
+const ICON_KEY = 'jjp_app_icon';
 
-function normalizeBelt(belt: string | null | undefined): string {
-  if (!belt) return 'WHITE';
-  return BELT_MAP[belt.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')] ?? 'WHITE';
+/** The currently-chosen app icon (defaults to WHITE, the icon the app ships with). */
+export function getChosenAppIcon(): string {
+  return localStorage.getItem(ICON_KEY) ?? 'WHITE';
 }
 
-export function highestBelt(disciplines: Array<{ belt: string | null }>): string {
-  let bestIdx = 0;
-  for (const d of disciplines) {
-    const idx = BELT_ORDER.indexOf(normalizeBelt(d.belt));
-    if (idx > bestIdx) bestIdx = idx;
-  }
-  return BELT_ORDER[bestIdx];
-}
-
-export async function applyBeltIcon(disciplines: Array<{ belt: string | null }>): Promise<void> {
+/**
+ * Apply a chosen app icon.
+ *
+ * Swapping the launcher activity-alias tears down the running Activity, so this MUST be a deliberate,
+ * user-initiated action (with a warning) — it is intentionally NOT called automatically on login.
+ * Doing it on every login used to kill the webview mid-FCM-registration, so the device token never
+ * reached the backend and the student never received push notifications.
+ *
+ * Persists the choice, swaps the icon, then closes the app so the launcher re-reads the new icon on
+ * the next open (where push registration then completes cleanly, untouched).
+ */
+export async function applyAppIcon(belt: string, studentId?: number): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
-  const belt = highestBelt(disciplines);
+  localStorage.setItem(ICON_KEY, belt);
+  // Debug log (best-effort) so we can see in Railway who changed their icon.
+  if (studentId != null) void devicesApi.clientLog(studentId, 'icon_change', belt).catch(() => {});
   try {
     await BeltIcon.setBelt({ belt });
   } catch {
-    // non-fatal — icono permanece igual
+    /* non-fatal — icon stays as-is */
   }
+  // Let the confirmation paint, then close so Android applies the new launcher icon.
+  setTimeout(() => { void App.exitApp(); }, 700);
 }
