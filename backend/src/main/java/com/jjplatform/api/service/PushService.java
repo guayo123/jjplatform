@@ -70,16 +70,16 @@ public class PushService {
     @Transactional(readOnly = true)
     public void sendToAcademy(Long academyId, String title, String body, Collection<Long> exceptStudentIds) {
         if (academyId == null || FirebaseApp.getApps().isEmpty()) return; // push disabled / no academy
-        List<String> tokens = new ArrayList<>();
+        List<Recipient> recipients = new ArrayList<>();
         for (DeviceToken dt : tokenRepository.findByAcademyId(academyId)) {
             if (exceptStudentIds != null && exceptStudentIds.contains(dt.getStudent().getId())) continue;
-            tokens.add(dt.getToken());
+            recipients.add(new Recipient(dt.getToken(), label(dt.getStudent())));
         }
-        if (tokens.isEmpty()) {
+        if (recipients.isEmpty()) {
             log.info("Push skipped: academy {} has no registered devices to notify", academyId);
             return;
         }
-        CompletableFuture.runAsync(() -> dispatch(tokens, title, body));
+        CompletableFuture.runAsync(() -> dispatch(recipients, title, body));
     }
 
     /**
@@ -89,15 +89,15 @@ public class PushService {
     @Transactional(readOnly = true)
     public void sendToStudents(Collection<Long> studentIds, String title, String body) {
         if (studentIds == null || studentIds.isEmpty() || FirebaseApp.getApps().isEmpty()) return;
-        List<String> tokens = new ArrayList<>();
+        List<Recipient> recipients = new ArrayList<>();
         for (DeviceToken dt : tokenRepository.findByStudentIdIn(studentIds)) {
-            tokens.add(dt.getToken());
+            recipients.add(new Recipient(dt.getToken(), label(dt.getStudent())));
         }
-        if (tokens.isEmpty()) {
+        if (recipients.isEmpty()) {
             log.info("Push skipped: students {} have no registered devices", studentIds);
             return;
         }
-        CompletableFuture.runAsync(() -> dispatch(tokens, title, body));
+        CompletableFuture.runAsync(() -> dispatch(recipients, title, body));
     }
 
     /**
@@ -111,15 +111,15 @@ public class PushService {
         List<DeviceToken> devices = academyId == null
                 ? tokenRepository.findAll()
                 : tokenRepository.findByAcademyId(academyId);
-        List<String> tokens = new ArrayList<>();
-        for (DeviceToken dt : devices) tokens.add(dt.getToken());
-        if (tokens.isEmpty()) return 0;
-        CompletableFuture.runAsync(() -> dispatch(tokens, title, body));
-        return tokens.size();
+        List<Recipient> recipients = new ArrayList<>();
+        for (DeviceToken dt : devices) recipients.add(new Recipient(dt.getToken(), label(dt.getStudent())));
+        if (recipients.isEmpty()) return 0;
+        CompletableFuture.runAsync(() -> dispatch(recipients, title, body));
+        return recipients.size();
     }
 
-    private void dispatch(List<String> tokens, String title, String body) {
-        log.info("Push dispatch start: '{}' → {} device(s)", title, tokens.size());
+    private void dispatch(List<Recipient> recipients, String title, String body) {
+        log.info("Push dispatch start: '{}' → {} device(s)", title, recipients.size());
         try {
             Notification notification = Notification.builder().setTitle(title).setBody(body).build();
             // HIGH priority wakes the device immediately. Without it FCM uses "normal" priority,
@@ -130,36 +130,58 @@ public class PushService {
                     .setTtl(Duration.ofHours(4).toMillis())
                     .build();
             List<String> invalid = new ArrayList<>();
-            int sent = 0, failed = 0;
+            List<String> delivered = new ArrayList<>();   // RUT/correo of devices FCM accepted
+            List<String> failures = new ArrayList<>();     // RUT/correo (errorCode) of devices that failed
             Map<String, Integer> errors = new HashMap<>(); // FCM error code → count, for the summary line
-            for (int i = 0; i < tokens.size(); i += FCM_MULTICAST_LIMIT) {
-                List<String> chunk = tokens.subList(i, Math.min(i + FCM_MULTICAST_LIMIT, tokens.size()));
+            for (int i = 0; i < recipients.size(); i += FCM_MULTICAST_LIMIT) {
+                List<Recipient> chunk = recipients.subList(i, Math.min(i + FCM_MULTICAST_LIMIT, recipients.size()));
                 MulticastMessage message = MulticastMessage.builder()
                         .setNotification(notification)
                         .setAndroidConfig(androidConfig)
-                        .addAllTokens(chunk)
+                        .addAllTokens(chunk.stream().map(Recipient::token).toList())
                         .build();
                 BatchResponse resp = FirebaseMessaging.getInstance().sendEachForMulticast(message);
-                sent += resp.getSuccessCount();
                 List<SendResponse> responses = resp.getResponses();
                 for (int j = 0; j < responses.size(); j++) {
+                    Recipient rcpt = chunk.get(j);
                     SendResponse r = responses.get(j);
-                    if (r.isSuccessful()) continue;
-                    failed++;
+                    if (r.isSuccessful()) { delivered.add(rcpt.label()); continue; }
                     MessagingErrorCode code = r.getException() != null ? r.getException().getMessagingErrorCode() : null;
-                    errors.merge(code != null ? code.name() : "UNKNOWN", 1, Integer::sum);
+                    String name = code != null ? code.name() : "UNKNOWN";
+                    errors.merge(name, 1, Integer::sum);
+                    failures.add(rcpt.label() + " (" + name + ")");
                     // Token gone for good → drop it so we stop trying.
                     if (code == MessagingErrorCode.UNREGISTERED || code == MessagingErrorCode.INVALID_ARGUMENT) {
-                        invalid.add(chunk.get(j));
+                        invalid.add(rcpt.token());
                     }
                 }
             }
             invalid.forEach(this::removeToken);
             if (!invalid.isEmpty()) log.info("Pruned {} stale FCM tokens", invalid.size());
             log.info("Push dispatch done: '{}' → {} delivered, {} failed{}",
-                    title, sent, failed, errors.isEmpty() ? "" : " " + errors);
+                    title, delivered.size(), failures.size(), errors.isEmpty() ? "" : " " + errors);
+            if (!delivered.isEmpty()) log.info("Push '{}' delivered to: {}", title, summarize(delivered));
+            if (!failures.isEmpty())  log.info("Push '{}' failed for: {}", title, summarize(failures));
         } catch (Exception e) {
             log.warn("Failed to send academy push", e);
         }
+    }
+
+    /** A target device + a human label (RUT / correo / nombre) so the log shows who was notified. */
+    private record Recipient(String token, String label) {}
+
+    /** Best identifier for logging: RUT, else email, else "Nombre #id". Resolved inside the caller's tx. */
+    private static String label(Student s) {
+        if (s == null) return "desconocido";
+        if (s.getRut() != null && !s.getRut().isBlank()) return s.getRut();
+        if (s.getEmail() != null && !s.getEmail().isBlank()) return s.getEmail();
+        return (s.getName() != null ? s.getName() : "alumno") + " #" + s.getId();
+    }
+
+    /** Join labels for a log line, capping very long lists so a big academy doesn't blow up the log. */
+    private static String summarize(List<String> labels) {
+        int cap = 50;
+        if (labels.size() <= cap) return String.join(", ", labels);
+        return String.join(", ", labels.subList(0, cap)) + " … (+" + (labels.size() - cap) + ")";
     }
 }
