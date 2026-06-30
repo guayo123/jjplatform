@@ -20,8 +20,9 @@ interface Props {
 
 /** "Fichas técnicas" — per-discipline belt/grade history, competition results & technique program. */
 export default function FichasSection({ disciplines, promotions, detailLoading, expandedDisc, setExpandedDisc, curriculum, onToggleTechnique, onSaveResult, birthdays }: Props) {
-  // The competition result being added/edited: { sdId, result } (result null = new torneo).
-  const [editing, setEditing] = useState<{ sdId: number; result: CompetitionResult | null } | null>(null);
+  // The competition result being added/edited. sdId null = "add" with the discipline not chosen yet
+  // (the modal shows a discipline picker); result null = new torneo.
+  const [editing, setEditing] = useState<{ sdId: number | null; result: CompetitionResult | null } | null>(null);
   return (
     <div className="space-y-6">
     <div className="bg-white rounded-xl shadow-sm">
@@ -64,77 +65,36 @@ export default function FichasSection({ disciplines, promotions, detailLoading, 
                 </div>
 
                 {isExpanded && (
-                  <div className="border-t border-gray-100 bg-gray-50 p-4 space-y-5">
+                  <div className="border-t border-gray-100 bg-gray-50 p-4">
                     {/* Belt / grade history */}
-                    <div>
-                      <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Historial de graduaciones</h4>
-                      {discPromos.length === 0 ? (
-                        <p className="text-xs text-gray-400 text-center py-2">Sin registros</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {discPromos.map((promo) => {
-                            const tc = TYPE_CONFIG[promo.type];
-                            const beltChange = promo.fromBelt && promo.fromBelt !== promo.toBelt;
-                            return (
-                              <div key={promo.id} className="bg-white rounded-lg p-3 border border-gray-100">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-base flex-shrink-0">{tc.icon}</span>
-                                  <span className={`text-xs font-semibold ${tc.color}`}>{tc.label}</span>
-                                  {beltChange && (
-                                    <span className="text-xs text-gray-400">desde {promo.fromBelt}</span>
-                                  )}
-                                  <span className="text-xs text-gray-400 ml-auto">{formatDate(promo.promotionDate)}</span>
-                                </div>
-                                {/* Resulting belt with its degrees attached, like the promotion celebration */}
-                                <div className="mt-2">
-                                  <BeltImage belt={promo.toBelt} stripes={promo.toStripes} className="max-w-[220px]" />
-                                </div>
-                                {promo.notes && <p className="text-xs text-gray-400 italic mt-1.5">"{promo.notes}"</p>}
+                    <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Historial de graduaciones</h4>
+                    {discPromos.length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-2">Sin registros</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {discPromos.map((promo) => {
+                          const tc = TYPE_CONFIG[promo.type];
+                          const beltChange = promo.fromBelt && promo.fromBelt !== promo.toBelt;
+                          return (
+                            <div key={promo.id} className="bg-white rounded-lg p-3 border border-gray-100">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-base flex-shrink-0">{tc.icon}</span>
+                                <span className={`text-xs font-semibold ${tc.color}`}>{tc.label}</span>
+                                {beltChange && (
+                                  <span className="text-xs text-gray-400">desde {promo.fromBelt}</span>
+                                )}
+                                <span className="text-xs text-gray-400 ml-auto">{formatDate(promo.promotionDate)}</span>
                               </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Competition results — the student manages their own torneos here */}
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Resultados de competición</h4>
-                        <button
-                          onClick={() => { void tapLight(); setEditing({ sdId: disc.id, result: null }); }}
-                          className="text-xs font-semibold text-primary-700 hover:text-primary-800 flex items-center gap-1"
-                        >
-                          ➕ Agregar torneo
-                        </button>
-                      </div>
-                      {disc.competitionResults.length === 0 ? (
-                        <p className="text-xs text-gray-400 text-center py-2">Aún no registras torneos. ¡Agrega el primero!</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {disc.competitionResults.map((result) => (
-                            <div key={result.id} className="bg-white rounded-lg p-3 border border-gray-100">
-                              <div className="flex items-start justify-between gap-2">
-                                <p className="font-medium text-sm text-gray-900">{result.tournamentName}</p>
-                                <button
-                                  onClick={() => { void tapLight(); setEditing({ sdId: disc.id, result }); }}
-                                  className="text-xs text-gray-400 hover:text-primary-700 flex-shrink-0"
-                                  aria-label="Editar torneo"
-                                >
-                                  ✎ Editar
-                                </button>
+                              {/* Resulting belt with its degrees attached, like the promotion celebration */}
+                              <div className="mt-2">
+                                <BeltImage belt={promo.toBelt} stripes={promo.toStripes} className="max-w-[220px]" />
                               </div>
-                              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-gray-500">
-                                <span>{formatDate(result.date)}</span>
-                                {result.placement && <span>🏅 {result.placement}</span>}
-                                {result.category && <span>⚖️ {result.category}</span>}
-                              </div>
-                              {result.notes && <p className="text-xs text-gray-400 italic mt-1">"{result.notes}"</p>}
+                              {promo.notes && <p className="text-xs text-gray-400 italic mt-1.5">"{promo.notes}"</p>}
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -144,16 +104,24 @@ export default function FichasSection({ disciplines, promotions, detailLoading, 
       </div>
     </div>
 
+    <TournamentsCard
+      disciplines={disciplines}
+      onAdd={() => { void tapLight(); setEditing({ sdId: disciplines.length === 1 ? disciplines[0].id : null, result: null }); }}
+      onEdit={(sdId, result) => { void tapLight(); setEditing({ sdId, result }); }}
+    />
+
     <CurriculumCard curriculum={curriculum} loading={detailLoading} onToggle={onToggleTechnique} />
 
     <div data-tour="cumpleanos"><BirthdaysCard birthdays={birthdays} /></div>
 
     {editing && (
       <ResultFormModal
+        disciplines={disciplines}
+        initialSdId={editing.sdId}
         result={editing.result}
         onClose={() => setEditing(null)}
-        onSave={async (form) => {
-          await onSaveResult(editing.sdId, editing.result?.id ?? null, form);
+        onSave={async (sdId, form) => {
+          await onSaveResult(sdId, editing.result?.id ?? null, form);
           setEditing(null);
         }}
       />
@@ -162,12 +130,77 @@ export default function FichasSection({ disciplines, promotions, detailLoading, 
   );
 }
 
+/** Standalone "Torneos" card: all the student's competition results across disciplines + add/edit. */
+function TournamentsCard({ disciplines, onAdd, onEdit }: {
+  disciplines: StudentDiscipline[];
+  onAdd: () => void;
+  onEdit: (sdId: number, result: CompetitionResult) => void;
+}) {
+  const all = disciplines
+    .flatMap((d) => d.competitionResults.map((r) => ({ ...r, sdId: d.id, disciplineName: d.disciplineName })))
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  return (
+    <div className="bg-white rounded-xl shadow-sm">
+      <div className="p-5 border-b border-gray-100 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-bold text-gray-900">🏆 Torneos</h2>
+          <p className="text-xs text-gray-400 mt-0.5">{all.length} participaci{all.length === 1 ? 'ón' : 'ones'}</p>
+        </div>
+        {disciplines.length > 0 && (
+          <button
+            onClick={onAdd}
+            className="flex-shrink-0 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 px-3 py-2 rounded-xl transition-colors"
+          >
+            ➕ Agregar
+          </button>
+        )}
+      </div>
+      <div className="p-5">
+        {disciplines.length === 0 ? (
+          <p className="text-center text-gray-400 text-sm py-2">Primero necesitas una disciplina registrada por tu academia.</p>
+        ) : all.length === 0 ? (
+          <p className="text-center text-gray-400 text-sm py-2">Aún no registras torneos. ¡Agrega tu primera participación!</p>
+        ) : (
+          <div className="space-y-2">
+            {all.map((r) => (
+              <div key={r.id} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm text-gray-900 truncate">{r.tournamentName}</p>
+                    <p className="text-[11px] text-primary-600">{r.disciplineName}</p>
+                  </div>
+                  <button
+                    onClick={() => onEdit(r.sdId, r)}
+                    className="text-xs text-gray-400 hover:text-primary-700 flex-shrink-0"
+                    aria-label="Editar torneo"
+                  >
+                    ✎ Editar
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-gray-500">
+                  <span>{formatDate(r.date)}</span>
+                  {r.placement && <span>🏅 {r.placement}</span>}
+                  {r.category && <span>⚖️ {r.category}</span>}
+                </div>
+                {r.notes && <p className="text-xs text-gray-400 italic mt-1">"{r.notes}"</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** Add/edit form for a student's own competition result (torneo). */
-function ResultFormModal({ result, onClose, onSave }: {
+function ResultFormModal({ disciplines, initialSdId, result, onClose, onSave }: {
+  disciplines: StudentDiscipline[];
+  initialSdId: number | null;
   result: CompetitionResult | null;
   onClose: () => void;
-  onSave: (form: CompetitionResultForm) => Promise<void>;
+  onSave: (sdId: number, form: CompetitionResultForm) => Promise<void>;
 }) {
+  const [sdId, setSdId] = useState<number | null>(initialSdId);
   const [tournamentName, setTournamentName] = useState(result?.tournamentName ?? '');
   const [date, setDate] = useState(result?.date ?? new Date().toISOString().slice(0, 10));
   const [placement, setPlacement] = useState(result?.placement ?? '');
@@ -176,14 +209,20 @@ function ResultFormModal({ result, onClose, onSave }: {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // Editing: discipline is fixed. Adding with several disciplines: let the student pick one.
+  const isEditing = result != null;
+  const showPicker = !isEditing && disciplines.length > 1;
+  const currentDiscName = disciplines.find((d) => d.id === sdId)?.disciplineName;
+
   const submit = async () => {
     if (saving) return;
+    if (sdId == null) { setError('Elige la disciplina del torneo.'); return; }
     if (!tournamentName.trim()) { setError('Ponle nombre al torneo.'); return; }
     if (!date) { setError('Indica la fecha.'); return; }
     setSaving(true);
     setError('');
     try {
-      await onSave({
+      await onSave(sdId, {
         tournamentName: tournamentName.trim(),
         date,
         placement: placement.trim(),
@@ -205,6 +244,24 @@ function ResultFormModal({ result, onClose, onSave }: {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
         </div>
         <div className="p-5 space-y-4">
+          {showPicker ? (
+            <Field label="Disciplina">
+              <select
+                value={sdId ?? ''}
+                onChange={(e) => setSdId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+              >
+                <option value="" disabled>Elige una disciplina</option>
+                {disciplines.map((d) => (
+                  <option key={d.id} value={d.id}>{d.disciplineName}</option>
+                ))}
+              </select>
+            </Field>
+          ) : (
+            currentDiscName && (
+              <p className="text-xs font-semibold text-primary-600">{currentDiscName}</p>
+            )
+          )}
           <Field label="Torneo">
             <input
               value={tournamentName}
