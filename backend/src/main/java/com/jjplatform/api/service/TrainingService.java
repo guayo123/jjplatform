@@ -208,8 +208,8 @@ public class TrainingService {
     }
 
     /**
-     * Academy training leaderboard (🥋 arte marcial): active students ranked by martial-art training days
-     * this week, with the weekly-goal streak (default martial goal) as tiebreaker.
+     * Academy training leaderboard (🥋 arte marcial): active students ranked by martial-art weekly-goal
+     * streak, with martial training days this week as tiebreaker.
      */
     @Transactional(readOnly = true)
     public List<LeaderboardEntryDto> leaderboard(Long academyId, LocalDate clientToday) {
@@ -235,8 +235,8 @@ public class TrainingService {
     }
 
     /**
-     * Academy conditioning leaderboard (🏋️ físico): active students ranked by gym sessions this week,
-     * with the físico weekly-goal streak (default conditioning goal) as tiebreaker.
+     * Academy conditioning leaderboard (🏋️ físico): active students ranked by the físico weekly-goal
+     * streak, with gym sessions this week as tiebreaker.
      */
     @Transactional(readOnly = true)
     public List<LeaderboardEntryDto> conditioningLeaderboard(Long academyId, LocalDate clientToday) {
@@ -269,7 +269,7 @@ public class TrainingService {
         return out;
     }
 
-    /** Rank students by days trained this week (desc), then weekly-goal streak (desc), then name. */
+    /** Rank students by weekly-goal streak (desc), then days trained this week (desc), then name. */
     private List<LeaderboardEntryDto> buildBoard(
             Map<Long, Student> studentsById,
             Map<Long, Set<LocalDate>> daysByStudent,
@@ -285,8 +285,8 @@ public class TrainingService {
                     e.setCurrentStreak(weeklyStreak(daysByStudent.get(student.getId()), today, goal).current());
                     return e;
                 })
-                .sorted(Comparator.comparingInt(LeaderboardEntryDto::getThisWeekCount).reversed()
-                        .thenComparing(Comparator.comparingInt(LeaderboardEntryDto::getCurrentStreak).reversed())
+                .sorted(Comparator.comparingInt(LeaderboardEntryDto::getCurrentStreak).reversed()
+                        .thenComparing(Comparator.comparingInt(LeaderboardEntryDto::getThisWeekCount).reversed())
                         .thenComparing(LeaderboardEntryDto::getName, String.CASE_INSENSITIVE_ORDER))
                 .toList();
     }

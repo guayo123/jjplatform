@@ -560,7 +560,7 @@ function LeaderboardCard({ boards, meId, onOpen }: { boards: Leaderboards; meId:
     <div className="bg-white rounded-xl shadow-sm jjp-accent-bar">
       <div className="p-5 border-b border-gray-100">
         <h2 className="font-bold text-gray-900">Ranking de la semana 🏆</h2>
-        <p className="text-xs text-gray-400 mt-0.5">Registros de esta semana en tu academia</p>
+        <p className="text-xs text-gray-400 mt-0.5">Por racha 🔥 · desempatan los entrenos de la semana</p>
       </div>
       {/* Type tabs: 🥋 arte marcial / 🏋️ físico */}
       <div className="px-3 pt-3">
@@ -606,11 +606,11 @@ function LeaderboardCard({ boards, meId, onOpen }: { boards: Leaderboards; meId:
                   <span className={`flex-1 min-w-0 truncate text-sm ${isMe ? 'font-bold text-primary-700' : 'text-gray-700'}`}>
                     {e.name} {isMe && <span className="text-[10px] font-semibold text-primary-500">(tú)</span>}
                   </span>
-                  <span className="text-sm font-semibold text-gray-900 flex-shrink-0">
-                    {e.thisWeekCount} <span className="text-xs font-normal text-gray-400">{active.unit}</span>
+                  <span className="text-xs text-gray-400 flex-shrink-0">
+                    {e.thisWeekCount} {active.unit}
                   </span>
-                  <span className="text-xs font-semibold w-12 text-right flex-shrink-0 text-orange-500">
-                    {e.currentStreak > 0 ? `🔥 ${e.currentStreak}` : ''}
+                  <span className="text-sm font-extrabold w-14 text-right flex-shrink-0 text-orange-500">
+                    {e.currentStreak > 0 ? `🔥 ${e.currentStreak}` : '—'}
                   </span>
                 </button>
               );
@@ -623,8 +623,11 @@ function LeaderboardCard({ boards, meId, onOpen }: { boards: Leaderboards; meId:
                   <span className="flex-1 min-w-0 truncate text-sm font-bold text-primary-700">
                     {board[myIndex].name} <span className="text-[10px] font-semibold text-primary-500">(tú)</span>
                   </span>
-                  <span className="text-sm font-semibold text-gray-900 flex-shrink-0">
-                    {board[myIndex].thisWeekCount} <span className="text-xs font-normal text-gray-400">{active.unit}</span>
+                  <span className="text-xs text-gray-400 flex-shrink-0">
+                    {board[myIndex].thisWeekCount} {active.unit}
+                  </span>
+                  <span className="text-sm font-extrabold w-14 text-right flex-shrink-0 text-orange-500">
+                    {board[myIndex].currentStreak > 0 ? `🔥 ${board[myIndex].currentStreak}` : '—'}
                   </span>
                 </button>
               </div>
