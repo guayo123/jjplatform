@@ -215,7 +215,14 @@ public class PortalService {
     }
 
     /** Both academy leaderboards (🥋 arte marcial + 🏋️ físico), scoped to the owned student's academy. */
-    public com.jjplatform.api.dto.LeaderboardsDto getTrainingLeaderboard(Long studentId, LocalDate clientToday) {
+    /** Legacy (array) leaderboard — 🥋 arte marcial only. Kept so pre-1.6.3 apps don't crash on the new shape. */
+    public List<LeaderboardEntryDto> getTrainingLeaderboard(Long studentId, LocalDate clientToday) {
+        Student s = requireOwnedStudent(studentId);
+        return trainingService.leaderboard(s.getAcademy().getId(), clientToday);
+    }
+
+    /** New tabbed leaderboards {martial, conditioning} for 1.6.3+ clients. */
+    public com.jjplatform.api.dto.LeaderboardsDto getTrainingLeaderboards(Long studentId, LocalDate clientToday) {
         Student s = requireOwnedStudent(studentId);
         return trainingService.leaderboards(s.getAcademy().getId(), clientToday);
     }

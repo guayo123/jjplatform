@@ -16,10 +16,11 @@ export const trainingApi = {
       .get<TrainingSummary>(`/portal/students/${studentId}/training/summary`, { params: { today: localToday() } })
       .then((r) => r.data),
 
-  /** Academy leaderboards (🥋 arte marcial + 🏋️ físico) ranked by days this week, streak as tiebreaker. */
+  /** Academy leaderboards (🥋 arte marcial + 🏋️ físico) — plural endpoint; the singular one stays a legacy
+   *  array for pre-1.6.3 apps. Ranked by streak, days this week as tiebreaker. */
   leaderboard: (studentId: number) =>
     client
-      .get<Leaderboards>(`/portal/students/${studentId}/training/leaderboard`, { params: { today: localToday() } })
+      .get<Leaderboards>(`/portal/students/${studentId}/training/leaderboards`, { params: { today: localToday() } })
       .then((r) => r.data),
 
   /** Premium "you vs academy" snapshot (requires active Pro). */

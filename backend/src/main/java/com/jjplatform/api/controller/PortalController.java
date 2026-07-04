@@ -213,12 +213,23 @@ public class PortalController {
         return ResponseEntity.ok(portalService.getTrainingSummary(studentId, today));
     }
 
-    /** Academy leaderboards (🥋 arte marcial + 🏋️ físico): days this week + weekly-goal streak per active student. */
+    /**
+     * LEGACY (array, 🥋 arte marcial): kept for pre-1.6.3 apps that expect a plain list — returning the new
+     * object shape here crashed them (white screen). New clients use /training/leaderboards.
+     */
     @GetMapping("/students/{studentId}/training/leaderboard")
-    public ResponseEntity<com.jjplatform.api.dto.LeaderboardsDto> trainingLeaderboard(
+    public ResponseEntity<List<LeaderboardEntryDto>> trainingLeaderboard(
             @PathVariable Long studentId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate today) {
         return ResponseEntity.ok(portalService.getTrainingLeaderboard(studentId, today));
+    }
+
+    /** Academy leaderboards (🥋 arte marcial + 🏋️ físico) for tabbed ranking. Used by 1.6.3+ clients. */
+    @GetMapping("/students/{studentId}/training/leaderboards")
+    public ResponseEntity<com.jjplatform.api.dto.LeaderboardsDto> trainingLeaderboards(
+            @PathVariable Long studentId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate today) {
+        return ResponseEntity.ok(portalService.getTrainingLeaderboards(studentId, today));
     }
 
     /** Premium-only: "you vs academy" snapshot (requires active Pro). */
