@@ -518,7 +518,9 @@ function DuelRankingCard({ ranking, meId, onOpen }: { ranking: DuelRankingEntry[
     <div className="bg-white rounded-xl shadow-sm jjp-accent-bar">
       <div className="p-5 pl-6 border-b border-gray-100">
         <h2 className="font-bold text-gray-900">Ranking de duelos 🥋</h2>
-        <p className="text-xs text-gray-400 mt-0.5">Top 10 de tu academia · victorias / derrotas</p>
+        <p className="text-xs text-gray-400 mt-0.5">
+          Top 10 de tu academia · <span className="text-green-600">victorias</span> / <span className="text-red-500">derrotas</span> / <span className="text-gray-500">empates</span>
+        </p>
       </div>
       <div className="p-3">
         {top.map((e, i) => (
@@ -561,7 +563,8 @@ function RankRow({ e, rank, isMe, onOpen }: { e: DuelRankingEntry; rank: number;
         <span className="text-green-600">{e.wins}</span>
         <span className="text-gray-300"> / </span>
         <span className="text-red-500">{e.losses}</span>
-        {e.draws > 0 && <span className="ml-1 text-xs font-normal text-gray-400">· {e.draws}E</span>}
+        <span className="text-gray-300"> / </span>
+        <span className="text-gray-400">{e.draws}</span>
       </span>
     </button>
   );
