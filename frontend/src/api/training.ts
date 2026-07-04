@@ -1,5 +1,5 @@
 import client from './client';
-import type { Classmate, LeaderboardEntry, TrainingSession, TrainingSessionForm, TrainingSummary } from '../types';
+import type { CoachInsight, Classmate, Leaderboards, ProInsights, TrainingSession, TrainingSessionForm, TrainingSummary } from '../types';
 
 /** Device-local YYYY-MM-DD; sent so streak day boundaries follow the student, not the server TZ. */
 const localToday = () => new Date().toLocaleDateString('en-CA');
@@ -16,18 +16,26 @@ export const trainingApi = {
       .get<TrainingSummary>(`/portal/students/${studentId}/training/summary`, { params: { today: localToday() } })
       .then((r) => r.data),
 
-  /** Academy leaderboard: active classmates ranked by sessions this week, streak as tiebreaker. */
+  /** Academy leaderboards (🥋 arte marcial + 🏋️ físico) ranked by days this week, streak as tiebreaker. */
   leaderboard: (studentId: number) =>
     client
-      .get<LeaderboardEntry[]>(`/portal/students/${studentId}/training/leaderboard`, { params: { today: localToday() } })
+      .get<Leaderboards>(`/portal/students/${studentId}/training/leaderboard`, { params: { today: localToday() } })
       .then((r) => r.data),
 
-  /** Spends a monthly streak repair to fill the current 1-day gap; returns the refreshed summary. */
-  repairStreak: (studentId: number) =>
+  /** Premium "you vs academy" snapshot (requires active Pro). */
+  proInsights: (studentId: number) =>
     client
-      .post<TrainingSummary>(`/portal/students/${studentId}/training/streak-repair`, null, {
-        params: { today: localToday() },
-      })
+      .get<ProInsights>(`/portal/students/${studentId}/training/insights-pro`, { params: { today: localToday() } })
+      .then((r) => r.data),
+
+  /** Premium AI insight: last generated analysis (cached; no AI call). */
+  coach: (studentId: number) =>
+    client.get<CoachInsight>(`/portal/students/${studentId}/training/coach`).then((r) => r.data),
+
+  /** Premium AI insight: generate (or return today's cached) analysis. At most one AI call per day. */
+  generateCoach: (studentId: number) =>
+    client
+      .post<CoachInsight>(`/portal/students/${studentId}/training/coach`, null, { params: { today: localToday() } })
       .then((r) => r.data),
 
   create: (studentId: number, data: TrainingSessionForm) =>
@@ -40,9 +48,14 @@ export const trainingApi = {
   remove: (studentId: number, sessionId: number) =>
     client.delete<void>(`/portal/students/${studentId}/training/${sessionId}`).then((r) => r.data),
 
-  getGoal: () =>
-    client.get<{ goal: number | null }>('/portal/training/goal').then((r) => r.data.goal),
+  /** Both weekly goals: {martial, conditioning} (null = not set). */
+  getGoals: () =>
+    client.get<{ martial: number | null; conditioning: number | null }>('/portal/training/goals').then((r) => r.data),
 
-  setGoal: (goal: number | null) =>
-    client.put<{ goal: number | null }>('/portal/training/goal', { goal }).then((r) => r.data.goal),
+  /** Sets one weekly goal (type = 'martial' | 'conditioning'); returns both. Sends today so the server can
+   *  enforce the "only on Monday" rule for an already-set goal. */
+  setGoal: (type: 'martial' | 'conditioning', goal: number | null) =>
+    client
+      .put<{ martial: number | null; conditioning: number | null }>('/portal/training/goals', { type, goal, today: localToday() })
+      .then((r) => r.data),
 };

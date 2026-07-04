@@ -80,6 +80,7 @@ export default function StudentDetail() {
   const confirm = useConfirm();
 
   const [student, setStudent] = useState<Student | null>(null);
+  const [premiumSaving, setPremiumSaving] = useState(false);
   const [disciplines, setDisciplines] = useState<StudentDiscipline[]>([]);
   const [academyDisciplines, setAcademyDisciplines] = useState<Discipline[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,6 +169,24 @@ export default function StudentDetail() {
       toast.success('Disciplina eliminada');
     } catch {
       toast.error('Error al eliminar');
+    }
+  };
+
+  const handleSetPremium = async (months: number) => {
+    if (!student) return;
+    if (months <= 0) {
+      const ok = await confirm({ title: 'Quitar Pro', message: '¿Quitar el acceso Pro de este alumno?', confirmLabel: 'Quitar', danger: true });
+      if (!ok) return;
+    }
+    setPremiumSaving(true);
+    try {
+      const updated = await studentsApi.setPremium(student.id, months);
+      setStudent(updated);
+      toast.success(months > 0 ? `Pro otorgado (+${months} ${months === 1 ? 'mes' : 'meses'})` : 'Pro quitado');
+    } catch {
+      toast.error('No se pudo actualizar el Pro');
+    } finally {
+      setPremiumSaving(false);
     }
   };
 
@@ -363,6 +382,43 @@ export default function StudentDetail() {
             >
               Editar
             </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Premium / Pro */}
+      <div className="bg-white rounded-xl shadow-sm p-5">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h2 className="font-bold text-gray-900">Progreso Pro ⭐</h2>
+            {student.isPremium ? (
+              <p className="text-sm text-green-600 mt-0.5">Activo hasta {student.premiumUntil}</p>
+            ) : (
+              <p className="text-sm text-gray-400 mt-0.5">
+                Inactivo{student.premiumUntil ? ` (venció el ${student.premiumUntil})` : ''}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {[1, 3, 12].map((m) => (
+              <button
+                key={m}
+                onClick={() => handleSetPremium(m)}
+                disabled={premiumSaving}
+                className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
+              >
+                +{m} {m === 1 ? 'mes' : 'meses'}
+              </button>
+            ))}
+            {student.isPremium && (
+              <button
+                onClick={() => handleSetPremium(0)}
+                disabled={premiumSaving}
+                className="px-3 py-1.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+              >
+                Quitar
+              </button>
+            )}
           </div>
         </div>
       </div>

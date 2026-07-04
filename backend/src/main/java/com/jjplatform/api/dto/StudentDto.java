@@ -46,6 +46,10 @@ public class StudentDto {
     private String healthInsuranceCompany;
     private Boolean active;
 
+    /** Premium ("Pro") access expiry (yyyy-MM-dd) and whether it's currently active. */
+    private String premiumUntil;
+    private Boolean isPremium;
+
     private List<Long> planIds;
     private List<PlanInfo> enrolledPlans;
     private List<DisciplineBeltInfo> disciplineBelts;

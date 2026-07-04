@@ -64,6 +64,7 @@ public class PortalService {
     private final StudentService studentService;
     private final DuelService duelService;
     private final TechniqueService techniqueService;
+    private final CoachService coachService;
     private final PaymentGatewayService paymentGatewayService;
     private final ClassReservationService classReservationService;
     private final PushService pushService;
@@ -204,15 +205,8 @@ public class PortalService {
 
     public TrainingSummaryDto getTrainingSummary(Long studentId, LocalDate clientToday) {
         requireOwnedStudent(studentId);
-        Integer goal = securityHelper.getCurrentUser().getTrainingWeeklyGoal();
-        return trainingService.summary(studentId, goal, clientToday);
-    }
-
-    /** Spends a monthly streak repair to fill the student's current 1-day gap. */
-    public TrainingSummaryDto repairStreak(Long studentId, LocalDate clientToday) {
-        Student me = requireOwnedStudent(studentId);
-        Integer goal = securityHelper.getCurrentUser().getTrainingWeeklyGoal();
-        return trainingService.repairStreak(me, goal, clientToday);
+        User u = securityHelper.getCurrentUser();
+        return trainingService.summary(studentId, u.getTrainingWeeklyGoal(), u.getConditioningWeeklyGoal(), clientToday);
     }
 
     public List<TrainingSessionDto> getTrainingSessions(Long studentId) {
@@ -220,10 +214,39 @@ public class PortalService {
         return trainingService.listByStudent(studentId);
     }
 
-    /** Academy training leaderboard (sessions this week + streak), scoped to the owned student's academy. */
-    public List<LeaderboardEntryDto> getTrainingLeaderboard(Long studentId, LocalDate clientToday) {
+    /** Both academy leaderboards (🥋 arte marcial + 🏋️ físico), scoped to the owned student's academy. */
+    public com.jjplatform.api.dto.LeaderboardsDto getTrainingLeaderboard(Long studentId, LocalDate clientToday) {
         Student s = requireOwnedStudent(studentId);
-        return trainingService.leaderboard(s.getAcademy().getId(), clientToday);
+        return trainingService.leaderboards(s.getAcademy().getId(), clientToday);
+    }
+
+    /** Premium-only "you vs academy" snapshot. Requires active Pro (exposes academy-wide aggregates). */
+    public com.jjplatform.api.dto.ProInsightsDto getProInsights(Long studentId, LocalDate clientToday) {
+        Student s = requireOwnedStudent(studentId);
+        if (!s.isPremium()) {
+            throw new org.springframework.security.access.AccessDeniedException("Pro requerido");
+        }
+        return trainingService.proInsights(s.getAcademy().getId(), s.getId(), clientToday);
+    }
+
+    /** Pro-only: last AI-coach analysis (no generation, no AI call). Requires active Pro. */
+    public com.jjplatform.api.dto.CoachInsightDto getCoachInsight(Long studentId) {
+        Student s = requireOwnedStudent(studentId);
+        requirePremium(s);
+        return coachService.current(s);
+    }
+
+    /** Pro-only: generate (or return today's cached) AI-coach analysis. Requires active Pro. */
+    public com.jjplatform.api.dto.CoachInsightDto generateCoachInsight(Long studentId, LocalDate clientToday) {
+        Student s = requireOwnedStudent(studentId);
+        requirePremium(s);
+        return coachService.generate(s, clientToday);
+    }
+
+    private void requirePremium(Student s) {
+        if (!s.isPremium()) {
+            throw new org.springframework.security.access.AccessDeniedException("Pro requerido");
+        }
     }
 
     /** Classmates (same academy as the owned student) for the training-partner picker. */
@@ -369,23 +392,41 @@ public class PortalService {
         conditioningService.delete(studentId, sessionId);
     }
 
-    /** Current student's weekly training goal (null when not set). */
-    public Integer getTrainingGoal() {
-        return securityHelper.getCurrentUser().getTrainingWeeklyGoal();
+    /** Current student's weekly goals: {martial, conditioning} (null values = not set). */
+    public Map<String, Integer> getTrainingGoals() {
+        User u = securityHelper.getCurrentUser();
+        Map<String, Integer> out = new HashMap<>();
+        out.put("martial", u.getTrainingWeeklyGoal());
+        out.put("conditioning", u.getConditioningWeeklyGoal());
+        return out;
     }
 
-    /** Sets (1-7) or clears (null) the weekly training goal for the logged-in student. */
+    /**
+     * Sets (1-7) or clears (null) one weekly goal for the logged-in student.
+     * {@code type} is "conditioning" for the físico goal, anything else for the martial goal.
+     * Once a goal is set it can only be changed on the first day of the week (Monday), so nobody lowers it
+     * mid-week to dodge a goal they're about to miss; the first-ever setup is allowed any day (onboarding).
+     * Returns both goals so the client refreshes in one call.
+     */
     @Transactional
-    public Integer setTrainingGoal(Integer goal) {
-        Integer value = goal;
-        if (value != null && (value < 1 || value > 7)) {
+    public Map<String, Integer> setTrainingGoal(String type, Integer goal, LocalDate clientToday) {
+        if (goal != null && (goal < 1 || goal > 7)) {
             throw new IllegalArgumentException("La meta semanal debe estar entre 1 y 7.");
         }
         User user = userRepository.findById(securityHelper.getCurrentUser().getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
-        user.setTrainingWeeklyGoal(value);
+        boolean conditioning = "conditioning".equalsIgnoreCase(type);
+        Integer current = conditioning ? user.getConditioningWeeklyGoal() : user.getTrainingWeeklyGoal();
+        if (current != null && !trainingService.isFirstDayOfWeek(clientToday)) {
+            throw new IllegalArgumentException("Tu meta semanal solo se puede cambiar los lunes, al comenzar la semana.");
+        }
+        if (conditioning) user.setConditioningWeeklyGoal(goal);
+        else user.setTrainingWeeklyGoal(goal);
         userRepository.save(user);
-        return value;
+        Map<String, Integer> out = new HashMap<>();
+        out.put("martial", user.getTrainingWeeklyGoal());
+        out.put("conditioning", user.getConditioningWeeklyGoal());
+        return out;
     }
 
     // --- Weight history -------------------------------------------------------

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Classmate, ConditioningSession, ConditioningSessionForm, LeaderboardEntry, StudentDiscipline, TrainingModality, TrainingSession, TrainingSessionForm, TrainingSummary } from '../../../types';
+import type { Classmate, ConditioningSession, ConditioningSessionForm, Leaderboards, StudentDiscipline, TrainingModality, TrainingSession, TrainingSessionForm, TrainingSummary } from '../../../types';
 import { trainingApi } from '../../../api/training';
 import { conditioningApi } from '../../../api/conditioning';
 import { notifySuccess } from '../../../native/haptics';
@@ -16,6 +16,7 @@ import { computeInsights, type Insight } from './trainingInsights';
 import { formatDate, ProgressSkeleton, CardSkeleton } from './shared';
 import TrainingCharts from './TrainingCharts';
 import StudentInfoModal from './StudentInfoModal';
+import ProgressPro from './ProgressPro';
 import BodyDiagram from './BodyDiagram';
 import { getMusclesFromFocus, getMusclesFromNames } from '../exerciseCatalog';
 import ExerciseProgressModal from '../ExerciseProgressModal';
@@ -26,6 +27,9 @@ interface Props {
   disciplines: StudentDiscipline[];
   studentName: string;
   academyName?: string | null;
+  isPremium: boolean;
+  /** Lets the portal hold the intro tour until the first-time goal setup is resolved (shown+closed or not needed). */
+  onGoalOnboardingState?: (state: 'pending' | 'resolved') => void;
 }
 
 const MODALITY_LABEL: Record<string, string> = {
@@ -59,11 +63,11 @@ const trainedTodayAny = (sessions: TrainingSession[], cond: ConditioningSession[
 };
 
 /** "Entreno" — personal training journal: weekly goal/streak + quick log + recent sessions. */
-export default function TrainingSection({ studentId, disciplines, studentName, academyName }: Props) {
+export default function TrainingSection({ studentId, disciplines, studentName, academyName, isPremium, onGoalOnboardingState }: Props) {
   const [summary, setSummary] = useState<TrainingSummary | null>(null);
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [classmates, setClassmates] = useState<Classmate[]>([]);
-  const [board, setBoard] = useState<LeaderboardEntry[]>([]);
+  const [board, setBoard] = useState<Leaderboards>({ martial: [], conditioning: [] });
   const [cardFor, setCardFor] = useState<number | null>(null); // ranking → student info modal
   const [detailFor, setDetailFor] = useState<TrainingSession | null>(null); // history → session detail
   const [shareView, setShareView] = useState<{ canvas: HTMLCanvasElement; dataUrl: string } | null>(null);
@@ -77,11 +81,10 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
   const [condFormOpen, setCondFormOpen] = useState(false);
   const [condDetailFor, setCondDetailFor] = useState<ConditioningSession | null>(null);
   // Home shows the summary; history (sessions + trends) lives one tap away.
-  const [view, setView] = useState<'resumen' | 'historial'>('resumen');
+  const [view, setView] = useState<'resumen' | 'historial' | 'pro'>('resumen');
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('ALL');
   const [savingGoal, setSavingGoal] = useState(false);
-  const [repairing, setRepairing] = useState(false);
-  const [repairError, setRepairError] = useState<string | null>(null);
+  const [goalSetupOpen, setGoalSetupOpen] = useState(false); // first-time welcome to pick weekly goals
   // Celebrations queue up (weekly goal → streak → achievements) and show one at a time.
   const [celebrations, setCelebrations] = useState<CelebrationContent[]>([]);
   const [prResults, setPrResults] = useState<PR[]>([]);
@@ -108,7 +111,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
         trainingApi.summary(studentId),
         trainingApi.list(studentId),
         trainingApi.classmates(studentId).catch(() => [] as Classmate[]),
-        trainingApi.leaderboard(studentId).catch(() => [] as LeaderboardEntry[]),
+        trainingApi.leaderboard(studentId).catch(() => ({ martial: [], conditioning: [] }) as Leaderboards),
         conditioningApi.list(studentId).catch(() => [] as ConditioningSession[]),
       ]);
       setSummary(sum);
@@ -117,10 +120,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
       setBoard(ranking);
       setCondSessions(cond);
       // Refresh the native streak reminders so their copy reflects the current state.
-      void scheduleStreakReminders(sum.currentStreak, trainedTodayAny(list, cond), {
-        lostStreak: sum.lostStreak,
-        repairAvailable: sum.repairAvailable,
-      });
+      void scheduleStreakReminders(sum.currentStreak, trainedTodayAny(list, cond));
       // Seed (or silently sync) the seen-achievements set so saves only celebrate new unlocks.
       takeNewlyUnlocked(computeAchievements(list, sum));
     } catch {
@@ -185,10 +185,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     const [sum, list] = await Promise.all([trainingApi.summary(studentId), trainingApi.list(studentId)]);
     setSummary(sum);
     setSessions(list);
-    void scheduleStreakReminders(sum.currentStreak, trainedTodayAny(list, condSessions), {
-      lostStreak: sum.lostStreak,
-      repairAvailable: sum.repairAvailable,
-    });
+    void scheduleStreakReminders(sum.currentStreak, trainedTodayAny(list, condSessions));
 
     // Celebrate the bigger event first: completing the weekly goal outranks a +1 day streak.
     if (!prevGoalMet && sum.weeklyGoalMet) {
@@ -205,7 +202,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
         eyebrow: 'Racha en marcha',
         emoji: '🔥',
         count: sum.currentStreak,
-        unit: sum.currentStreak === 1 ? 'día seguido entrenando' : 'días seguidos entrenando',
+        unit: sum.currentStreak === 1 ? 'día de racha' : 'días de racha',
         message: streakMessage(sum.currentStreak),
       });
     }
@@ -217,7 +214,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
   };
 
   const handleSaveConditioning = async (data: ConditioningSessionForm) => {
-    const prevStreak = summary?.currentStreak ?? 0;
+    const prevStreak = summary?.conditioningStreak ?? 0;
     // Snapshot history BEFORE saving so we can compare for PRs
     const historySnapshot = [...condSessions];
     // Unlock the cue within the tap gesture; it only sounds after a confirmed save below.
@@ -234,17 +231,14 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     setSummary(sum);
     setCondSessions(cond);
     // "Trained today" spans both journals (a gym day keeps the streak too).
-    void scheduleStreakReminders(sum.currentStreak, trainedTodayAny(list, cond), {
-      lostStreak: sum.lostStreak,
-      repairAvailable: sum.repairAvailable,
-    });
-    if (sum.currentStreak > prevStreak) {
+    void scheduleStreakReminders(sum.currentStreak, trainedTodayAny(list, cond));
+    if (sum.conditioningStreak > prevStreak) {
       celebrate({
-        eyebrow: 'Racha en marcha',
-        emoji: '🔥',
-        count: sum.currentStreak,
-        unit: sum.currentStreak === 1 ? 'día seguido entrenando' : 'días seguidos entrenando',
-        message: streakMessage(sum.currentStreak),
+        eyebrow: 'Racha física en marcha',
+        emoji: '🏋️',
+        count: sum.conditioningStreak,
+        unit: sum.conditioningStreak === 1 ? 'día de racha física' : 'días de racha física',
+        message: streakMessage(sum.conditioningStreak),
       });
     }
     // Conditioning badges unlocked by this session queue up after the streak celebration.
@@ -257,36 +251,8 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     } catch { /* the session saved; a failed stats refresh shouldn't look like a save error */ }
   };
 
-  const handleRepair = async () => {
-    setRepairing(true);
-    setRepairError(null);
-    try {
-      const sum = await trainingApi.repairStreak(studentId);
-      setSummary(sum);
-      void notifySuccess();
-      void scheduleStreakReminders(sum.currentStreak, trainedTodayAny(sessions, condSessions), {
-        lostStreak: sum.lostStreak,
-        repairAvailable: sum.repairAvailable,
-      });
-      celebrate({
-        eyebrow: '¡Racha reavivada!',
-        emoji: '🔥',
-        count: sum.currentStreak,
-        unit: sum.currentStreak === 1 ? 'día de racha' : 'días de racha',
-        message: '¡Reavivaste tu racha! Entrena hoy para seguir sumando 🔥',
-        buttonLabel: '¡A entrenar!',
-      });
-      // A revived streak can retro-unlock streak badges (maxStreak may have grown).
-      celebrateAchievements(takeNewlyUnlocked(computeAchievements(sessions, sum)));
-    } catch (e) {
-      setRepairError(e instanceof Error ? e.message : 'No se pudo recuperar la racha.');
-    } finally {
-      setRepairing(false);
-    }
-  };
-
   const openShare = () => {
-    const data = buildWeekCardData(studentName, academyName ?? null, sessions, summary, board, studentId);
+    const data = buildWeekCardData(studentName, academyName ?? null, sessions, summary, board.martial, studentId);
     const canvas = drawWeekCard(data);
     setShareView({ canvas, dataUrl: canvas.toDataURL('image/png') });
     setShareNote(null);
@@ -307,11 +273,41 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     }
   };
 
-  const handleSetGoal = async (goal: number) => {
+  const handleSetGoal = async (type: 'martial' | 'conditioning', goal: number) => {
     setSavingGoal(true);
     try {
-      await trainingApi.setGoal(goal);
+      await trainingApi.setGoal(type, goal);
       await load();
+    } finally {
+      setSavingGoal(false);
+    }
+  };
+
+  // First-time nudge: a brand-new student (no goals set yet) gets a one-time welcome modal to pick their
+  // weekly goals — the best moment to set them, since afterward they only change on Mondays. We report the
+  // state up so the portal can hold the intro tour until this is resolved (the tour shouldn't overlap it).
+  useEffect(() => {
+    if (loading) return; // wait until the first load settles
+    const seen = localStorage.getItem(`jjp_goal_setup_seen_${studentId}`);
+    const neverSet = !!summary && summary.weeklyGoal == null && summary.conditioningGoal == null;
+    if (neverSet && !seen) {
+      setGoalSetupOpen(true);
+      onGoalOnboardingState?.('pending');
+    } else {
+      onGoalOnboardingState?.('resolved');
+    }
+  }, [loading, summary, studentId, onGoalOnboardingState]);
+
+  const handleGoalSetupSave = async (martial: number, conditioning: number) => {
+    setSavingGoal(true);
+    try {
+      // First-ever set, so it's allowed any day (the Monday lock only applies to later changes).
+      await trainingApi.setGoal('martial', martial);
+      await trainingApi.setGoal('conditioning', conditioning);
+      const sum = await trainingApi.summary(studentId);
+      setSummary(sum);
+      localStorage.setItem(`jjp_goal_setup_seen_${studentId}`, '1');
+      setGoalSetupOpen(false);
     } finally {
       setSavingGoal(false);
     }
@@ -346,58 +342,11 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     </div>
   );
 
-  const goal = summary?.weeklyGoal ?? null;
-
   return (
     <div className="space-y-6">
-      {/* Broken streak still within the repair window — rescue banner */}
-      {summary?.repairAvailable && summary.lostStreak > 0 && (
-        <div className="rounded-2xl border border-orange-300/70 bg-gradient-to-br from-orange-50 to-amber-50 p-5 shadow-sm">
-          <div className="flex items-start gap-3.5">
-            <span className="text-3xl leading-none mt-0.5 grayscale opacity-80" aria-hidden>🔥</span>
-            <div className="flex-1 min-w-0">
-              <h2 className="font-bold text-orange-900">
-                Tu racha de {summary.lostStreak} {summary.lostStreak === 1 ? 'día' : 'días'} se apagó
-              </h2>
-              <p className="text-sm text-orange-800/80 mt-0.5">
-                Aún estás a tiempo de reavivarla. Te {summary.repairsLeft === 1 ? 'queda' : 'quedan'}{' '}
-                {summary.repairsLeft} {summary.repairsLeft === 1 ? 'recuperación' : 'recuperaciones'} este mes.
-              </p>
-              {repairError && <p className="text-sm text-red-600 mt-1">{repairError}</p>}
-              <button
-                onClick={handleRepair}
-                disabled={repairing}
-                className="mt-3 w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-xl shadow-sm shadow-orange-500/30 transition-colors disabled:opacity-50"
-              >
-                {repairing ? 'Reavivando…' : '🔥 Reavivar mi racha'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Goal not set yet — onboarding step */}
-      {goal == null ? (
-        <div className="bg-white rounded-xl shadow-sm p-5 pl-6 jjp-accent-bar">
-          <h2 className="font-bold text-gray-900 mb-1">Define tu meta semanal</h2>
-          <p className="text-sm text-gray-500 mb-4">¿Cuántas veces quieres entrenar por semana?</p>
-          <div className="flex flex-wrap gap-2">
-            {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-              <button
-                key={n}
-                disabled={savingGoal}
-                onClick={() => handleSetGoal(n)}
-                className="w-12 h-12 rounded-xl border-2 border-gray-200 text-gray-700 font-bold hover:border-primary-500 hover:text-primary-600 transition-colors disabled:opacity-50"
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : (
+      {summary && (
         <ProgressCard
-          summary={summary!}
-          trainedToday={trainedTodayAny(sessions, condSessions)}
+          summary={summary}
           onChangeGoal={handleSetGoal}
           savingGoal={savingGoal}
           onShare={sessions.length > 0 ? openShare : undefined}
@@ -406,7 +355,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
 
       {/* Resumen | Historial segmented control */}
       <div className="bg-gray-200/70 rounded-xl p-1 flex">
-        {([['resumen', 'Resumen'], ['historial', `Historial (${sessions.length + condSessions.length})`]] as const).map(([key, label]) => (
+        {([['resumen', 'Resumen'], ['pro', 'Pro ⭐'], ['historial', `Historial (${sessions.length + condSessions.length})`]] as const).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setView(key)}
@@ -425,8 +374,10 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
           <InsightsCard insights={insights} hasSessions={sessions.length > 0} />
           <TrainingCharts sessions={sessions} />
           <div data-tour="peso"><BodyWeightCard studentId={studentId} /></div>
-          <LeaderboardCard board={board} meId={studentId} onOpen={setCardFor} />
+          <LeaderboardCard boards={board} meId={studentId} onOpen={setCardFor} />
         </>
+      ) : view === 'pro' ? (
+        <ProgressPro studentId={studentId} sessions={sessions} condSessions={condSessions} isPremium={isPremium} />
       ) : (
         <>
           {/* Session-type filter */}
@@ -556,6 +507,10 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
         </div>
       )}
 
+      {goalSetupOpen && (
+        <GoalSetupModal saving={savingGoal} onSave={handleGoalSetupSave} />
+      )}
+
       {celebrations.length > 0 && (
         <Celebration
           {...celebrations[0]}
@@ -584,10 +539,19 @@ const MEDALS = ['🥇', '🥈', '🥉'];
  * Academy ranking by sessions this week (streak as tiebreaker); the logged-in student is
  * highlighted. Compact by default (top 3 + my position) — "Ver todo" expands to 10.
  */
-function LeaderboardCard({ board, meId, onOpen }: { board: LeaderboardEntry[]; meId: number; onOpen: (studentId: number) => void }) {
-  const [expanded, setExpanded] = useState(false);
-  if (board.length < 2) return null; // a single-person ranking isn't a ranking
+const LEADERBOARD_TABS = [
+  { key: 'martial' as const, label: '🥋 Arte marcial', unit: 'entrenos', noun: 'arte marcial' },
+  { key: 'conditioning' as const, label: '🏋️ Físico', unit: 'sesiones', noun: 'físico' },
+];
 
+function LeaderboardCard({ boards, meId, onOpen }: { boards: Leaderboards; meId: number; onOpen: (studentId: number) => void }) {
+  const [tab, setTab] = useState<'martial' | 'conditioning'>('martial');
+  const [expanded, setExpanded] = useState(false);
+  // A single-person ranking isn't a ranking — hide the whole card only if neither type qualifies.
+  if (boards.martial.length < 2 && boards.conditioning.length < 2) return null;
+
+  const active = LEADERBOARD_TABS.find((t) => t.key === tab)!;
+  const board = boards[tab];
   const visibleCount = expanded ? 10 : 3;
   const top = board.slice(0, visibleCount);
   const myIndex = board.findIndex((e) => e.studentId === meId);
@@ -596,60 +560,84 @@ function LeaderboardCard({ board, meId, onOpen }: { board: LeaderboardEntry[]; m
     <div className="bg-white rounded-xl shadow-sm jjp-accent-bar">
       <div className="p-5 border-b border-gray-100">
         <h2 className="font-bold text-gray-900">Ranking de la semana 🏆</h2>
-        <p className="text-xs text-gray-400 mt-0.5">Entrenos registrados esta semana en tu academia</p>
+        <p className="text-xs text-gray-400 mt-0.5">Registros de esta semana en tu academia</p>
+      </div>
+      {/* Type tabs: 🥋 arte marcial / 🏋️ físico */}
+      <div className="px-3 pt-3">
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          {LEADERBOARD_TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => { setTab(t.key); setExpanded(false); }}
+              className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                tab === t.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="p-3">
-        {top.map((e, i) => {
-          const isMe = e.studentId === meId;
-          return (
-            <button
-              key={e.studentId}
-              onClick={() => onOpen(e.studentId)}
-              className={`w-full text-left flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-50 transition-colors ${isMe ? 'bg-primary-50' : ''}`}
-            >
-              <span className="w-7 text-center text-sm font-bold text-gray-500 flex-shrink-0">
-                {MEDALS[i] ?? i + 1}
-              </span>
-              {e.photoUrl ? (
-                <img src={e.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-              ) : (
-                <span className="w-8 h-8 rounded-full bg-gray-200 text-gray-500 text-xs font-bold flex items-center justify-center flex-shrink-0">
-                  {e.name.charAt(0).toUpperCase()}
-                </span>
-              )}
-              <span className={`flex-1 min-w-0 truncate text-sm ${isMe ? 'font-bold text-primary-700' : 'text-gray-700'}`}>
-                {e.name} {isMe && <span className="text-[10px] font-semibold text-primary-500">(tú)</span>}
-              </span>
-              <span className="text-sm font-semibold text-gray-900 flex-shrink-0">
-                {e.thisWeekCount} <span className="text-xs font-normal text-gray-400">entrenos</span>
-              </span>
-              <span className="text-xs font-semibold w-12 text-right flex-shrink-0 text-orange-500">
-                {e.currentStreak > 0 ? `🔥 ${e.currentStreak}` : ''}
-              </span>
-            </button>
-          );
-        })}
-        {/* If I'm below the visible rows, pin my position at the bottom so it's always in sight. */}
-        {myIndex >= visibleCount && (
-          <div className="mt-1 pt-2 border-t border-dashed border-gray-200">
-            <button onClick={() => onOpen(board[myIndex].studentId)} className="w-full text-left flex items-center gap-3 rounded-lg px-2 py-2 bg-primary-50 hover:bg-primary-100 transition-colors">
-              <span className="w-7 text-center text-sm font-bold text-gray-500 flex-shrink-0">{myIndex + 1}</span>
-              <span className="flex-1 min-w-0 truncate text-sm font-bold text-primary-700">
-                {board[myIndex].name} <span className="text-[10px] font-semibold text-primary-500">(tú)</span>
-              </span>
-              <span className="text-sm font-semibold text-gray-900 flex-shrink-0">
-                {board[myIndex].thisWeekCount} <span className="text-xs font-normal text-gray-400">entrenos</span>
-              </span>
-            </button>
-          </div>
-        )}
-        {board.length > 3 && (
-          <button
-            onClick={() => setExpanded((v) => !v)}
-            className="w-full mt-1 py-2 text-xs font-semibold text-primary-600 hover:text-primary-700 transition-colors"
-          >
-            {expanded ? 'Ver menos' : `Ver todo (${Math.min(board.length, 10)})`}
-          </button>
+        {board.length < 2 ? (
+          <p className="text-center text-xs text-gray-400 py-6">
+            Aún no hay suficientes registros de {active.noun} esta semana para armar el ranking.
+          </p>
+        ) : (
+          <>
+            {top.map((e, i) => {
+              const isMe = e.studentId === meId;
+              return (
+                <button
+                  key={e.studentId}
+                  onClick={() => onOpen(e.studentId)}
+                  className={`w-full text-left flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-50 transition-colors ${isMe ? 'bg-primary-50' : ''}`}
+                >
+                  <span className="w-7 text-center text-sm font-bold text-gray-500 flex-shrink-0">
+                    {MEDALS[i] ?? i + 1}
+                  </span>
+                  {e.photoUrl ? (
+                    <img src={e.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                  ) : (
+                    <span className="w-8 h-8 rounded-full bg-gray-200 text-gray-500 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                      {e.name.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                  <span className={`flex-1 min-w-0 truncate text-sm ${isMe ? 'font-bold text-primary-700' : 'text-gray-700'}`}>
+                    {e.name} {isMe && <span className="text-[10px] font-semibold text-primary-500">(tú)</span>}
+                  </span>
+                  <span className="text-sm font-semibold text-gray-900 flex-shrink-0">
+                    {e.thisWeekCount} <span className="text-xs font-normal text-gray-400">{active.unit}</span>
+                  </span>
+                  <span className="text-xs font-semibold w-12 text-right flex-shrink-0 text-orange-500">
+                    {e.currentStreak > 0 ? `🔥 ${e.currentStreak}` : ''}
+                  </span>
+                </button>
+              );
+            })}
+            {/* If I'm below the visible rows, pin my position at the bottom so it's always in sight. */}
+            {myIndex >= visibleCount && (
+              <div className="mt-1 pt-2 border-t border-dashed border-gray-200">
+                <button onClick={() => onOpen(board[myIndex].studentId)} className="w-full text-left flex items-center gap-3 rounded-lg px-2 py-2 bg-primary-50 hover:bg-primary-100 transition-colors">
+                  <span className="w-7 text-center text-sm font-bold text-gray-500 flex-shrink-0">{myIndex + 1}</span>
+                  <span className="flex-1 min-w-0 truncate text-sm font-bold text-primary-700">
+                    {board[myIndex].name} <span className="text-[10px] font-semibold text-primary-500">(tú)</span>
+                  </span>
+                  <span className="text-sm font-semibold text-gray-900 flex-shrink-0">
+                    {board[myIndex].thisWeekCount} <span className="text-xs font-normal text-gray-400">{active.unit}</span>
+                  </span>
+                </button>
+              </div>
+            )}
+            {board.length > 3 && (
+              <button
+                onClick={() => setExpanded((v) => !v)}
+                className="w-full mt-1 py-2 text-xs font-semibold text-primary-600 hover:text-primary-700 transition-colors"
+              >
+                {expanded ? 'Ver menos' : `Ver todo (${Math.min(board.length, 10)})`}
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -657,33 +645,139 @@ function LeaderboardCard({ board, meId, onOpen }: { board: LeaderboardEntry[]; m
 }
 
 /**
- * Streak chip with a state-aware flame: orange while the streak is safe, blue and pulsing
- * when the day is running out without a session (≤6h left), gray smoke when there's no
- * streak to show — so a lost streak never keeps the fire lit.
+ * First-time welcome: a brand-new student picks their weekly goals here. Shown once (localStorage-gated)
+ * when no goal is set yet — the ideal moment, since afterward goals only change on Mondays.
  */
-function StreakChip({ streak, trainedToday }: { streak: number; trainedToday: boolean }) {
-  if (streak === 0) {
-    return (
-      <span className="text-sm font-semibold text-gray-400" title="Registra un entreno para encender tu racha">
-        💨 Sin racha
-      </span>
-    );
-  }
-  const days = `${streak} ${streak === 1 ? 'día' : 'días'}`;
-  if (!trainedToday) {
-    const now = new Date();
-    const midnight = new Date(now);
-    midnight.setHours(24, 0, 0, 0);
-    const hoursLeft = Math.max(1, Math.ceil((midnight.getTime() - now.getTime()) / 3_600_000));
-    if (hoursLeft <= 6) {
-      return (
-        <span className="text-sm font-semibold text-blue-500" title="Entrena hoy para no perder tu racha">
-          <span className="jjp-flame-cold">🔥</span> {days} · quedan {hoursLeft}h
-        </span>
-      );
-    }
-  }
-  return <span className="text-sm font-semibold text-orange-500">🔥 {days}</span>;
+function GoalSetupModal({ onSave, saving }: { onSave: (martial: number, conditioning: number) => void; saving: boolean }) {
+  const [martial, setMartial] = useState(4);
+  const [conditioning, setConditioning] = useState(2);
+  const rows = [
+    { icon: '🥋', label: 'Arte marcial', value: martial, set: setMartial },
+    { icon: '🏋️', label: 'Físico', value: conditioning, set: setConditioning },
+  ];
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm p-4 pt-safe pb-safe">
+      <div className="w-full max-w-sm bg-white rounded-2xl p-5 shadow-2xl">
+        <div className="text-center mb-4">
+          <div className="text-3xl mb-1">🎯</div>
+          <h2 className="font-bold text-lg text-gray-900">Define tu meta semanal</h2>
+          <p className="text-xs text-gray-500 mt-1">
+            ¿Cuántos días por semana quieres entrenar de cada tipo? Cumple tu meta cada semana para mantener tu racha 🔥.
+          </p>
+        </div>
+        <div className="space-y-4">
+          {rows.map((r) => (
+            <div key={r.label}>
+              <p className="text-xs font-medium text-gray-500 mb-1.5">{r.icon} {r.label}</p>
+              <div className="flex flex-wrap gap-2">
+                {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                  <button
+                    key={n}
+                    disabled={saving}
+                    onClick={() => r.set(n)}
+                    className={`w-9 h-9 rounded-lg border-2 font-bold text-sm transition-colors disabled:opacity-50 ${
+                      n === r.value ? 'border-primary-500 text-primary-600 bg-primary-50' : 'border-gray-200 text-gray-600 hover:border-primary-300'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-[11px] text-amber-600 mt-3">🔒 Después solo podrás ajustarla los lunes, al comenzar la semana.</p>
+        <div className="flex gap-2 mt-4">
+          <button
+            onClick={() => onSave(4, 2)}
+            disabled={saving}
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            Usar sugeridas
+          </button>
+          <button
+            onClick={() => onSave(martial, conditioning)}
+            disabled={saving}
+            className="flex-1 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-semibold transition-colors disabled:opacity-50"
+          >
+            {saving ? 'Guardando…' : 'Guardar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One weekly-goal streak row: icon + label, a ring for this week's progress toward the goal, the
+ * accumulated-days flame, and an inline goal editor. The streak grows while you meet your weekly goal
+ * and resets when a completed week misses it (with one comodín/month forgiven — handled server-side).
+ */
+function StreakRow({
+  icon, label, streak, thisWeek, goal, met, record, onChangeGoal, saving, locked,
+}: {
+  icon: string; label: string; streak: number; thisWeek: number; goal: number;
+  met: boolean; record: number; onChangeGoal: (n: number) => void; saving: boolean; locked: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const pct = Math.min(100, Math.round((thisWeek / Math.max(1, goal)) * 100));
+  return (
+    <div>
+      <div className="flex items-center gap-4">
+        <Ring pct={pct} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-base leading-none">{icon}</span>
+            <span className="text-sm font-semibold text-gray-700">{label}</span>
+          </div>
+          <div className="flex items-baseline gap-2 mt-0.5">
+            <span className="text-xl font-extrabold text-orange-500">{streak > 0 ? `🔥 ${streak}` : '💨'}</span>
+            <span className="text-xs text-gray-400">{streak > 0 ? (streak === 1 ? 'día de racha' : 'días de racha') : 'sin racha'}</span>
+          </div>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Esta semana <span className="font-semibold text-gray-600">{thisWeek}/{goal}</span>
+            {met && <span className="text-green-600 font-semibold"> · ✅ meta cumplida</span>}
+            {record > streak && record > 0 && <span> · récord {record}</span>}
+          </p>
+        </div>
+        <button
+          onClick={() => setEditing((v) => !v)}
+          aria-label={`Cambiar meta de ${label}`}
+          title={`Cambiar meta de ${label}`}
+          className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-colors flex-shrink-0 ${
+            editing ? 'border-primary-300 bg-primary-50 text-primary-600'
+                    : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600'
+          }`}
+        >
+          <EditGoalIcon />
+        </button>
+      </div>
+      {editing && (
+        <div className="mt-3">
+          <p className="text-xs text-gray-400 mb-2">Meta semanal de {label.toLowerCase()} (días por semana)</p>
+          <div className="flex flex-wrap gap-2">
+            {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+              <button
+                key={n}
+                disabled={saving || locked}
+                onClick={() => { onChangeGoal(n); setEditing(false); }}
+                className={`w-9 h-9 rounded-lg border-2 font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                  n === goal ? 'border-primary-500 text-primary-600' : 'border-gray-200 text-gray-600 hover:border-primary-300'
+                }`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+          {locked && (
+            <p className="text-xs text-amber-600 mt-2">
+              🔒 Tu meta solo se cambia los <span className="font-semibold">lunes</span>, al comenzar la semana — así nadie la baja al ir fallando.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** Hero card: weekly ring + streak + month totals in one block, with share/goal tucked into the corner. */
@@ -720,57 +814,55 @@ function EditGoalIcon() {
   );
 }
 
-function ProgressCard({ summary, trainedToday, onChangeGoal, savingGoal, onShare }: { summary: TrainingSummary; trainedToday: boolean; onChangeGoal: (n: number) => void; savingGoal: boolean; onShare?: () => void }) {
-  const goal = summary.weeklyGoal ?? 1;
-  const pct = Math.min(100, Math.round((summary.thisWeekCount / goal) * 100));
-  const [editing, setEditing] = useState(false);
+function ProgressCard({ summary, onChangeGoal, savingGoal, onShare }: {
+  summary: TrainingSummary;
+  onChangeGoal: (type: 'martial' | 'conditioning', n: number) => void;
+  savingGoal: boolean;
+  onShare?: () => void;
+}) {
   const monthHours = Math.round((summary.monthMinutes / 60) * 10) / 10;
-
+  // An already-set goal can only be changed on Monday (anti-manipulation); first-time setup is always open.
+  const isMonday = new Date().getDay() === 1;
   return (
     <div className="bg-white rounded-xl shadow-sm p-5 pl-6 jjp-accent-bar">
-      <div className="flex items-center gap-5">
-        <Ring pct={pct} />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-500">Esta semana</p>
-          <p className="text-2xl font-bold text-gray-900">{summary.thisWeekCount}<span className="text-base font-medium text-gray-400"> / {goal}</span></p>
-          <div className="flex items-center gap-x-3 gap-y-1.5 mt-2 flex-wrap">
-            <StreakChip streak={summary.currentStreak} trainedToday={trainedToday} />
-            <span className="inline-flex items-center gap-1.5 text-xs text-gray-400">
-              <span className="w-1 h-1 rounded-full bg-gray-300" aria-hidden />
-              Récord: {summary.maxStreak}
-            </span>
-            {summary.weeklyGoalMet && (
-              <span className="text-xs font-semibold text-green-600" title="¡Cumpliste tu meta semanal!">
-                ✅ Meta semanal cumplida
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="self-start flex items-center gap-4">
-          {onShare && (
-            <button
-              onClick={onShare}
-              aria-label="Compartir mi semana"
-              title="Compartir mi semana"
-              className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-600 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600 transition-colors"
-            >
-              <ShareIcon />
-            </button>
-          )}
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-bold text-gray-900">Tus rachas 🔥</h2>
+        {onShare && (
           <button
-            onClick={() => setEditing((v) => !v)}
-            aria-label="Cambiar meta semanal"
-            title="Cambiar meta semanal"
-            className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-colors ${
-              editing
-                ? 'border-primary-300 bg-primary-50 text-primary-600'
-                : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600'
-            }`}
+            onClick={onShare}
+            aria-label="Compartir mi semana"
+            title="Compartir mi semana"
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-600 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600 transition-colors"
           >
-            <EditGoalIcon />
+            <ShareIcon />
           </button>
-        </div>
+        )}
       </div>
+
+      {summary.comodinUsed && (
+        <div className="mb-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
+          🎟️ Usaste tu comodín del mes — tu racha sigue viva aunque faltaras a la meta de una semana.
+        </div>
+      )}
+
+      <div className="space-y-4">
+        <StreakRow
+          icon="🥋" label="Arte marcial"
+          streak={summary.currentStreak} thisWeek={summary.thisWeekCount}
+          goal={summary.weeklyGoal ?? 4} met={summary.weeklyGoalMet} record={summary.maxStreak}
+          onChangeGoal={(n) => onChangeGoal('martial', n)} saving={savingGoal}
+          locked={summary.weeklyGoal != null && !isMonday}
+        />
+        <div className="border-t border-gray-100" />
+        <StreakRow
+          icon="🏋️" label="Físico"
+          streak={summary.conditioningStreak} thisWeek={summary.conditioningThisWeek}
+          goal={summary.conditioningGoal ?? 2} met={summary.conditioningGoalMet} record={summary.conditioningMax}
+          onChangeGoal={(n) => onChangeGoal('conditioning', n)} saving={savingGoal}
+          locked={summary.conditioningGoal != null && !isMonday}
+        />
+      </div>
+
       {summary.monthSessions > 0 && (
         <div className="mt-4 pt-4 border-t border-gray-100">
           <p className="jjp-label mb-2.5">Este mes</p>
@@ -788,25 +880,6 @@ function ProgressCard({ summary, trainedToday, onChangeGoal, savingGoal, onShare
                 <div className="text-xl font-extrabold leading-none" style={{ color: s.c }}>{s.v}</div>
                 <div className="text-[10px] text-gray-400 mt-1 font-semibold">{s.l}</div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {editing && (
-        <div className="mt-4 pt-4 border-t border-gray-100">
-          <p className="text-xs text-gray-400 mb-2">Cambiar meta semanal</p>
-          <div className="flex flex-wrap gap-2">
-            {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-              <button
-                key={n}
-                disabled={savingGoal}
-                onClick={() => { onChangeGoal(n); setEditing(false); }}
-                className={`w-10 h-10 rounded-lg border-2 font-bold transition-colors disabled:opacity-50 ${
-                  n === goal ? 'border-primary-500 text-primary-600' : 'border-gray-200 text-gray-600 hover:border-primary-300'
-                }`}
-              >
-                {n}
-              </button>
             ))}
           </div>
         </div>

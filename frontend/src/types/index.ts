@@ -98,9 +98,29 @@ export interface Student {
   healthInsuranceType: string | null;
   healthInsuranceCompany: string | null;
   active: boolean;
+  /** Pro (premium) access: expiry date (yyyy-MM-dd) and whether it's currently active. */
+  premiumUntil?: string | null;
+  isPremium?: boolean;
   planIds?: number[];
   enrolledPlans?: Array<{ id: number; name: string; disciplineName: string | null; price: number | null; professorId: number | null; professorName: string | null }>;
   disciplineBelts?: StudentDisciplineBelt[];
+}
+
+/** Premium "you vs academy" snapshot (GET training/insights-pro). */
+export interface ProInsights {
+  yourThisWeek: number;
+  academyAvgThisWeek: number;
+  yourStreak: number;
+  academyAvgStreak: number;
+  rank: number;
+  totalStudents: number;
+  percentile: number;
+}
+
+/** Premium AI insight: the generated plain-text analysis and the day it was produced (null = none yet). */
+export interface CoachInsight {
+  text: string | null;
+  date: string | null;
 }
 
 export type PromotionType = 'PROMOCION' | 'DEGRADACION' | 'GRADO';
@@ -706,18 +726,28 @@ export interface LeaderboardEntry {
   currentStreak: number;
 }
 
+/** Academy leaderboards split by type: 🥋 arte marcial and 🏋️ físico. */
+export interface Leaderboards {
+  martial: LeaderboardEntry[];
+  conditioning: LeaderboardEntry[];
+}
+
 export interface TrainingSummary {
+  // 🥋 Arte marcial (BJJ + Kickboxing) — weekly-goal streak (accumulated days).
   weeklyGoal: number | null;
   thisWeekCount: number;
   currentStreak: number;
   maxStreak: number;
   weeklyGoalMet: boolean;
-  /** Length of the streak that just broke (repairable 1-day gap); 0 when there's nothing to recover. */
-  lostStreak: number;
-  /** True when there's a repairable gap and the student still has repairs left this month. */
-  repairAvailable: boolean;
-  /** Streak repairs remaining this calendar month. */
-  repairsLeft: number;
+  // 🏋️ Físico (acondicionamiento).
+  conditioningGoal: number | null;
+  conditioningThisWeek: number;
+  conditioningStreak: number;
+  conditioningMax: number;
+  conditioningGoalMet: boolean;
+  // 🎟️ Comodín (1 semana perdonada por mes).
+  comodinLeft: number;
+  comodinUsed: boolean;
   monthSessions: number;
   monthMinutes: number;
   monthRounds: number;

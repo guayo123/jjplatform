@@ -213,20 +213,34 @@ public class PortalController {
         return ResponseEntity.ok(portalService.getTrainingSummary(studentId, today));
     }
 
-    /** Spends a monthly streak repair to fill the current 1-day gap and revive the broken streak. */
-    @PostMapping("/students/{studentId}/training/streak-repair")
-    public ResponseEntity<TrainingSummaryDto> repairStreak(@PathVariable Long studentId,
-                                                           @RequestParam(required = false)
-                                                           @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate today) {
-        return ResponseEntity.ok(portalService.repairStreak(studentId, today));
-    }
-
-    /** Academy training leaderboard: sessions this week + day streak per active student. */
+    /** Academy leaderboards (🥋 arte marcial + 🏋️ físico): days this week + weekly-goal streak per active student. */
     @GetMapping("/students/{studentId}/training/leaderboard")
-    public ResponseEntity<List<LeaderboardEntryDto>> trainingLeaderboard(
+    public ResponseEntity<com.jjplatform.api.dto.LeaderboardsDto> trainingLeaderboard(
             @PathVariable Long studentId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate today) {
         return ResponseEntity.ok(portalService.getTrainingLeaderboard(studentId, today));
+    }
+
+    /** Premium-only: "you vs academy" snapshot (requires active Pro). */
+    @GetMapping("/students/{studentId}/training/insights-pro")
+    public ResponseEntity<com.jjplatform.api.dto.ProInsightsDto> proInsights(
+            @PathVariable Long studentId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate today) {
+        return ResponseEntity.ok(portalService.getProInsights(studentId, today));
+    }
+
+    /** Pro-only: last AI-coach analysis (cached; no generation). */
+    @GetMapping("/students/{studentId}/training/coach")
+    public ResponseEntity<com.jjplatform.api.dto.CoachInsightDto> coachInsight(@PathVariable Long studentId) {
+        return ResponseEntity.ok(portalService.getCoachInsight(studentId));
+    }
+
+    /** Pro-only: generate (or return today's cached) AI-coach analysis — at most one AI call per day. */
+    @PostMapping("/students/{studentId}/training/coach")
+    public ResponseEntity<com.jjplatform.api.dto.CoachInsightDto> generateCoachInsight(
+            @PathVariable Long studentId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate today) {
+        return ResponseEntity.ok(portalService.generateCoachInsight(studentId, today));
     }
 
     /** Classmates for the training-partner picker. */
@@ -351,18 +365,23 @@ public class PortalController {
         return ResponseEntity.noContent().build();
     }
 
-    /** Weekly training goal (per logged-in student). */
-    @GetMapping("/training/goal")
-    public ResponseEntity<Map<String, Integer>> getTrainingGoal() {
-        Map<String, Integer> body = new HashMap<>();
-        body.put("goal", portalService.getTrainingGoal());
-        return ResponseEntity.ok(body);
+    /** Weekly goals {martial, conditioning} for the logged-in student. */
+    @GetMapping("/training/goals")
+    public ResponseEntity<Map<String, Integer>> getTrainingGoals() {
+        return ResponseEntity.ok(portalService.getTrainingGoals());
     }
 
-    @PutMapping("/training/goal")
-    public ResponseEntity<Map<String, Integer>> setTrainingGoal(@RequestBody Map<String, Integer> request) {
-        Map<String, Integer> body = new HashMap<>();
-        body.put("goal", portalService.setTrainingGoal(request.get("goal")));
-        return ResponseEntity.ok(body);
+    /**
+     * Sets one weekly goal. Body: { "type": "martial"|"conditioning", "goal": 1-7 or null, "today": ISO date }.
+     * An already-set goal can only change on Monday (server-enforced); returns both goals.
+     */
+    @PutMapping("/training/goals")
+    public ResponseEntity<Map<String, Integer>> setTrainingGoal(@RequestBody Map<String, Object> request) {
+        String type = String.valueOf(request.get("type"));
+        Object g = request.get("goal");
+        Integer goal = g == null ? null : ((Number) g).intValue();
+        Object t = request.get("today");
+        LocalDate today = t == null ? null : LocalDate.parse(String.valueOf(t));
+        return ResponseEntity.ok(portalService.setTrainingGoal(type, goal, today));
     }
 }

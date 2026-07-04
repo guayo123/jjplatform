@@ -75,6 +75,9 @@ export default function Portal() {
 
   // Guided tour. Auto-runs once the data is loaded unless the student ticked "don't show again".
   const tourStartedRef = useRef(false);
+  // Hold the tour until the first-time weekly-goal setup is resolved, so they don't overlap. 'unknown' until
+  // the training section reports; 'pending' = goal modal open; 'resolved' = set/closed or not needed.
+  const [goalOnboarding, setGoalOnboarding] = useState<'unknown' | 'pending' | 'resolved'>('unknown');
 
   const loadProfiles = useCallback(async () => {
     const [list, b] = await Promise.all([portalApi.me(), portalApi.getBanner().catch(() => null)]);
@@ -256,14 +259,16 @@ export default function Portal() {
     }
   };
 
-  // Auto-run the tour immediately once the profile is available, unless dismissed forever.
+  // Auto-run the tour once the profile is available, unless dismissed forever. We wait for the first-time
+  // weekly-goal setup to resolve first (goal modal → then tour) so the two don't overlap.
   useEffect(() => {
     if (loading || !student) return;
     if (tourStartedRef.current) return;
     if (localStorage.getItem(TOUR_KEY) === 'dismissed') return;
+    if (goalOnboarding !== 'resolved') return; // hold until the goal modal is closed / not needed
     tourStartedRef.current = true;
     runTour();
-  }, [loading, student]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loading, student, goalOnboarding]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const perfil = student && (
     <PerfilSection
@@ -297,6 +302,8 @@ export default function Portal() {
         disciplines={disciplines}
         studentName={student.name}
         academyName={student.academyName}
+        isPremium={!!student.isPremium}
+        onGoalOnboardingState={setGoalOnboarding}
       />
       <UpcomingClassesCard studentId={student.id} />
     </div>

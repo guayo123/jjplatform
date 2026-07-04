@@ -94,6 +94,12 @@ public class ConditioningService {
         return dates;
     }
 
+    /** Non-backdated conditioning sessions across an academy since {@code from} — feeds the físico leaderboard. */
+    @Transactional(readOnly = true)
+    public List<ConditioningSession> academySessions(Long academyId, LocalDate from) {
+        return repository.findByStudentAcademyIdAndBackdatedFalseAndDateGreaterThanEqual(academyId, from);
+    }
+
     /**
      * Non-backdated conditioning dates per student for a whole academy, used by the leaderboard
      * so gym days count toward the streak the same way they do in each student's personal summary.

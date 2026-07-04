@@ -50,4 +50,17 @@ public class StudentController {
         studentService.deleteStudent(id, academyId);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Grant or revoke the student's Pro (premium) access. {@code months > 0} extends it by that many
+     * months (from today or the current expiry, whichever is later); {@code months <= 0} revokes it.
+     * Manual activation while there's no online checkout; a future payment webhook reuses the same logic.
+     */
+    @PutMapping("/{id}/premium")
+    public ResponseEntity<StudentDto> setPremium(@PathVariable Long id,
+                                                 @RequestBody java.util.Map<String, Integer> body) {
+        Long academyId = securityHelper.getCurrentAcademyId();
+        int months = body.getOrDefault("months", 0);
+        return ResponseEntity.ok(studentService.setPremium(id, academyId, months));
+    }
 }

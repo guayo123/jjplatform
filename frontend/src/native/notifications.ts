@@ -42,24 +42,8 @@ export async function ensureLocalNotificationPermission(): Promise<boolean> {
   }
 }
 
-/** Lost-streak rescue state, when the student can still repair a 1-day gap. */
-export interface StreakRescue {
-  /** Length of the streak that just broke (0 = nothing to recover). */
-  lostStreak: number;
-  /** Whether a repair can still be spent this month. */
-  repairAvailable: boolean;
-}
-
 /** Title/body tailored to the streak and how far out the reminder is. */
-function streakReminderCopy(streak: number, dayOffset: number, rescue?: StreakRescue): { title: string; body: string } {
-  // A broken streak that's still repairable: today's reminder becomes a rescue call.
-  // Only day 0 — the repair window closes if today also passes untrained.
-  if (dayOffset === 0 && rescue?.repairAvailable && rescue.lostStreak > 0) {
-    return {
-      title: `🚑 Salva tu racha de ${rescue.lostStreak} día${rescue.lostStreak === 1 ? '' : 's'}`,
-      body: 'Aún estás a tiempo: entra y usa tu recuperación del mes. ¡No la dejes ir!',
-    };
-  }
+function streakReminderCopy(streak: number, dayOffset: number): { title: string; body: string } {
   // Day 2+: the student likely hasn't reopened the app — switch to gentle re-engagement.
   if (dayOffset >= 2) {
     return {
@@ -91,7 +75,6 @@ function streakReminderCopy(streak: number, dayOffset: number, rescue?: StreakRe
 export async function scheduleStreakReminders(
   currentStreak: number,
   trainedToday: boolean,
-  rescue?: StreakRescue,
 ): Promise<void> {
   if (!getPlatformInfo().isNative) return;
   const prefs = getReminderPrefs();
@@ -121,7 +104,7 @@ export async function scheduleStreakReminders(
     await LocalNotifications.schedule({
       notifications: reminders.map((r) => ({
         id: r.id,
-        ...streakReminderCopy(currentStreak, r.dayOffset, rescue),
+        ...streakReminderCopy(currentStreak, r.dayOffset),
         schedule: { at: r.at, allowWhileIdle: true },
       })),
     });

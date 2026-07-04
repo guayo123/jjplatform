@@ -2,25 +2,42 @@ package com.jjplatform.api.dto;
 
 import lombok.Data;
 
-/** Aggregated training stats for the portal dashboard / streak header. */
+/**
+ * Aggregated training stats for the portal dashboard / streak header.
+ *
+ * The "martial" fields (weeklyGoal, thisWeekCount, currentStreak, maxStreak, weeklyGoalMet) describe the
+ * 🥋 arte-marcial streak and are kept under their original names so existing consumers keep working. The
+ * streak is now WEEKLY-GOAL based: accumulated trained days that grow while you meet your weekly goal and
+ * reset to 0 when a completed week misses it — with one forgiven "comodín" week per calendar month.
+ */
 @Data
 public class TrainingSummaryDto {
-    /** Target sessions per week (null = goal not set yet). */
+    // ── 🥋 Arte marcial (BJJ + Kickboxing) — kept under legacy names ──
+    /** Martial weekly goal: target training days per week (null = not set → onboarding). */
     private Integer weeklyGoal;
-    /** Sessions logged in the current ISO week (Mon-Sun). */
+    /** Martial training days in the current ISO week (Mon-Sun). */
     private int thisWeekCount;
-    /** Consecutive calendar days trained, counting up to today (or yesterday if today is unfinished). */
+    /** Martial streak: accumulated trained days while meeting the weekly goal (resets on a missed week). */
     private int currentStreak;
-    /** Longest run of consecutive trained days ever. */
+    /** Best martial streak ever reached. */
     private int maxStreak;
-    /** Whether the weekly goal has already been met this week (for the "meta cumplida" badge). */
+    /** Whether the martial weekly goal is already met this week. */
     private boolean weeklyGoalMet;
-    /** Length of the streak that just broke (run before a repairable 1-day gap); 0 when there's nothing to recover. */
-    private int lostStreak;
-    /** True when there is a repairable gap AND the student still has repairs left this month. */
-    private boolean repairAvailable;
-    /** Streak repairs remaining this calendar month. */
-    private int repairsLeft;
+
+    // ── 🏋️ Físico (acondicionamiento) ──
+    private Integer conditioningGoal;
+    private int conditioningThisWeek;
+    private int conditioningStreak;
+    private int conditioningMax;
+    private boolean conditioningGoalMet;
+
+    // ── 🎟️ Comodín (1 semana perdonada por mes calendario) ──
+    /** Comodines left this calendar month (0 or 1). */
+    private int comodinLeft;
+    /** True when a comodín was already spent this month to keep a streak alive. */
+    private boolean comodinUsed;
+
+    // ── Volumen del mes ──
     /** Sessions in the current calendar month. */
     private int monthSessions;
     /** Total minutes trained in the current calendar month. */

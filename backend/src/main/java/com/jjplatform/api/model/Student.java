@@ -77,6 +77,23 @@ public class Student {
     @Builder.Default
     private Boolean active = true;
 
+    /**
+     * Premium ("Pro") access valid through this date (inclusive). Null = never had it. Drives the
+     * student's deep training-analytics tier. Granted manually by an admin for now; later a payment
+     * webhook will extend it. See {@link #isPremium()}.
+     */
+    private LocalDate premiumUntil;
+
+    /**
+     * Last AI-coach analysis generated for this student (Pro feature). Cached daily: regenerated at most
+     * once per {@link #coachInsightDate} so each student costs at most one AI call per day.
+     */
+    @Column(columnDefinition = "TEXT")
+    private String coachInsight;
+
+    /** Day {@link #coachInsight} was generated (device-local date). */
+    private LocalDate coachInsightDate;
+
     /** Last date an automatic payment reminder was sent (dedupe so we don't message more than once a month). */
     private LocalDate lastPaymentReminderAt;
 
@@ -92,4 +109,9 @@ public class Student {
     )
     @Builder.Default
     private List<Plan> plans = new ArrayList<>();
+
+    /** Pro is active when premiumUntil is today or later. */
+    public boolean isPremium() {
+        return premiumUntil != null && !premiumUntil.isBefore(LocalDate.now());
+    }
 }

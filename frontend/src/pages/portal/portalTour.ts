@@ -76,7 +76,7 @@ export function startPortalTour({
       element: '[data-tour="registrar-entreno"]',
       popover: {
         title: '➕ Registrar entrenamiento',
-        description: 'Toca el <b>+</b> y elige qué registrar:<br><br>🥋 <b>Jiujitsu</b> — sesión en el tatami (Gi, No-Gi, Open Mat o Competición)<br>🏋️ <b>Acondicionamiento</b> — gym, pesas o cardio',
+        description: 'Toca el <b>+</b> y elige qué registrar:<br><br>🥋 <b>Jiujitsu</b> — sesión en el tatami (Gi, No-Gi, Open Mat o Competición)<br>🥊 <b>Kickboxing</b> — sesión de golpeo (striking)<br>🏋️ <b>Físico</b> — gym, pesas o cardio',
         side: 'top',
         align: 'end',
       },
@@ -171,7 +171,7 @@ export function startPortalTourNative({
       onHighlightStarted: () => onNavigate('entreno'),
       popover: {
         title: '➕ Registrar entrenamiento',
-        description: 'Toca el <b>+</b> y elige qué registrar:<br><br>🥋 <b>Jiujitsu</b> — sesión en el tatami (Gi, No-Gi, Open Mat o Competición)<br>🏋️ <b>Acondicionamiento</b> — gym, pesas o cardio',
+        description: 'Toca el <b>+</b> y elige qué registrar:<br><br>🥋 <b>Jiujitsu</b> — sesión en el tatami (Gi, No-Gi, Open Mat o Competición)<br>🥊 <b>Kickboxing</b> — sesión de golpeo (striking)<br>🏋️ <b>Físico</b> — gym, pesas o cardio',
         side: 'top',
         align: 'end',
       },

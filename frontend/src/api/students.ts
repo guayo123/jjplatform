@@ -16,4 +16,8 @@ export const studentsApi = {
 
   delete: (id: number) =>
     client.delete(`/students/${id}`),
+
+  /** Grant (months>0, extends from today/current expiry) or revoke (months<=0) the student's Pro. */
+  setPremium: (id: number, months: number) =>
+    client.put<Student>(`/students/${id}/premium`, { months }).then((r) => r.data),
 };

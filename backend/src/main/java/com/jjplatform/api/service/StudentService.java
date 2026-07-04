@@ -314,6 +314,24 @@ public class StudentService {
     }
 
     /**
+     * Grant (months &gt; 0) or revoke (months &lt;= 0) the student's Pro access. Granting extends from the
+     * later of today or the current expiry, so stacking grants accumulates. The same "extend by N months"
+     * path is what a future payment webhook will call.
+     */
+    @Transactional
+    public StudentDto setPremium(Long id, Long academyId, int months) {
+        Student student = findStudentByIdAndAcademy(id, academyId);
+        if (months <= 0) {
+            student.setPremiumUntil(null);
+        } else {
+            LocalDate base = student.getPremiumUntil() != null && student.getPremiumUntil().isAfter(LocalDate.now())
+                    ? student.getPremiumUntil() : LocalDate.now();
+            student.setPremiumUntil(base.plusMonths(months));
+        }
+        return toDto(studentRepository.save(student));
+    }
+
+    /**
      * Reject creating/updating a student whose RUT already belongs to another active student of the
      * same academy. RUT is compared format-tolerant (sin puntos ni guion, K en mayúscula), igual que
      * el flujo de registro. Un RUT vacío no se valida (es opcional). The same person CAN exist across
@@ -370,6 +388,8 @@ public class StudentService {
         dto.setHealthInsuranceType(student.getHealthInsuranceType());
         dto.setHealthInsuranceCompany(student.getHealthInsuranceCompany());
         dto.setActive(student.getActive());
+        dto.setPremiumUntil(student.getPremiumUntil() != null ? student.getPremiumUntil().toString() : null);
+        dto.setIsPremium(student.isPremium());
 
         dto.setEnrolledPlans(student.getPlans().stream()
                 .filter(p -> Boolean.TRUE.equals(p.getActive()))

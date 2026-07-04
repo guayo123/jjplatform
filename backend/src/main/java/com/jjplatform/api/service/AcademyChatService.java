@@ -88,6 +88,22 @@ public class AcademyChatService {
         return callAI(buildSystemPrompt(academy), buildMessages(List.of(), userMessage));
     }
 
+    /**
+     * One-shot completion with a caller-supplied system prompt and a single user message — no academy
+     * context, no conversation history. Reuses the same provider routing (Claude → Groq → Gemini) and
+     * prompt caching as the WhatsApp assistant. Used by the Pro AI coach.
+     */
+    public String complete(String systemPrompt, String userMessage) {
+        return callAI(systemPrompt, buildMessages(List.of(), userMessage));
+    }
+
+    /** True when a completion came back as a routing fallback (AI unavailable or errored), not a real answer. */
+    public boolean isFallback(String text) {
+        return text == null || text.isBlank()
+                || text.equals(fallbackMessage())
+                || text.startsWith("El asistente no está configurado");
+    }
+
     // ── Routing ───────────────────────────────────────────────────────────────
 
     private String callAI(String systemPrompt, List<Map<String, Object>> messages) {

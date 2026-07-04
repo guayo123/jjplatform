@@ -44,14 +44,16 @@ function SettingsSection({ studentId }: { studentId: number }) {
   const setThemePref = useThemeStore((s) => s.setPref);
   const [soundOn, setSoundOn] = useState(isSoundEnabled());
   const [duelSoundOn, setDuelSoundOn] = useState(isDuelSoundEnabled());
-  const [goal, setGoal] = useState<number | null>(null);
+  const [goals, setGoals] = useState<{ martial: number | null; conditioning: number | null }>({ martial: null, conditioning: null });
   const [savingGoal, setSavingGoal] = useState(false);
   const [prefs, setPrefs] = useState<ReminderPrefs>(() => getReminderPrefs());
   const [appIcon, setAppIcon] = useState<string>(() => getChosenAppIcon());
   const [pendingIcon, setPendingIcon] = useState<string | null>(null);
+  // Weekly goals may only change on Monday once set (anti-manipulation); first setup is open any day.
+  const isMonday = new Date().getDay() === 1;
 
   useEffect(() => {
-    trainingApi.getGoal().then(setGoal).catch(() => { /* leave unset */ });
+    trainingApi.getGoals().then(setGoals).catch(() => { /* leave unset */ });
   }, []);
 
   // Re-tailor the native reminders to the latest streak after a settings change.
@@ -60,20 +62,17 @@ function SettingsSection({ studentId }: { studentId: number }) {
     try {
       const [sum, list] = await Promise.all([trainingApi.summary(studentId), trainingApi.list(studentId)]);
       const trainedToday = list.some((s) => s.date === new Date().toLocaleDateString('en-CA'));
-      await scheduleStreakReminders(sum.currentStreak, trainedToday, {
-        lostStreak: sum.lostStreak,
-        repairAvailable: sum.repairAvailable,
-      });
+      await scheduleStreakReminders(sum.currentStreak, trainedToday);
     } catch {
       /* non-critical */
     }
   }, [isNative, studentId]);
 
-  const changeGoal = async (n: number) => {
+  const changeGoal = async (type: 'martial' | 'conditioning', n: number) => {
     setSavingGoal(true);
     try {
-      const saved = await trainingApi.setGoal(n);
-      setGoal(saved);
+      const saved = await trainingApi.setGoal(type, n);
+      setGoals(saved);
       void reschedule();
       toast.success('Meta semanal actualizada');
     } catch (e) {
@@ -93,24 +92,36 @@ function SettingsSection({ studentId }: { studentId: number }) {
     <div className="bg-white rounded-xl shadow-sm p-5">
       <h2 className="font-bold text-gray-900 mb-4">Ajustes</h2>
 
-      {/* Weekly training goal */}
+      {/* Weekly goals — one per streak (martial art + físico) */}
       <div>
-        <p className="text-sm font-semibold text-gray-700">Meta semanal 🎯</p>
-        <p className="text-xs text-gray-400 mb-2">¿Cuántas veces quieres entrenar por semana?</p>
-        <div className="flex flex-wrap gap-2">
-          {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-            <button
-              key={n}
-              disabled={savingGoal}
-              onClick={() => changeGoal(n)}
-              className={`w-10 h-10 rounded-lg border-2 font-bold transition-colors disabled:opacity-50 ${
-                n === goal ? 'border-primary-500 text-primary-600 bg-primary-50' : 'border-gray-200 text-gray-600 hover:border-primary-300'
-              }`}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
+        <p className="text-sm font-semibold text-gray-700">Metas semanales 🎯</p>
+        <p className="text-xs text-gray-400 mb-3">¿Cuántos días por semana quieres entrenar de cada tipo? Cumple tu meta cada semana para mantener tu racha 🔥.</p>
+        {([['martial', '🥋 Arte marcial'], ['conditioning', '🏋️ Físico']] as const).map(([type, label]) => {
+          // Once set, a goal can only change on Monday so nobody lowers it mid-week to dodge a fail.
+          const locked = goals[type] != null && !isMonday;
+          return (
+            <div key={type} className="mb-3 last:mb-0">
+              <p className="text-xs font-medium text-gray-500 mb-1.5">{label}</p>
+              <div className="flex flex-wrap gap-2">
+                {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                  <button
+                    key={n}
+                    disabled={savingGoal || locked}
+                    onClick={() => changeGoal(type, n)}
+                    className={`w-9 h-9 rounded-lg border-2 font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      n === goals[type] ? 'border-primary-500 text-primary-600 bg-primary-50' : 'border-gray-200 text-gray-600 hover:border-primary-300'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              {locked && (
+                <p className="text-xs text-amber-600 mt-1.5">🔒 Se cambia solo los lunes, al comenzar la semana.</p>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Appearance / theme picker */}
