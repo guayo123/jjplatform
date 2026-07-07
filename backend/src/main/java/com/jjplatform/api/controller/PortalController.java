@@ -395,4 +395,27 @@ public class PortalController {
         LocalDate today = t == null ? null : LocalDate.parse(String.valueOf(t));
         return ResponseEntity.ok(portalService.setTrainingGoal(type, goal, today));
     }
+
+    /*
+     * Backward-compat: apps anteriores a la separación martial/conditioning (commit f54dcde) llaman al
+     * singular /training/goal con shape {goal}. Sin este alias, Spring cae al handler de estáticos y devuelve
+     * 404 (NoResourceFoundException) al arrancar. Lo mapeamos a la meta "martial" (la única que existía entonces).
+     */
+    @GetMapping("/training/goal")
+    public ResponseEntity<Map<String, Integer>> getTrainingGoalLegacy() {
+        Map<String, Integer> body = new HashMap<>();
+        body.put("goal", portalService.getTrainingGoals().get("martial"));
+        return ResponseEntity.ok(body);
+    }
+
+    @PutMapping("/training/goal")
+    public ResponseEntity<Map<String, Integer>> setTrainingGoalLegacy(@RequestBody Map<String, Object> request) {
+        Object g = request.get("goal");
+        Integer goal = g == null ? null : ((Number) g).intValue();
+        // Sin "today": la regla de "solo lunes" se evalúa contra el reloj del server (el primer set se permite igual).
+        Map<String, Integer> result = portalService.setTrainingGoal("martial", goal, null);
+        Map<String, Integer> body = new HashMap<>();
+        body.put("goal", result.get("martial"));
+        return ResponseEntity.ok(body);
+    }
 }
