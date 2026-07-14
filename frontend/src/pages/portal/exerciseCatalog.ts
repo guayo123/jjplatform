@@ -131,10 +131,20 @@ export function getMusclesFromFocus(focus: ConditioningFocus | null): MuscleRegi
  */
 export function suggestExercises(query: string, focus: ConditioningFocus | null, recents: string[], limit = 8): string[] {
   const q = query.trim().toLowerCase();
+  const focusOf = (name: string) => CATALOG_INFO.get(name.trim().toLowerCase())?.focus ?? null;
+
+  // With a focus chosen and nothing typed yet, keep suggestions within that focus — including the
+  // student's recents only when they belong to the same focus (custom/unknown names are always kept).
+  // Once they start typing (or no focus is set) we broaden to the whole catalog so search stays open.
+  const broaden = !!q || !focus;
+  const recentsPart = focus && !q
+    ? recents.filter((n) => { const f = focusOf(n); return f === null || f === focus; })
+    : recents;
+
   const ordered = [
-    ...recents,
+    ...recentsPart,
     ...EXERCISE_CATALOG.filter((e) => focus && e.focus === focus).map((e) => e.name),
-    ...EXERCISE_CATALOG.map((e) => e.name),
+    ...(broaden ? EXERCISE_CATALOG.map((e) => e.name) : []),
   ];
   const seen = new Set<string>();
   const out: string[] = [];
