@@ -252,7 +252,8 @@ public class AcademyChatService {
         sb.append(buildSystemPrompt(academy));
         sb.append("\n--- MODO ADMINISTRADOR ---\n");
         sb.append("Estás hablando con un ADMINISTRADOR. También tienes acceso a datos internos de alumnos.\n");
-        sb.append("IMPORTANTE: Cuando pregunten por cinturones, peso, edad o pagos, usa SOLO la sección ALUMNOS ACTIVOS, no la de profesores.\n\n");
+        sb.append("IMPORTANTE: Cuando pregunten por cinturones, peso, edad, cumpleaños/fecha de nacimiento o pagos, usa SOLO la sección ALUMNOS ACTIVOS, no la de profesores.\n");
+        sb.append("Para cumpleaños de un mes, filtra por el mes de la fecha 'nace' (formato AAAA-MM-DD) de cada alumno.\n\n");
 
         List<Student> students = studentRepository.findByAcademyIdAndActiveTrue(academyId);
         List<Payment> monthPayments = paymentRepository.findByAcademyIdAndMonthAndYear(academyId, currentMonth, currentYear);
@@ -270,6 +271,8 @@ public class AcademyChatService {
         for (Student s : students) {
             sb.append("- ").append(s.getName());
             if (s.getAge() != null) sb.append(", ").append(s.getAge()).append(" años");
+            if (s.getBirthDate() != null) sb.append(", nace ").append(s.getBirthDate());
+            if (s.getJoinDate() != null) sb.append(", ingresó ").append(s.getJoinDate());
             if (s.getWeight() != null) sb.append(", ").append(s.getWeight()).append(" kg");
             if (s.getBelt() != null && !s.getBelt().isBlank()) {
                 sb.append(", cinturón ").append(s.getBelt());
