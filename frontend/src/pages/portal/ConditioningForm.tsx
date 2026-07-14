@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { ConditioningFocus, ConditioningSessionForm } from '../../types';
 import { tapLight } from '../../native/haptics';
-import { getMusclesFromFocus, getMusclesFromNames, suggestExercises } from './exerciseCatalog';
+import { getExerciseInfo, getMusclesFromFocus, getMusclesFromNames, suggestExercises } from './exerciseCatalog';
 import BodyDiagram from './sections/BodyDiagram';
 import { deleteTemplate, loadTemplates, saveTemplate, type RoutineTemplate } from './routineTemplates';
 
@@ -43,6 +43,7 @@ export default function ConditioningForm({ recentExercises, onClose, onSave }: P
   const [durationMin, setDurationMin] = useState<number | null>(null);
   const [exercises, setExercises] = useState<ExerciseRow[]>([emptyExercise()]);
   const [activeEx, setActiveEx] = useState<number | null>(null); // which exercise input shows suggestions
+  const [openInfo, setOpenInfo] = useState<number | null>(null); // which exercise row shows "cómo se hace"
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -229,6 +230,37 @@ export default function ConditioningForm({ recentExercises, onClose, onSave }: P
                             {name}
                           </button>
                         ))}
+                      </div>
+                    );
+                  })()}
+
+                  {(() => {
+                    const info = getExerciseInfo(ex.name);
+                    if (!info || (!info.equipment && !info.instructions)) return null;
+                    const open = openInfo === ei;
+                    return (
+                      <div className="mb-2 -mt-0.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {info.equipment && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-primary-50 text-primary-700 border border-primary-100">
+                              🏋️ {info.equipment}
+                            </span>
+                          )}
+                          {info.instructions && (
+                            <button
+                              type="button"
+                              onClick={() => { void tapLight(); setOpenInfo(open ? null : ei); }}
+                              className="text-[11px] font-semibold text-primary-600 hover:text-primary-700"
+                            >
+                              {open ? 'Ocultar' : 'Cómo se hace'} {open ? '▲' : '▼'}
+                            </button>
+                          )}
+                        </div>
+                        {open && info.instructions && (
+                          <p className="mt-1.5 text-xs text-gray-500 leading-relaxed bg-gray-50 border border-gray-100 rounded-lg p-2.5">
+                            {info.instructions}
+                          </p>
+                        )}
                       </div>
                     );
                   })()}
