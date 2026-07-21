@@ -5,9 +5,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Iterator;
 
 /**
  * Validates uploaded images against a per-purpose profile:
@@ -82,25 +84,45 @@ public class ImageValidator {
             throw new IllegalArgumentException("Formato de imagen no soportado. Se permiten JPEG, PNG, GIF y WebP.");
         }
 
-        // ImageIO out of the box can decode JPEG, PNG, GIF, BMP; WebP needs an external plugin.
-        // We attempt to read for dimension validation; if it returns null we keep the upload but skip dim checks.
-        BufferedImage img;
-        try (InputStream in = file.getInputStream()) {
-            img = ImageIO.read(in);
+        // Read the pixel dimensions from the image *header* only, without decoding the
+        // full raster. Decoding first (ImageIO.read) would allocate width*height*4 bytes
+        // BEFORE we get a chance to reject an oversized image — a small file can decode to
+        // gigabytes (a "decompression bomb"). Validating dimensions up front closes that.
+        //
+        // ImageIO out of the box handles JPEG, PNG, GIF, BMP; WebP needs an external plugin.
+        // If no reader is available (e.g. WebP without a plugin) we keep the upload but skip
+        // dim checks, matching the previous behaviour.
+        int w;
+        int h;
+        try (InputStream in = file.getInputStream();
+             ImageInputStream iis = ImageIO.createImageInputStream(in)) {
+
+            if (iis == null) {
+                throw new IllegalArgumentException("No se pudo procesar la imagen. El archivo puede estar corrupto.");
+            }
+
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
+            if (!readers.hasNext()) {
+                if (format == DetectedFormat.WEBP) {
+                    log.debug("Skipping dimension check for WebP (ImageIO plugin not present)");
+                    return format;
+                }
+                throw new IllegalArgumentException("El archivo no es una imagen válida.");
+            }
+
+            ImageReader reader = readers.next();
+            try {
+                // false = do not read pixel data, only what's needed to serve metadata.
+                reader.setInput(iis, true, true);
+                w = reader.getWidth(0);
+                h = reader.getHeight(0);
+            } finally {
+                reader.dispose();
+            }
         } catch (IOException e) {
             throw new IllegalArgumentException("No se pudo procesar la imagen. El archivo puede estar corrupto.");
         }
 
-        if (img == null) {
-            if (format == DetectedFormat.WEBP) {
-                log.debug("Skipping dimension check for WebP (ImageIO plugin not present)");
-                return format;
-            }
-            throw new IllegalArgumentException("El archivo no es una imagen válida.");
-        }
-
-        int w = img.getWidth();
-        int h = img.getHeight();
         if (w < profile.minWidth || h < profile.minHeight) {
             throw new IllegalArgumentException(
                     "La imagen es demasiado pequeña. Mínimo " + profile.minWidth + "×" + profile.minHeight + " px (recibido " + w + "×" + h + ").");
