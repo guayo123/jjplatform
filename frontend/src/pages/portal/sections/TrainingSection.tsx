@@ -10,6 +10,7 @@ import ConditioningForm from '../ConditioningForm';
 import Celebration, { type CelebrationContent, streakMessage } from '../Celebration';
 import { computeAchievements, computeConditioningAchievements, takeNewlyUnlocked, type Achievement } from '../achievements';
 import { detectPRs, type PR } from '../prDetection';
+import { useToast } from '../../../components/ToastContext';
 import PRModal from '../PRModal';
 import { buildWeekCardData, drawWeekCard, shareCard } from '../shareWeekCard';
 import { computeInsights, type Insight } from './trainingInsights';
@@ -64,6 +65,7 @@ const trainedTodayAny = (sessions: TrainingSession[], cond: ConditioningSession[
 
 /** "Entreno" — personal training journal: weekly goal/streak + quick log + recent sessions. */
 export default function TrainingSection({ studentId, disciplines, studentName, academyName, isPremium, onGoalOnboardingState }: Props) {
+  const { toast } = useToast();
   const [summary, setSummary] = useState<TrainingSummary | null>(null);
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [classmates, setClassmates] = useState<Classmate[]>([]);
@@ -80,6 +82,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
   const [chooserOpen, setChooserOpen] = useState(false); // pick BJJ / kickboxing / conditioning to log
   const [condFormOpen, setCondFormOpen] = useState(false);
   const [condDetailFor, setCondDetailFor] = useState<ConditioningSession | null>(null);
+  const [progressPick, setProgressPick] = useState<string | null>(null); // "Mi progresión": exercise chosen from the direct-access list
   // Home shows the summary; history (sessions + trends) lives one tap away.
   const [view, setView] = useState<'resumen' | 'historial' | 'pro'>('resumen');
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('ALL');
@@ -163,6 +166,29 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
       }
     }
     return out.slice(0, 20);
+  }, [condSessions]);
+
+  // "Mi progresión": every exercise the student has logged with weight, so they can jump straight to its
+  // history without opening a session. Best kg + session count per exercise; most recently trained first.
+  const progressExercises = useMemo<ProgressExercise[]>(() => {
+    const map = new Map<string, ProgressExercise>();
+    for (const c of condSessions) {
+      for (const ex of c.exercises) {
+        const weights = ex.sets.map((s) => s.weightKg).filter((w): w is number => w != null && w > 0);
+        if (weights.length === 0) continue;
+        const best = Math.max(...weights);
+        const key = ex.name.trim().toLowerCase();
+        const cur = map.get(key);
+        if (!cur) {
+          map.set(key, { name: ex.name.trim(), bestKg: best, count: 1, lastDate: c.date });
+        } else {
+          cur.count += 1;
+          if (best > cur.bestKg) cur.bestKg = best;
+          if (c.date > cur.lastDate) cur.lastDate = c.date;
+        }
+      }
+    }
+    return [...map.values()].sort((a, b) => b.lastDate.localeCompare(a.lastDate));
   }, [condSessions]);
 
   const handleSave = (data: TrainingSessionForm) => saveTrainingSession(() => trainingApi.create(studentId, data));
@@ -278,6 +304,11 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     try {
       await trainingApi.setGoal(type, goal);
       await load();
+      toast.success('Meta semanal actualizada');
+    } catch (e) {
+      // The most common rejection is the Monday lock ("solo se puede cambiar los lunes"): surface the
+      // server message so the change doesn't look like it silently reverted to the old goal.
+      toast.error(e instanceof Error ? e.message : 'No se pudo actualizar la meta.');
     } finally {
       setSavingGoal(false);
     }
@@ -374,6 +405,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
           <InsightsCard insights={insights} hasSessions={sessions.length > 0} />
           <TrainingCharts sessions={sessions} />
           <div data-tour="peso"><BodyWeightCard studentId={studentId} /></div>
+          <MyProgressCard exercises={progressExercises} onPick={setProgressPick} />
           <LeaderboardCard boards={board} meId={studentId} onOpen={setCardFor} />
         </>
       ) : view === 'pro' ? (
@@ -475,6 +507,10 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
       )}
 
       {condDetailFor && <ConditioningDetail c={condDetailFor} allSessions={condSessions} studentName={studentName} academyName={academyName} onClose={() => setCondDetailFor(null)} />}
+
+      {progressPick && (
+        <ExerciseProgressModal exerciseName={progressPick} sessions={condSessions} onClose={() => setProgressPick(null)} />
+      )}
 
       {/* Week-card preview + share */}
       {shareView && (
@@ -717,10 +753,11 @@ function GoalSetupModal({ onSave, saving }: { onSave: (martial: number, conditio
  * and resets when a completed week misses it (with one comodín/month forgiven — handled server-side).
  */
 function StreakRow({
-  icon, label, streak, thisWeek, goal, met, record, onChangeGoal, saving, locked,
+  icon, label, streak, thisWeek, goal, met, record, onChangeGoal, saving, locked, onLockedTap,
 }: {
   icon: string; label: string; streak: number; thisWeek: number; goal: number;
   met: boolean; record: number; onChangeGoal: (n: number) => void; saving: boolean; locked: boolean;
+  onLockedTap: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const pct = Math.min(100, Math.round((thisWeek / Math.max(1, goal)) * 100));
@@ -762,10 +799,14 @@ function StreakRow({
             {[1, 2, 3, 4, 5, 6, 7].map((n) => (
               <button
                 key={n}
-                disabled={saving || locked}
-                onClick={() => { onChangeGoal(n); setEditing(false); }}
+                disabled={saving}
+                // When locked (not Monday) a tap explains the rule instead of silently doing nothing —
+                // otherwise the student thinks they changed the goal when they didn't.
+                onClick={() => { if (locked) { onLockedTap(); return; } onChangeGoal(n); setEditing(false); }}
                 className={`w-9 h-9 rounded-lg border-2 font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                  n === goal ? 'border-primary-500 text-primary-600' : 'border-gray-200 text-gray-600 hover:border-primary-300'
+                  n === goal ? 'border-primary-500 text-primary-600'
+                    : locked ? 'border-gray-200 text-gray-400'
+                    : 'border-gray-200 text-gray-600 hover:border-primary-300'
                 }`}
               >
                 {n}
@@ -823,9 +864,11 @@ function ProgressCard({ summary, onChangeGoal, savingGoal, onShare }: {
   savingGoal: boolean;
   onShare?: () => void;
 }) {
+  const { toast } = useToast();
   const monthHours = Math.round((summary.monthMinutes / 60) * 10) / 10;
   // An already-set goal can only be changed on Monday (anti-manipulation); first-time setup is always open.
   const isMonday = new Date().getDay() === 1;
+  const lockedNotice = () => toast.error('Tu meta solo se cambia los lunes, al comenzar la semana.');
   return (
     <div className="bg-white rounded-xl shadow-sm p-5 pl-6 jjp-accent-bar">
       <div className="flex items-center justify-between mb-3">
@@ -854,7 +897,7 @@ function ProgressCard({ summary, onChangeGoal, savingGoal, onShare }: {
           streak={summary.currentStreak} thisWeek={summary.thisWeekCount}
           goal={summary.weeklyGoal ?? 4} met={summary.weeklyGoalMet} record={summary.maxStreak}
           onChangeGoal={(n) => onChangeGoal('martial', n)} saving={savingGoal}
-          locked={summary.weeklyGoal != null && !isMonday}
+          locked={summary.weeklyGoal != null && !isMonday} onLockedTap={lockedNotice}
         />
         <div className="border-t border-gray-100" />
         <StreakRow
@@ -862,7 +905,7 @@ function ProgressCard({ summary, onChangeGoal, savingGoal, onShare }: {
           streak={summary.conditioningStreak} thisWeek={summary.conditioningThisWeek}
           goal={summary.conditioningGoal ?? 2} met={summary.conditioningGoalMet} record={summary.conditioningMax}
           onChangeGoal={(n) => onChangeGoal('conditioning', n)} saving={savingGoal}
-          locked={summary.conditioningGoal != null && !isMonday}
+          locked={summary.conditioningGoal != null && !isMonday} onLockedTap={lockedNotice}
         />
       </div>
 
@@ -1172,6 +1215,57 @@ function ConditioningRow({ c, onDelete, onOpen }: { c: ConditioningSession; onDe
         {c.notes && <p className="text-xs text-gray-400 italic mt-1 line-clamp-2">"{c.notes}"</p>}
       </button>
       <button onClick={onDelete} className="text-gray-300 hover:text-red-500 px-1 flex-shrink-0" aria-label="Eliminar">🗑</button>
+    </div>
+  );
+}
+
+// ── "Mi progresión" — pick any logged exercise and jump to its weight history ─────────────────
+interface ProgressExercise { name: string; bestKg: number; count: number; lastDate: string }
+
+/**
+ * Direct-access list of every exercise the student has logged with weight, so they can see their
+ * per-exercise history (chart + PR) without opening a specific session first. Tapping a row opens
+ * the same ExerciseProgressModal used from the session detail.
+ */
+function MyProgressCard({ exercises, onPick }: { exercises: ProgressExercise[]; onPick: (name: string) => void }) {
+  const [q, setQ] = useState('');
+  if (exercises.length === 0) return null; // nothing logged with weight yet
+  const query = q.trim().toLowerCase();
+  const filtered = query ? exercises.filter((e) => e.name.toLowerCase().includes(query)) : exercises;
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm jjp-accent-bar">
+      <div className="p-5 border-b border-gray-100">
+        <h2 className="font-bold text-gray-900">📈 Mi progresión</h2>
+        <p className="text-xs text-gray-400 mt-0.5">Elige un ejercicio para ver tu histórico de kilos y tu PR.</p>
+      </div>
+      <div className="p-3">
+        {exercises.length > 6 && (
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar ejercicio…"
+            className="w-full mb-2 px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        )}
+        <div className="max-h-72 overflow-y-auto space-y-1" style={{ scrollbarWidth: 'thin' }}>
+          {filtered.length === 0 ? (
+            <p className="text-center text-gray-400 text-sm py-4">Sin resultados</p>
+          ) : filtered.map((e) => (
+            <button
+              key={e.name}
+              onClick={() => onPick(e.name)}
+              className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-gray-100 bg-gray-50 hover:border-primary-300 transition-colors text-left"
+            >
+              <span className="min-w-0 truncate text-sm font-semibold text-gray-800">
+                {e.name}
+                <span className="font-normal text-gray-400"> · {e.count} {e.count === 1 ? 'sesión' : 'sesiones'}</span>
+              </span>
+              <span className="flex-shrink-0 text-xs font-bold text-orange-500">🏆 {e.bestKg} kg</span>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
