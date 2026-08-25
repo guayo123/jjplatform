@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://www.ehcache.org/v3"
+        xsi:schemaLocation="http://www.ehcache.org/v3 http://www.ehcache.org/schema/ehcache-core-3.10.xsd">
+
+    <!--
+        Default cache template used for Hibernate L2 / query caches.
+        Bounded to a fixed number of entries with a TTL so that cached
+        data (and any library that happens to piggyback on JCache) cannot
+        grow unbounded and leak memory in production.
+    -->
+    <cache-template name="default">
+        <expiry>
+            <ttl unit="seconds">3600</ttl>
+        </expiry>
+        <resources>
+            <heap unit="entries">1000</heap>
+        </resources>
+    </cache-template>
+
+    <!-- Hibernate second-level entity/collection cache region -->
+    <cache alias="default-update-timestamps-region" uses-template="default">
+        <expiry>
+            <none/>
+        </expiry>
+        <resources>
+            <heap unit="entries">1000</heap>
+        </resources>
+    </cache>
+
+    <cache alias="default-query-results-region" uses-template="default"/>
+
+</config>
