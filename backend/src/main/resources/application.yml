@@ -12,11 +12,21 @@ spring:
     hibernate:
       # 'update' permite que Hibernate cree y actualice las tablas automáticamente
       ddl-auto: update
-    show-sql: true # Lo cambiamos a 'true' para ver las consultas SQL en la consola, muy útil para depurar
+    show-sql: false # Deshabilitado: loguear todas las consultas SQL causaba una acumulación masiva de memoria/buffers en producción
+    open-in-view: false # Cierra la sesión de Hibernate al finalizar el controlador, evitando lazy loading/N+1 durante toda la petición
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.ehcache.jsr107.EhcacheRegionFactory
+          javax:
+            cache:
+              provider: org.ehcache.jsr107.EhcacheCachingProvider
+              uri: classpath:ehcache.xml
 
   servlet:
     multipart:

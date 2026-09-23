@@ -118,6 +118,19 @@
             <artifactId>firebase-admin</artifactId>
             <version>9.4.1</version>
         </dependency>
+
+        <!-- Hibernate JCache integration: required to plug EHCache in as the L2 cache provider -->
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-jcache</artifactId>
+        </dependency>
+
+        <!-- EHCache 3: bounded L2 cache to prevent unbounded Hibernate/session memory growth -->
+        <dependency>
+            <groupId>org.ehcache</groupId>
+            <artifactId>ehcache</artifactId>
+            <version>3.10.0</version>
+        </dependency>
     </dependencies>
 
     <build>
