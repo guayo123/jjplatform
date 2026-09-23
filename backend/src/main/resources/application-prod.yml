@@ -15,7 +15,13 @@ spring:
       max-lifetime: 1200000
 
   jpa:
-    open-in-view: false
+    # TEMPORARY: reverted to true (default) to restore service stability.
+    # Disabling open-in-view caused LazyInitializationException in
+    # TrainingService.toDto() and similar code paths that rely on lazy
+    # relationships (e.g. Discipline) being accessible during view
+    # rendering. Once those queries are refactored to eagerly fetch
+    # related entities (FETCH JOIN), this can be set back to false.
+    open-in-view: true
     hibernate:
       ddl-auto: update
     show-sql: false
