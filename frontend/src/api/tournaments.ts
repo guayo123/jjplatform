@@ -14,6 +14,9 @@ export const tournamentsApi = {
   addParticipant: (tournamentId: number, studentId: number) =>
     client.post<Tournament>(`/tournaments/${tournamentId}/participants`, { studentId }).then((r) => r.data),
 
+  addParticipants: (tournamentId: number, studentIds: number[]) =>
+    client.post<Tournament>(`/tournaments/${tournamentId}/participants/bulk`, { studentIds }).then((r) => r.data),
+
   generateBracket: (tournamentId: number) =>
     client.post<Tournament>(`/tournaments/${tournamentId}/generate-bracket`).then((r) => r.data),
 

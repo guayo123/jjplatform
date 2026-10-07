@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { tournamentsApi } from '../../api/tournaments';
 import { useStudentStore } from '../../stores/studentStore';
 import BracketView from '../../components/BracketView';
+import StudentPicker from '../../components/StudentPicker';
 import { useToast } from '../../components/ToastContext';
 import type { Tournament } from '../../types';
 
@@ -20,7 +21,6 @@ export default function TournamentDetail() {
   const { id } = useParams<{ id: string }>();
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedStudent, setSelectedStudent] = useState(0);
   const { students, fetchStudents } = useStudentStore();
   const { toast } = useToast();
 
@@ -42,9 +42,9 @@ export default function TournamentDetail() {
     }
   }, [id, fetchStudents]);
 
-  const addParticipant = async () => {
-    if (!id || !selectedStudent) return;
-    if (await run(() => tournamentsApi.addParticipant(Number(id), selectedStudent))) setSelectedStudent(0);
+  const addParticipants = async (studentIds: number[]) => {
+    if (!id) return false;
+    return run(() => tournamentsApi.addParticipants(Number(id), studentIds));
   };
 
   const removeParticipant = async (participantId: number) => {
@@ -121,7 +121,7 @@ export default function TournamentDetail() {
       {/* Agregar participante */}
       {tournament.status === 'OPEN' && (
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <h2 className="font-semibold mb-3">Agregar participante</h2>
+          <h2 className="font-semibold mb-3">Agregar participantes</h2>
 
           {/* Info tipo/restricciones */}
           {tournament.tipo === 'ABSOLUTO' ? (
@@ -136,34 +136,20 @@ export default function TournamentDetail() {
             </div>
           )}
           <p className="mb-3 text-xs text-gray-500">
-            ⭐ Puedes marcar <strong>cabezas de serie</strong> en la lista de participantes: reciben el pase directo (BYE)
-            si sobran puestos y no se cruzan entre sí hasta las rondas finales. El resto se sortea al azar.
+            ⭐ <strong>Cabeza de serie (opcional):</strong> en la lista de participantes puedes marcar a los mejores luchadores.
+            El <strong>#1 es el mejor</strong>, el #2 el segundo, y así. Los cabezas de serie no se enfrentan entre sí al
+            comienzo (el #1 y el #2 solo se cruzan en la final) y reciben el pase directo si sobran puestos en la llave.
+            Los demás se sortean al azar. Si no marcas a nadie, todo se sortea.
           </p>
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <select
-              value={selectedStudent}
-              onChange={(e) => setSelectedStudent(Number(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full min-w-0 sm:flex-1"
-            >
-              <option value={0}>Seleccionar alumno...</option>
-              {availableStudents.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}{s.belt ? ` · ${s.belt}` : ''}{s.weight != null ? ` · ${s.weight}kg` : ''}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={addParticipant}
-              disabled={!selectedStudent}
-              className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 w-full sm:w-auto"
-            >
-              Agregar
-            </button>
-          </div>
-          {availableStudents.length === 0 && (
-            <p className="mt-2 text-xs text-gray-400">No hay alumnos disponibles para agregar.</p>
-          )}
+          <StudentPicker
+            students={availableStudents}
+            slotsLeft={
+              tournament.maxParticipants != null
+                ? Math.max(0, tournament.maxParticipants - tournament.participants.length)
+                : null
+            }
+            onAdd={addParticipants}
+          />
         </div>
       )}
 
@@ -184,7 +170,7 @@ export default function TournamentDetail() {
               >
                 <div>
                   <span className="font-medium text-primary-800">
-                    {p.seedRank != null && <span className="text-yellow-600 mr-1" title="Cabeza de serie">⭐{p.seedRank}</span>}
+                    {p.seedRank != null && <span className="text-yellow-600 mr-1" title="Cabeza de serie">⭐#{p.seedRank}</span>}
                     {p.studentName}
                   </span>
                   <div className="flex gap-1 mt-0.5 flex-wrap">
@@ -207,13 +193,15 @@ export default function TournamentDetail() {
                   <select
                     value={p.seedRank ?? ''}
                     onChange={(e) => setSeed(p.id, e.target.value === '' ? null : Number(e.target.value))}
-                    title="Cabeza de serie"
+                    title="Cabeza de serie: #1 es el mejor luchador"
                     aria-label={`Cabeza de serie de ${p.studentName}`}
                     className="ml-1 text-xs border border-primary-200 bg-white text-gray-600 rounded px-1 py-0.5 self-center"
                   >
-                    <option value="">Sin ⭐</option>
+                    <option value="">Sin cabeza de serie</option>
                     {tournament.participants.map((_, i) => (
-                      <option key={i + 1} value={i + 1}>⭐ {i + 1}</option>
+                      <option key={i + 1} value={i + 1}>
+                        ⭐ Cabeza #{i + 1}{i === 0 ? ' (mejor)' : ''}
+                      </option>
                     ))}
                   </select>
                 )}

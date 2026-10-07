@@ -17,7 +17,7 @@ const RESULT_TYPES: { value: string; label: string; short: string; color: string
 
 /** Nombre con la estrella de cabeza de serie, si la tiene. */
 function seededName(p: { studentName: string; seedRank?: number | null }) {
-  return p.seedRank != null ? `⭐${p.seedRank} ${p.studentName}` : p.studentName;
+  return p.seedRank != null ? `⭐#${p.seedRank} ${p.studentName}` : p.studentName;
 }
 
 function resultLabel(rt: string | null) {

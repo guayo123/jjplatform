@@ -47,6 +47,18 @@ public class TournamentController {
         return ResponseEntity.ok(tournamentService.addParticipant(id, studentId, academyId));
     }
 
+    @PostMapping("/{id}/participants/bulk")
+    public ResponseEntity<TournamentDto> addParticipants(
+            @PathVariable Long id,
+            @RequestBody Map<String, List<Long>> body) {
+        Long academyId = securityHelper.getCurrentAcademyId();
+        List<Long> studentIds = body.get("studentIds");
+        if (studentIds == null || studentIds.isEmpty()) {
+            throw new IllegalArgumentException("Selecciona al menos un alumno");
+        }
+        return ResponseEntity.ok(tournamentService.addParticipants(id, studentIds, academyId));
+    }
+
     @PostMapping("/{id}/generate-bracket")
     public ResponseEntity<TournamentDto> generateBracket(@PathVariable Long id) {
         Long academyId = securityHelper.getCurrentAcademyId();

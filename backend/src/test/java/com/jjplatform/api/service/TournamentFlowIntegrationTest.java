@@ -190,4 +190,35 @@ class TournamentFlowIntegrationTest {
         org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
                 () -> tournamentService.setSeed(id, first, null, a.getId()));
     }
+
+    @Test
+    void bulkEnrolmentAddsEveryoneAtOnceAndRespectsTheLimit() {
+        Academy a = academy("bulk@test.cl");
+        TournamentDto dto = new TournamentDto();
+        dto.setName("Masivo");
+        dto.setDate(LocalDate.now().plusDays(3));
+        dto.setTipo("ABSOLUTO");
+        dto.setMaxParticipants(5);
+        Long id = tournamentService.createTournament(dto, a.getId()).getId();
+
+        List<Long> ids = new ArrayList<>();
+        for (int i = 1; i <= 7; i++) ids.add(student(a, "B" + i, "Blanca", 70, 25).getId());
+
+        // 3 de golpe
+        TournamentDto t = tournamentService.addParticipants(id, ids.subList(0, 3), a.getId());
+        assertThat(t.getParticipants()).hasSize(3);
+        assertThat(t.getParticipants()).extracting(TournamentDto.ParticipantDto::getSeed).containsExactly(1, 2, 3);
+
+        // Los ya inscritos se ignoran (no es error)
+        t = tournamentService.addParticipants(id, ids.subList(1, 4), a.getId());
+        assertThat(t.getParticipants()).hasSize(4);
+
+        // Pasarse del cupo: todo o nada
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> tournamentService.addParticipants(id, ids.subList(4, 7), a.getId()));
+
+        // Justo hasta el cupo (si el intento fallido hubiera inscrito a alguien, aquí ya no cabría)
+        t = tournamentService.addParticipants(id, ids.subList(4, 5), a.getId());
+        assertThat(t.getParticipants()).hasSize(5);
+    }
 }
