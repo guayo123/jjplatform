@@ -360,6 +360,8 @@ export interface Participant {
   studentId: number;
   studentName: string;
   seed: number;
+  /** Cabeza de serie elegido por el organizador (1 = mejor); null = sin cabeza de serie. */
+  seedRank?: number | null;
   belt: string | null;
   ageCategory: string | null;
   weightCategory: string | null;

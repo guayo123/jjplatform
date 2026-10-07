@@ -25,6 +25,10 @@ public class TournamentParticipant {
 
     private Integer seed;
 
+    /** Cabeza de serie elegido por el organizador (1 = mejor). Null = sin cabeza de serie, entra por sorteo. */
+    @Column(name = "seed_rank")
+    private Integer seedRank;
+
     /** Categoría de edad calculada al momento de la inscripción */
     private String ageCategory;
 

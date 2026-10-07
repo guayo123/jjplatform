@@ -50,8 +50,8 @@ public class BracketService {
     private void generateGroupBracket(Tournament tournament,
                                        List<TournamentParticipant> groupParticipants,
                                        String categoryGroup) {
-        List<TournamentParticipant> participants = new ArrayList<>(groupParticipants);
-        Collections.shuffle(participants);
+        // Cabezas de serie primero (por su número), el resto por sorteo.
+        List<TournamentParticipant> participants = seedOrder(groupParticipants);
 
         // Single participant → auto-winner (bye match)
         if (participants.size() == 1) {
@@ -70,9 +70,15 @@ public class BracketService {
         int totalSlots = nextPowerOf2(participants.size());
         int totalRounds = (int) (Math.log(totalSlots) / Math.log(2));
 
-        while (participants.size() < totalSlots) {
-            participants.add(null);
+        // Ubicación estándar de llave: el 1 y el 2 solo pueden cruzarse en la final, 1-4 en semifinales, etc.
+        // Los puestos que sobran (> n) son BYE y le tocan a los mejores cabezas de serie.
+        int[] order = bracketOrder(totalSlots);
+        TournamentParticipant[] slots = new TournamentParticipant[totalSlots];
+        for (int i = 0; i < totalSlots; i++) {
+            int seedNumber = order[i];
+            slots[i] = seedNumber <= participants.size() ? participants.get(seedNumber - 1) : null;
         }
+        participants = new ArrayList<>(Arrays.asList(slots));
 
         List<BracketMatch> currentRound = new ArrayList<>();
         int matchNumber = 1;
@@ -149,8 +155,12 @@ public class BracketService {
             throw new ResourceNotFoundException("Match not found in this tournament");
         }
 
-        boolean validWinner = (match.getParticipant1() != null && match.getParticipant1().getId().equals(winnerId))
-                || (match.getParticipant2() != null && match.getParticipant2().getId().equals(winnerId));
+        if (match.getParticipant1() == null || match.getParticipant2() == null) {
+            throw new IllegalStateException("El combate aún no tiene a sus dos luchadores definidos");
+        }
+
+        boolean validWinner = match.getParticipant1().getId().equals(winnerId)
+                || match.getParticipant2().getId().equals(winnerId);
 
         if (!validWinner) {
             throw new IllegalArgumentException("Winner must be one of the match participants");
@@ -273,6 +283,54 @@ public class BracketService {
                         });
             }
         }
+    }
+
+    /**
+     * A tournament is finished when, in every bracket (category group), the final — the match in the
+     * highest round — already has a winner. Matches left permanently empty by byes (both slots null) never
+     * get a winner, so "every match has a winner" would never be true for sizes like 5, 6 or 9–12.
+     */
+    public boolean isComplete(List<BracketMatch> matches) {
+        if (matches == null || matches.isEmpty()) return false;
+        Map<String, Integer> maxRoundByGroup = new HashMap<>();
+        for (BracketMatch m : matches) {
+            maxRoundByGroup.merge(Objects.toString(m.getCategoryGroup(), ""), m.getRound(), Math::max);
+        }
+        for (BracketMatch m : matches) {
+            String group = Objects.toString(m.getCategoryGroup(), "");
+            if (m.getRound().equals(maxRoundByGroup.get(group)) && m.getWinner() == null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Cabezas de serie ordenados por su número, seguidos de los demás en orden aleatorio. */
+    List<TournamentParticipant> seedOrder(List<TournamentParticipant> group) {
+        List<TournamentParticipant> seeded = new ArrayList<>();
+        List<TournamentParticipant> unseeded = new ArrayList<>();
+        for (TournamentParticipant p : group) {
+            (p.getSeedRank() != null ? seeded : unseeded).add(p);
+        }
+        seeded.sort(Comparator.comparing(TournamentParticipant::getSeedRank));
+        Collections.shuffle(unseeded);
+        List<TournamentParticipant> result = new ArrayList<>(seeded);
+        result.addAll(unseeded);
+        return result;
+    }
+
+    /** Orden estándar de cabezas de serie en una llave de {@code size} puestos (potencia de 2): 8 → 1,8,4,5,2,7,3,6. */
+    static int[] bracketOrder(int size) {
+        int[] order = {1};
+        while (order.length < size) {
+            int[] next = new int[order.length * 2];
+            for (int i = 0; i < order.length; i++) {
+                next[2 * i] = order[i];
+                next[2 * i + 1] = next.length + 1 - order[i];
+            }
+            order = next;
+        }
+        return order;
     }
 
     private int nextPowerOf2(int n) {

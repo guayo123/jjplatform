@@ -71,6 +71,17 @@ public class TournamentController {
                 tournamentService.recordMatchResult(id, matchId, winnerId, resultType, academyId));
     }
 
+    @PutMapping("/{id}/participants/{participantId}/seed")
+    public ResponseEntity<TournamentDto> setSeed(
+            @PathVariable Long id,
+            @PathVariable Long participantId,
+            @RequestBody Map<String, Object> body) {
+        Long academyId = securityHelper.getCurrentAcademyId();
+        Object raw = body.get("seedRank");
+        Integer seedRank = raw instanceof Number n ? n.intValue() : null;
+        return ResponseEntity.ok(tournamentService.setSeed(id, participantId, seedRank, academyId));
+    }
+
     @DeleteMapping("/{id}/participants/{participantId}")
     public ResponseEntity<TournamentDto> removeParticipant(
             @PathVariable Long id,

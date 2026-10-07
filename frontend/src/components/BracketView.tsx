@@ -15,6 +15,11 @@ const RESULT_TYPES: { value: string; label: string; short: string; color: string
   { value: 'DESCALIFICACION',  label: 'Descalificación',         short: 'Descalif', color: 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200' },
 ];
 
+/** Nombre con la estrella de cabeza de serie, si la tiene. */
+function seededName(p: { studentName: string; seedRank?: number | null }) {
+  return p.seedRank != null ? `⭐${p.seedRank} ${p.studentName}` : p.studentName;
+}
+
 function resultLabel(rt: string | null) {
   return RESULT_TYPES.find((r) => r.value === rt);
 }
@@ -135,7 +140,7 @@ function MatchCard({ match, onRecordResult }: { match: BracketMatch; onRecordRes
     <div className="w-56">
       <div className="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
         <ParticipantRow
-          name={match.participant1?.studentName || 'BYE'}
+          name={match.participant1 ? seededName(match.participant1) : 'BYE'}
           participantId={match.participant1?.id}
           isWinner={match.winnerId === match.participant1?.id}
           isPending={pendingWinnerId === match.participant1?.id}
@@ -144,7 +149,7 @@ function MatchCard({ match, onRecordResult }: { match: BracketMatch; onRecordRes
         />
         <div className="border-t border-gray-200" />
         <ParticipantRow
-          name={match.participant2?.studentName || 'BYE'}
+          name={match.participant2 ? seededName(match.participant2) : 'BYE'}
           participantId={match.participant2?.id}
           isWinner={match.winnerId === match.participant2?.id}
           isPending={pendingWinnerId === match.participant2?.id}

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { tournamentsApi } from '../../api/tournaments';
 import { useStudentStore } from '../../stores/studentStore';
 import BracketView from '../../components/BracketView';
+import { useToast } from '../../components/ToastContext';
 import type { Tournament } from '../../types';
 
 const statusLabel = (s: string) =>
@@ -21,6 +22,18 @@ export default function TournamentDetail() {
   const [loading, setLoading] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState(0);
   const { students, fetchStudents } = useStudentStore();
+  const { toast } = useToast();
+
+  // Ejecuta una acción del torneo y muestra el error del servidor si falla (antes fallaba en silencio).
+  const run = async (action: () => Promise<Tournament>) => {
+    try {
+      setTournament(await action());
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : 'No se pudo completar la acción');
+      return false;
+    }
+  };
 
   useEffect(() => {
     fetchStudents();
@@ -31,27 +44,27 @@ export default function TournamentDetail() {
 
   const addParticipant = async () => {
     if (!id || !selectedStudent) return;
-    const updated = await tournamentsApi.addParticipant(Number(id), selectedStudent);
-    setTournament(updated);
-    setSelectedStudent(0);
+    if (await run(() => tournamentsApi.addParticipant(Number(id), selectedStudent))) setSelectedStudent(0);
   };
 
   const removeParticipant = async (participantId: number) => {
     if (!id) return;
-    const updated = await tournamentsApi.removeParticipant(Number(id), participantId);
-    setTournament(updated);
+    await run(() => tournamentsApi.removeParticipant(Number(id), participantId));
+  };
+
+  const setSeed = async (participantId: number, seedRank: number | null) => {
+    if (!id) return;
+    await run(() => tournamentsApi.setSeed(Number(id), participantId, seedRank));
   };
 
   const generateBracket = async () => {
     if (!id) return;
-    const updated = await tournamentsApi.generateBracket(Number(id));
-    setTournament(updated);
+    await run(() => tournamentsApi.generateBracket(Number(id)));
   };
 
   const recordResult = async (matchId: number, winnerId: number, resultType: string) => {
     if (!id) return;
-    const updated = await tournamentsApi.recordResult(Number(id), matchId, winnerId, resultType);
-    setTournament(updated);
+    await run(() => tournamentsApi.recordResult(Number(id), matchId, winnerId, resultType));
   };
 
   if (loading) return <p className="text-gray-400">Cargando...</p>;
@@ -122,12 +135,16 @@ export default function TournamentDetail() {
               <span>Al generar el bracket, los participantes se agruparán por categoría de edad, cinturón y peso</span>
             </div>
           )}
+          <p className="mb-3 text-xs text-gray-500">
+            ⭐ Puedes marcar <strong>cabezas de serie</strong> en la lista de participantes: reciben el pase directo (BYE)
+            si sobran puestos y no se cruzan entre sí hasta las rondas finales. El resto se sortea al azar.
+          </p>
 
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <select
               value={selectedStudent}
               onChange={(e) => setSelectedStudent(Number(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1"
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full min-w-0 sm:flex-1"
             >
               <option value={0}>Seleccionar alumno...</option>
               {availableStudents.map((s) => (
@@ -139,7 +156,7 @@ export default function TournamentDetail() {
             <button
               onClick={addParticipant}
               disabled={!selectedStudent}
-              className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+              className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 w-full sm:w-auto"
             >
               Agregar
             </button>
@@ -166,7 +183,10 @@ export default function TournamentDetail() {
                 className="flex items-start gap-1 bg-primary-50 border border-primary-100 pl-3 pr-1 py-1.5 rounded-lg text-sm"
               >
                 <div>
-                  <span className="font-medium text-primary-800">#{p.seed} {p.studentName}</span>
+                  <span className="font-medium text-primary-800">
+                    {p.seedRank != null && <span className="text-yellow-600 mr-1" title="Cabeza de serie">⭐{p.seedRank}</span>}
+                    {p.studentName}
+                  </span>
                   <div className="flex gap-1 mt-0.5 flex-wrap">
                     {p.belt && (
                       <span className="text-xs text-gray-500">{p.belt}</span>
@@ -183,6 +203,20 @@ export default function TournamentDetail() {
                     )}
                   </div>
                 </div>
+                {tournament.status === 'OPEN' && (
+                  <select
+                    value={p.seedRank ?? ''}
+                    onChange={(e) => setSeed(p.id, e.target.value === '' ? null : Number(e.target.value))}
+                    title="Cabeza de serie"
+                    aria-label={`Cabeza de serie de ${p.studentName}`}
+                    className="ml-1 text-xs border border-primary-200 bg-white text-gray-600 rounded px-1 py-0.5 self-center"
+                  >
+                    <option value="">Sin ⭐</option>
+                    {tournament.participants.map((_, i) => (
+                      <option key={i + 1} value={i + 1}>⭐ {i + 1}</option>
+                    ))}
+                  </select>
+                )}
                 {tournament.status === 'OPEN' && (
                   <button
                     onClick={() => removeParticipant(p.id)}

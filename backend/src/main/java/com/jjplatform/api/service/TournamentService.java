@@ -108,6 +108,39 @@ public class TournamentService {
         return toDto(tournament);
     }
 
+    /** Asigna (o quita, con null) el número de cabeza de serie de un participante. Solo con el torneo abierto. */
+    @Transactional
+    public TournamentDto setSeed(Long tournamentId, Long participantId, Integer seedRank, Long academyId) {
+        Tournament tournament = findByIdAndAcademy(tournamentId, academyId);
+
+        if (tournament.getStatus() != Tournament.TournamentStatus.OPEN) {
+            throw new IllegalStateException("Los cabezas de serie solo se pueden cambiar antes de generar el bracket");
+        }
+
+        TournamentParticipant participant = tournament.getParticipants().stream()
+                .filter(p -> p.getId().equals(participantId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Participant not found in this tournament"));
+
+        if (seedRank != null) {
+            if (seedRank < 1 || seedRank > tournament.getParticipants().size()) {
+                throw new IllegalArgumentException(
+                        "El cabeza de serie debe estar entre 1 y " + tournament.getParticipants().size());
+            }
+            boolean taken = tournament.getParticipants().stream()
+                    .anyMatch(p -> !p.getId().equals(participantId) && seedRank.equals(p.getSeedRank()));
+            if (taken) {
+                throw new IllegalArgumentException("Ya hay otro participante como cabeza de serie " + seedRank);
+            }
+        }
+
+        participant.setSeedRank(seedRank);
+        participantRepository.save(participant);
+        entityManager.flush();
+        entityManager.refresh(tournament);
+        return toDto(tournament);
+    }
+
     @Transactional
     public TournamentDto generateBracket(Long tournamentId, Long academyId) {
         Tournament tournament = findByIdAndAcademy(tournamentId, academyId);
@@ -121,7 +154,11 @@ public class TournamentService {
         tournament.setStatus(Tournament.TournamentStatus.IN_PROGRESS);
         tournamentRepository.save(tournament);
 
-        return toDto(tournamentRepository.findById(tournamentId).orElseThrow());
+        // BracketService borra y re-crea los combates por repositorio, así que la colección `matches`
+        // del torneo en memoria quedó vacía: se recarga para devolver el bracket recién generado.
+        entityManager.flush();
+        entityManager.refresh(tournament);
+        return toDto(tournament);
     }
 
     @Transactional
@@ -132,9 +169,7 @@ public class TournamentService {
 
         // Verificar si el torneo ha finalizado
         tournament = tournamentRepository.findById(tournamentId).orElseThrow();
-        boolean allComplete = !tournament.getMatches().isEmpty() &&
-                tournament.getMatches().stream().allMatch(m -> m.getWinner() != null);
-        if (allComplete) {
+        if (bracketService.isComplete(tournament.getMatches())) {
             tournament.setStatus(Tournament.TournamentStatus.COMPLETED);
             tournamentRepository.save(tournament);
         }
@@ -221,6 +256,7 @@ public class TournamentService {
             pd.setStudentId(p.getStudent().getId());
             pd.setStudentName(p.getStudent().getName());
             pd.setSeed(p.getSeed());
+            pd.setSeedRank(p.getSeedRank());
             pd.setBelt(p.getStudent().getBelt());
             pd.setAgeCategory(p.getAgeCategory());
             pd.setWeightCategory(p.getWeightCategory());
@@ -236,12 +272,14 @@ public class TournamentService {
                 TournamentDto.ParticipantDto p1 = new TournamentDto.ParticipantDto();
                 p1.setId(m.getParticipant1().getId());
                 p1.setStudentName(m.getParticipant1().getStudent().getName());
+                p1.setSeedRank(m.getParticipant1().getSeedRank());
                 md.setParticipant1(p1);
             }
             if (m.getParticipant2() != null) {
                 TournamentDto.ParticipantDto p2 = new TournamentDto.ParticipantDto();
                 p2.setId(m.getParticipant2().getId());
                 p2.setStudentName(m.getParticipant2().getStudent().getName());
+                p2.setSeedRank(m.getParticipant2().getSeedRank());
                 md.setParticipant2(p2);
             }
             md.setWinnerId(m.getWinner() != null ? m.getWinner().getId() : null);

@@ -36,6 +36,7 @@ public class TournamentDto {
         private Long studentId;
         private String studentName;
         private Integer seed;
+        private Integer seedRank;
         private String belt;
         private String ageCategory;
         private String weightCategory;

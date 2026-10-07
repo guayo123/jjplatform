@@ -20,6 +20,9 @@ export const tournamentsApi = {
   recordResult: (tournamentId: number, matchId: number, winnerId: number, resultType: string) =>
     client.put<Tournament>(`/tournaments/${tournamentId}/matches/${matchId}`, { winnerId, resultType }).then((r) => r.data),
 
+  setSeed: (tournamentId: number, participantId: number, seedRank: number | null) =>
+    client.put<Tournament>(`/tournaments/${tournamentId}/participants/${participantId}/seed`, { seedRank }).then((r) => r.data),
+
   removeParticipant: (tournamentId: number, participantId: number) =>
     client.delete<Tournament>(`/tournaments/${tournamentId}/participants/${participantId}`).then((r) => r.data),
 };
