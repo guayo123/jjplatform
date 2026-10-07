@@ -9,6 +9,7 @@ import { usePlatform } from './native/usePlatform';
 import { useAuthStore } from './stores/authStore';
 import Home from './pages/public/Home';
 import AcademyProfile from './pages/public/AcademyProfile';
+import { getCustomDomainAcademyId } from './config/customDomains';
 import PrivacyPolicy from './pages/public/PrivacyPolicy';
 import DeleteAccount from './pages/public/DeleteAccount';
 import Login from './pages/admin/Login';
@@ -51,6 +52,10 @@ function RootEntry() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   if (isNative) {
     return <Navigate to={isAuthenticated ? '/portal' : '/portal/login'} replace />;
+  }
+  const customAcademyId = getCustomDomainAcademyId();
+  if (customAcademyId) {
+    return <AcademyProfile academyId={customAcademyId} />;
   }
   return <Home />;
 }

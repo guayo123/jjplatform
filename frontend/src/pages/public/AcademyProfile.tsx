@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Lightbox from 'yet-another-react-lightbox';
 import Zoom from 'yet-another-react-lightbox/plugins/zoom';
@@ -13,6 +13,8 @@ import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import { academiesApi } from '../../api/academies';
+import { buildAcademySeo } from '../../../api/_seo';
+import { useSeo } from '../../utils/useSeo';
 import type { AcademyPublic } from '../../types';
 
 const DAY_ORDER = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -136,8 +138,11 @@ function hexAlpha(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-export default function AcademyProfile() {
-  const { id } = useParams<{ id: string }>();
+export default function AcademyProfile({ academyId }: { academyId?: number }) {
+  const params = useParams<{ id: string }>();
+  // En un dominio propio (ver config/customDomains) el id viene por prop y no hay listado al que volver.
+  const id = academyId ?? params.id;
+  const isCustomDomain = academyId !== undefined;
   const [academy, setAcademy] = useState<AcademyPublic | null>(null);
   const [loading, setLoading] = useState(true);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -156,6 +161,12 @@ export default function AcademyProfile() {
     }
   }, [id]);
 
+  const seo = useMemo(
+    () => (academy ? buildAcademySeo(academy, `${window.location.origin}${window.location.pathname}`) : null),
+    [academy],
+  );
+  useSeo(seo);
+
   if (loading)
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
@@ -167,7 +178,9 @@ export default function AcademyProfile() {
       <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center text-gray-400 gap-4">
         <span className="text-5xl">🥋</span>
         <p>Academia no encontrada</p>
-        <Link to="/" className="text-primary-400 hover:text-primary-300 text-sm">← Volver al listado</Link>
+        {!isCustomDomain && (
+          <Link to="/" className="text-primary-400 hover:text-primary-300 text-sm">← Volver al listado</Link>
+        )}
       </div>
     );
 
@@ -213,12 +226,14 @@ export default function AcademyProfile() {
           </div>
         )}
         <div className="relative max-w-5xl mx-auto px-4 pt-8 pb-12 sm:px-6 lg:px-8">
-          <Link to="/" className="inline-flex items-center gap-1.5 text-gray-400 hover:text-white text-sm transition-colors mb-8">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Volver al listado
-          </Link>
+          {!isCustomDomain && (
+            <Link to="/" className="inline-flex items-center gap-1.5 text-gray-400 hover:text-white text-sm transition-colors mb-8">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Volver al listado
+            </Link>
+          )}
 
           <div className="flex flex-col sm:flex-row items-start gap-6">
             {/* Logo */}

@@ -2,8 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { academiesApi } from '../../api/academies';
 import type { AcademyPublic } from '../../types';
+import { buildPlatformSeo } from '../../../api/_seo';
+import { useSeo } from '../../utils/useSeo';
+
+const PLATFORM_SEO = buildPlatformSeo(typeof window !== 'undefined' ? window.location.origin + '/' : '/');
 
 export default function Home() {
+  useSeo(PLATFORM_SEO);
   const [academies, setAcademies] = useState<AcademyPublic[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
