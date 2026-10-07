@@ -15,6 +15,7 @@ const GESTION_LINKS = [
   { to: '/admin/plans',          label: 'Planes' },
   { to: '/admin/schedules',      label: 'Horarios' },
   { to: '/admin/photos',         label: 'Fotos' },
+  { to: '/admin/at-risk',        label: 'Alumnos en riesgo' },
   { to: '/admin/notifications',  label: 'Notificaciones' },
   { to: '/admin/settings',       label: 'Configuración' },
 ];
@@ -37,11 +38,11 @@ export default function Navbar() {
     : [
         ...PRIMARY_LINKS,
         ...GESTION_LINKS,
-        ...(isAdmin ? [{ to: '/admin/users', label: 'Usuarios' }] : []),
+        ...(isAdmin ? [{ to: '/admin/users', label: 'Usuarios' }, { to: '/admin/maintenance', label: 'Mantenimiento' }] : []),
       ];
 
   const gestionLinks = isAdmin
-    ? [...GESTION_LINKS, { to: '/admin/users', label: 'Usuarios' }]
+    ? [...GESTION_LINKS, { to: '/admin/users', label: 'Usuarios' }, { to: '/admin/maintenance', label: 'Mantenimiento' }]
     : GESTION_LINKS;
 
   const gestionActive = gestionLinks.some(l => location.pathname === l.to);
@@ -97,7 +98,7 @@ export default function Navbar() {
                     </svg>
                   </button>
                   {gestionOpen && (
-                    <div className="absolute left-0 top-full mt-1 w-44 bg-primary-800 border border-primary-600 rounded-xl shadow-xl py-1 z-50">
+                    <div className="absolute left-0 top-full mt-1 w-52 bg-primary-800 border border-primary-600 rounded-xl shadow-xl py-1 z-50">
                       {gestionLinks.map(l => (
                         <Link
                           key={l.to}

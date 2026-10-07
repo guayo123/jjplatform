@@ -26,6 +26,8 @@ const Tournaments    = lazy(() => import('./pages/admin/Tournaments'));
 const TournamentDetail = lazy(() => import('./pages/admin/TournamentDetail'));
 const Photos         = lazy(() => import('./pages/admin/Photos'));
 const Users          = lazy(() => import('./pages/admin/Users'));
+const AtRisk         = lazy(() => import('./pages/admin/AtRisk'));
+const Maintenance    = lazy(() => import('./pages/admin/Maintenance'));
 const ChangePassword = lazy(() => import('./pages/admin/ChangePassword'));
 const Settings       = lazy(() => import('./pages/admin/Settings'));
 const Plans          = lazy(() => import('./pages/admin/Plans'));
@@ -88,6 +90,8 @@ export default function App() {
           <Route path="/admin/tournaments/:id" element={<Suspense><TournamentDetail /></Suspense>} />
           <Route path="/admin/photos" element={<Suspense><Photos /></Suspense>} />
           <Route path="/admin/users" element={<Suspense><Users /></Suspense>} />
+          <Route path="/admin/at-risk" element={<Suspense><AtRisk /></Suspense>} />
+          <Route path="/admin/maintenance" element={<Suspense><Maintenance /></Suspense>} />
           <Route path="/admin/change-password" element={<Suspense><ChangePassword /></Suspense>} />
           <Route path="/admin/settings" element={<Suspense><Settings /></Suspense>} />
           <Route path="/admin/professors" element={<Suspense><Professors /></Suspense>} />
