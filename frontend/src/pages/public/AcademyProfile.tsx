@@ -203,7 +203,7 @@ export default function AcademyProfile() {
 
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-gray-950 text-white overflow-x-clip">
       {/* Hero Header */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-primary-900/30 to-gray-950" />
