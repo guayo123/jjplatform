@@ -19,3 +19,11 @@ export function resultLabel(rt: string | null) {
 }
 
 export type ResultHandler = (matchId: number, winnerId: number, resultType: string) => void;
+
+/** Nombre de una ronda según cuántas tiene la llave: Final, Semifinal, Cuartos o "Ronda n". */
+export function roundName(round: number, totalRounds: number) {
+  if (round === totalRounds) return 'Final';
+  if (round === totalRounds - 1) return 'Semifinal';
+  if (round === totalRounds - 2) return 'Cuartos';
+  return `Ronda ${round}`;
+}

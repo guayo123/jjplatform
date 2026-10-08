@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { BracketMatch } from '../types';
-import { RESULT_TYPES, resultLabel, seededName, type ResultHandler } from './bracketShared';
+import { RESULT_TYPES, resultLabel, roundName, seededName, type ResultHandler } from './bracketShared';
 
 /**
  * Vista del bracket pensada para celular: una ronda a la vez (pestañas), tarjetas a todo el ancho,
@@ -11,13 +11,6 @@ import { RESULT_TYPES, resultLabel, seededName, type ResultHandler } from './bra
 const isBye = (m: BracketMatch) => m.winnerId != null && (!m.participant1 || !m.participant2);
 /** Se puede registrar: ya están los dos luchadores y falta el ganador. */
 const isPlayable = (m: BracketMatch) => m.winnerId == null && !!m.participant1 && !!m.participant2;
-
-function roundName(round: number, totalRounds: number) {
-  if (round === totalRounds) return 'Final';
-  if (round === totalRounds - 1) return 'Semifinal';
-  if (round === totalRounds - 2) return 'Cuartos';
-  return `Ronda ${round}`;
-}
 
 export default function MobileGroup({
   groupName,

@@ -248,12 +248,33 @@ public class TournamentService {
                 .map(BracketMatch::getWinner);
     }
 
-    /** Vista pública de un torneo (página de la academia): sin identificadores internos de los alumnos. */
+    /**
+     * Nombre para mostrar públicamente: nombre de pila + inicial del primer apellido ("Diego R.").
+     * Supone la forma chilena habitual: 2 palabras = nombre + apellido; 3 = nombre + 2 apellidos;
+     * 4 o más = 2 nombres + 2 apellidos (el primer apellido es la antepenúltima palabra).
+     */
+    public static String publicName(String fullName) {
+        if (fullName == null || fullName.isBlank()) return fullName;
+        String[] parts = fullName.trim().split("\\s+");
+        if (parts.length == 1) return parts[0];
+        String surname = parts.length == 2 ? parts[1] : parts[parts.length - 2];
+        return parts[0] + " " + Character.toUpperCase(surname.charAt(0)) + ".";
+    }
+
+    /** Vista pública de un torneo (página de la academia): sin ids internos y con nombres abreviados. */
     @Transactional(readOnly = true)
     public TournamentDto getPublicTournament(Long id, Long academyId) {
         TournamentDto dto = toDto(findByIdAndAcademy(id, academyId));
-        dto.getParticipants().forEach(p -> p.setStudentId(null));
+        dto.getParticipants().forEach(p -> {
+            p.setStudentId(null);
+            p.setStudentName(publicName(p.getStudentName()));
+        });
+        dto.getMatches().forEach(m -> {
+            if (m.getParticipant1() != null) m.getParticipant1().setStudentName(publicName(m.getParticipant1().getStudentName()));
+            if (m.getParticipant2() != null) m.getParticipant2().setStudentName(publicName(m.getParticipant2().getStudentName()));
+        });
         dto.setChampionStudentId(null);
+        dto.setChampionName(publicName(dto.getChampionName()));
         return dto;
     }
 

@@ -238,7 +238,7 @@ class TournamentFlowIntegrationTest {
 
         TournamentDto publicView = tournamentService.getPublicTournament(id, a.getId());
         assertThat(publicView.getStatus()).isEqualTo("COMPLETED");
-        assertThat(publicView.getChampionName()).isNotBlank();
+        assertThat(publicView.getChampionName()).isNotBlank().startsWith("P");
         assertThat(publicView.getChampionStudentId()).isNull();
         assertThat(publicView.getParticipants()).hasSize(4).allMatch(p -> p.getStudentId() == null);
         assertThat(publicView.getMatches()).isNotEmpty();
@@ -247,5 +247,16 @@ class TournamentFlowIntegrationTest {
         Academy other = academy("other@test.cl");
         org.junit.jupiter.api.Assertions.assertThrows(com.jjplatform.api.exception.ResourceNotFoundException.class,
                 () -> tournamentService.getPublicTournament(id, other.getId()));
+    }
+
+    @Test
+    void publicNamesAreAbbreviatedToFirstNameAndSurnameInitial() {
+        assertThat(TournamentService.publicName("Diego Andrés Rivas Palma")).isEqualTo("Diego R.");
+        assertThat(TournamentService.publicName("Alejandro Quezada Contreras")).isEqualTo("Alejandro Q.");
+        assertThat(TournamentService.publicName("Maria Rodriguez")).isEqualTo("Maria R.");
+        assertThat(TournamentService.publicName("  Bruno   Villarroel ")).isEqualTo("Bruno V.");
+        assertThat(TournamentService.publicName("Cher")).isEqualTo("Cher");
+        assertThat(TournamentService.publicName(null)).isNull();
+        assertThat(TournamentService.publicName("")).isEmpty();
     }
 }

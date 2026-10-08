@@ -116,6 +116,33 @@ export function buildAcademySeo(academy: SeoAcademy, url: string): SeoData {
   return { title, description, image, jsonLd };
 }
 
+/** Torneo tal como lo entrega la API pública (con nombres ya abreviados). */
+export interface SeoTournament {
+  name: string;
+  date: string;
+  status: string;
+  participants: unknown[];
+  championName?: string | null;
+}
+
+/** Título y descripción propios de un torneo (enlace compartido ?torneo=ID); conserva imagen y JSON-LD de la academia. */
+export function buildTournamentSeo(base: SeoData, academyName: string, t: SeoTournament): SeoData {
+  const d = new Date(`${t.date}T00:00:00`);
+  const date = Number.isNaN(d.getTime())
+    ? t.date
+    : d.toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
+  const count = `${t.participants.length} participante${t.participants.length === 1 ? '' : 's'}`;
+  const lead =
+    t.status === 'COMPLETED' && t.championName
+      ? `🏆 Campeón: ${t.championName}. ${count} · ${date}.`
+      : `${count} · ${date}.`;
+  return {
+    ...base,
+    title: `${t.name} — ${academyName}`,
+    description: `${lead} Mira el bracket y los resultados.`,
+  };
+}
+
 /** SEO de la portada de la plataforma (listado de academias). */
 export function buildPlatformSeo(url: string): SeoData {
   return {

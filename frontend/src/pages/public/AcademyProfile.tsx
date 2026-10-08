@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import Lightbox from 'yet-another-react-lightbox';
 import Zoom from 'yet-another-react-lightbox/plugins/zoom';
 import Thumbnails from 'yet-another-react-lightbox/plugins/thumbnails';
@@ -155,7 +155,20 @@ export default function AcademyProfile({ academyId }: { academyId?: number }) {
   const planSwiperRef = useRef<any>(null);
   const [selectedProfessor, setSelectedProfessor] = useState<AcademyPublic['professors'][number] | null>(null);
   const [profDisc, setProfDisc] = useState('Todos');
-  const [openTournamentId, setOpenTournamentId] = useState<number | null>(null);
+  // El torneo abierto vive en la URL (?torneo=ID) para poder compartir el enlace directo.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const torneoParam = Number(searchParams.get('torneo'));
+  const openTournamentId = Number.isInteger(torneoParam) && torneoParam > 0 ? torneoParam : null;
+  const setOpenTournamentId = (tid: number | null) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (tid === null) next.delete('torneo');
+        else next.set('torneo', String(tid));
+        return next;
+      },
+      { replace: true },
+    );
 
   useEffect(() => {
     if (id) {
