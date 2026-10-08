@@ -81,5 +81,8 @@ public class AcademyPublicDto {
         private String date;
         private String status;
         private int participantCount;
+        private String tipo;
+        /** Solo en torneos ABSOLUTO finalizados. */
+        private String championName;
     }
 }

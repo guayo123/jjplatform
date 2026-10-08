@@ -20,6 +20,7 @@ public class PublicController {
 
     private final AcademyRepository academyRepository;
     private final BeltPromotionRepository beltPromotionRepository;
+    private final com.jjplatform.api.service.TournamentService tournamentService;
 
     @GetMapping("/academies")
     public ResponseEntity<List<AcademyPublicDto>> listAcademies() {
@@ -34,6 +35,13 @@ public class PublicController {
         Academy academy = academyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Academy not found"));
         return ResponseEntity.ok(toPublicDto(academy));
+    }
+
+    /** Torneo de una academia con su bracket y resultados, para la página pública. */
+    @GetMapping("/academies/{academyId}/tournaments/{id}")
+    public ResponseEntity<com.jjplatform.api.dto.TournamentDto> getTournament(
+            @PathVariable Long academyId, @PathVariable Long id) {
+        return ResponseEntity.ok(tournamentService.getPublicTournament(id, academyId));
     }
 
     private AcademyPublicDto toPublicDto(Academy a) {
@@ -84,6 +92,8 @@ public class PublicController {
             td.setDate(t.getDate().toString());
             td.setStatus(t.getStatus().name());
             td.setParticipantCount(t.getParticipants().size());
+            td.setTipo(t.getTipo().name());
+            tournamentService.championOf(t).ifPresent(c -> td.setChampionName(c.getStudent().getName()));
             return td;
         }).toList());
 

@@ -447,6 +447,9 @@ export interface TournamentSummary {
   date: string;
   status: string;
   participantCount: number;
+  tipo?: string;
+  /** Solo en torneos ABSOLUTO finalizados. */
+  championName?: string | null;
 }
 
 export interface Discipline {

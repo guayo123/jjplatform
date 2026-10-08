@@ -234,6 +234,29 @@ public class TournamentService {
         return toDto(tournament);
     }
 
+    /** Campeón de un torneo ABSOLUTO ya finalizado (ganador de la final); vacío en cualquier otro caso. */
+    public java.util.Optional<TournamentParticipant> championOf(Tournament t) {
+        if (t.getStatus() != Tournament.TournamentStatus.COMPLETED
+                || t.getTipo() != Tournament.TournamentTipo.ABSOLUTO
+                || t.getMatches().isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        int maxRound = t.getMatches().stream().mapToInt(m -> m.getRound()).max().orElse(0);
+        return t.getMatches().stream()
+                .filter(m -> m.getRound() == maxRound && m.getWinner() != null)
+                .findFirst()
+                .map(BracketMatch::getWinner);
+    }
+
+    /** Vista pública de un torneo (página de la academia): sin identificadores internos de los alumnos. */
+    @Transactional(readOnly = true)
+    public TournamentDto getPublicTournament(Long id, Long academyId) {
+        TournamentDto dto = toDto(findByIdAndAcademy(id, academyId));
+        dto.getParticipants().forEach(p -> p.setStudentId(null));
+        dto.setChampionStudentId(null);
+        return dto;
+    }
+
     private Tournament findByIdAndAcademy(Long id, Long academyId) {
         Tournament tournament = tournamentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament not found"));
@@ -325,18 +348,10 @@ public class TournamentService {
         }).toList());
 
         // Campeón solo para ABSOLUTO (llave única)
-        if (t.getStatus() == Tournament.TournamentStatus.COMPLETED
-                && t.getTipo() == Tournament.TournamentTipo.ABSOLUTO
-                && !t.getMatches().isEmpty()) {
-            int maxRound = t.getMatches().stream().mapToInt(m -> m.getRound()).max().orElse(0);
-            t.getMatches().stream()
-                    .filter(m -> m.getRound() == maxRound && m.getWinner() != null)
-                    .findFirst()
-                    .ifPresent(finalMatch -> {
-                        dto.setChampionStudentId(finalMatch.getWinner().getStudent().getId());
-                        dto.setChampionName(finalMatch.getWinner().getStudent().getName());
-                    });
-        }
+        championOf(t).ifPresent(champion -> {
+            dto.setChampionStudentId(champion.getStudent().getId());
+            dto.setChampionName(champion.getStudent().getName());
+        });
 
         return dto;
     }

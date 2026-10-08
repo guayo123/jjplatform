@@ -221,4 +221,31 @@ class TournamentFlowIntegrationTest {
         t = tournamentService.addParticipants(id, ids.subList(4, 5), a.getId());
         assertThat(t.getParticipants()).hasSize(5);
     }
+
+    @Test
+    void publicViewHidesStudentIdsAndExposesTheChampion() {
+        Academy a = academy("public@test.cl");
+        TournamentDto dto = new TournamentDto();
+        dto.setName("Público");
+        dto.setDate(LocalDate.now().plusDays(3));
+        dto.setTipo("ABSOLUTO");
+        Long id = tournamentService.createTournament(dto, a.getId()).getId();
+        List<Long> ids = new ArrayList<>();
+        for (int i = 1; i <= 4; i++) ids.add(student(a, "P" + i, "Blanca", 70, 25).getId());
+        tournamentService.addParticipants(id, ids, a.getId());
+        TournamentDto generated = tournamentService.generateBracket(id, a.getId());
+        playToTheEnd(generated, id, a.getId());
+
+        TournamentDto publicView = tournamentService.getPublicTournament(id, a.getId());
+        assertThat(publicView.getStatus()).isEqualTo("COMPLETED");
+        assertThat(publicView.getChampionName()).isNotBlank();
+        assertThat(publicView.getChampionStudentId()).isNull();
+        assertThat(publicView.getParticipants()).hasSize(4).allMatch(p -> p.getStudentId() == null);
+        assertThat(publicView.getMatches()).isNotEmpty();
+
+        // Otra academia no puede ver este torneo
+        Academy other = academy("other@test.cl");
+        org.junit.jupiter.api.Assertions.assertThrows(com.jjplatform.api.exception.ResourceNotFoundException.class,
+                () -> tournamentService.getPublicTournament(id, other.getId()));
+    }
 }

@@ -15,6 +15,7 @@ import 'swiper/css/pagination';
 import { academiesApi } from '../../api/academies';
 import { buildAcademySeo } from '../../../api/_seo';
 import { useSeo } from '../../utils/useSeo';
+import PublicTournamentModal from '../../components/PublicTournamentModal';
 import type { AcademyPublic } from '../../types';
 
 const DAY_ORDER = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -154,6 +155,7 @@ export default function AcademyProfile({ academyId }: { academyId?: number }) {
   const planSwiperRef = useRef<any>(null);
   const [selectedProfessor, setSelectedProfessor] = useState<AcademyPublic['professors'][number] | null>(null);
   const [profDisc, setProfDisc] = useState('Todos');
+  const [openTournamentId, setOpenTournamentId] = useState<number | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -217,6 +219,14 @@ export default function AcademyProfile({ academyId }: { academyId?: number }) {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white overflow-x-clip">
+      {openTournamentId !== null && academy && (
+        <PublicTournamentModal
+          academyId={academy.id}
+          tournamentId={openTournamentId}
+          onClose={() => setOpenTournamentId(null)}
+        />
+      )}
+
       {/* Hero Header */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-primary-900/30 to-gray-950" />
@@ -756,7 +766,12 @@ export default function AcademyProfile({ academyId }: { academyId?: number }) {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {openTournaments.map((t) => (
-                <div key={t.id} className="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-primary-500/30 transition-colors">
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setOpenTournamentId(t.id)}
+                  className="text-left bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-primary-500/40 transition-colors w-full"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3 className="font-bold text-white">{t.name}</h3>
@@ -771,8 +786,11 @@ export default function AcademyProfile({ academyId }: { academyId?: number }) {
                       {t.status === 'OPEN' ? 'Abierto' : 'En curso'}
                     </span>
                   </div>
-                  <div className="mt-3 text-sm text-gray-500">{t.participantCount} participantes</div>
-                </div>
+                  <div className="mt-3 flex items-center justify-between text-sm text-gray-500">
+                    <span>{t.participantCount} participantes</span>
+                    <span className="text-primary-400 font-medium">Ver participantes y llaves →</span>
+                  </div>
+                </button>
               ))}
             </div>
           </section>
@@ -881,13 +899,22 @@ export default function AcademyProfile({ academyId }: { academyId?: number }) {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {pastTournaments.map((t) => (
-                <div key={t.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setOpenTournamentId(t.id)}
+                  className="text-left bg-gray-900 border border-gray-800 rounded-xl p-4 hover:border-primary-500/40 transition-colors w-full"
+                >
                   <h3 className="font-semibold text-gray-300">{t.name}</h3>
                   <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
                     <span>{formatLocalDate(t.date)}</span>
                     <span>{t.participantCount} participantes</span>
                   </div>
-                </div>
+                  {t.championName && (
+                    <p className="mt-2 text-sm text-yellow-400 font-medium">🏆 {t.championName}</p>
+                  )}
+                  <p className="mt-2 text-xs text-primary-400 font-medium">Ver bracket y resultados →</p>
+                </button>
               ))}
             </div>
           </section>

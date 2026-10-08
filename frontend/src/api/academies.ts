@@ -1,5 +1,5 @@
 import client from './client';
-import type { AcademyPublic, AcademySettings, Discipline, Plan, PlanForm, ReservationRoster, Schedule, ScheduleForm } from '../types';
+import type { Tournament, AcademyPublic, AcademySettings, Discipline, Plan, PlanForm, ReservationRoster, Schedule, ScheduleForm } from '../types';
 
 export const academiesApi = {
   list: () =>
@@ -7,6 +7,9 @@ export const academiesApi = {
 
   get: (id: number) =>
     client.get<AcademyPublic>(`/public/academies/${id}`).then((r) => r.data),
+
+  getTournament: (academyId: number, tournamentId: number) =>
+    client.get<Tournament>(`/public/academies/${academyId}/tournaments/${tournamentId}`).then((r) => r.data),
 
   // Admin: own academy
   getSettings: () =>
