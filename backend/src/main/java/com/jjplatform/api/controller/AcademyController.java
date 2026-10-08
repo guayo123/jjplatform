@@ -150,7 +150,7 @@ public class AcademyController {
         Long academyId = securityHelper.getCurrentAcademyId();
         return ResponseEntity.ok(
                 classScheduleRepository.findByAcademyIdAndActiveTrueOrderByDayOfWeekAscStartTimeAsc(academyId)
-                        .stream().map(this::scheduleToMap).toList()
+                        .stream().filter(com.jjplatform.api.service.Offering::scheduleOn).map(this::scheduleToMap).toList()
         );
     }
 

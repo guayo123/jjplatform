@@ -55,7 +55,7 @@ public class PublicController {
         dto.setWhatsapp(a.getWhatsapp());
         dto.setInstagram(a.getInstagram());
 
-        dto.setSchedules(a.getSchedules().stream().filter(s -> !Boolean.FALSE.equals(s.getActive())).map(s -> {
+        dto.setSchedules(a.getSchedules().stream().filter(com.jjplatform.api.service.Offering::scheduleOn).map(s -> {
             AcademyPublicDto.ScheduleDto sd = new AcademyPublicDto.ScheduleDto();
             sd.setId(s.getId());
             sd.setDayOfWeek(s.getDayOfWeek());
@@ -98,7 +98,7 @@ public class PublicController {
         }).toList());
 
         dto.setPlans(a.getPlans().stream()
-                .filter(p -> Boolean.TRUE.equals(p.getActive()))
+                .filter(com.jjplatform.api.service.Offering::planOn)
                 .sorted(java.util.Comparator.comparingInt(p -> p.getDisplayOrder() != null ? p.getDisplayOrder() : 0))
                 .map(p -> {
                     AcademyPublicDto.PlanDto pd = new AcademyPublicDto.PlanDto();
@@ -140,16 +140,27 @@ public class PublicController {
                     pd.setBelt(p.getStudent() != null ? p.getStudent().getBelt() : null);
                     pd.setDisplayOrder(p.getDisplayOrder());
                     // Disciplines and class names from plans where professor is the default
-                    List<com.jjplatform.api.model.Plan> profPlans = a.getPlans().stream()
+                    List<com.jjplatform.api.model.Plan> allProfPlans = a.getPlans().stream()
                             .filter(plan -> plan.getProfessor() != null
                                     && plan.getProfessor().getId().equals(p.getId()))
                             .collect(Collectors.toList());
 
                     // Extra disciplines and class names from schedules explicitly assigned to this professor
-                    List<com.jjplatform.api.model.ClassSchedule> profSchedules = a.getSchedules().stream()
+                    List<com.jjplatform.api.model.ClassSchedule> allProfSchedules = a.getSchedules().stream()
                             .filter(s -> !Boolean.FALSE.equals(s.getActive()))
                             .filter(s -> s.getProfessor() != null && s.getProfessor().getId().equals(p.getId()))
                             .collect(Collectors.toList());
+
+                    // Solo cuenta lo que sigue ofreciéndose (disciplina activa)
+                    List<com.jjplatform.api.model.Plan> profPlans = allProfPlans.stream()
+                            .filter(com.jjplatform.api.service.Offering::planOn).collect(Collectors.toList());
+                    List<com.jjplatform.api.model.ClassSchedule> profSchedules = allProfSchedules.stream()
+                            .filter(com.jjplatform.api.service.Offering::scheduleOn).collect(Collectors.toList());
+
+                    // Un profesor que daba solo disciplinas hoy desactivadas deja de mostrarse; si nunca tuvo
+                    // una disciplina asociada (no se puede saber qué da), se mantiene como antes.
+                    boolean hadDiscipline = allProfPlans.stream().anyMatch(plan -> plan.getDiscipline() != null)
+                            || allProfSchedules.stream().anyMatch(s -> s.getPlan() != null && s.getPlan().getDiscipline() != null);
 
                     List<String> allPlanNames = java.util.stream.Stream.concat(
                             profPlans.stream().map(com.jjplatform.api.model.Plan::getName),
@@ -167,10 +178,12 @@ public class PublicController {
                                     .map(s -> s.getPlan().getDiscipline().getName())
                     ).distinct().collect(Collectors.toList());
 
+                    if (hadDiscipline && allDisciplineNames.isEmpty()) return null;
+
                     pd.setPlanNames(allPlanNames);
                     pd.setDisciplineNames(allDisciplineNames);
                     return pd;
-                }).toList());
+                }).filter(java.util.Objects::nonNull).toList());
 
         return dto;
     }

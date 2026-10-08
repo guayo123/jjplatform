@@ -62,7 +62,8 @@ public class ClassReservationService {
     /** Upcoming class occurrences for the next week in the student's academy, with reservation state. */
     @Transactional(readOnly = true)
     public List<UpcomingClassDto> getUpcoming(Long studentId, Long academyId) {
-        List<ClassSchedule> schedules = scheduleRepository.findByAcademyIdAndActiveTrueOrderByDayOfWeekAscStartTimeAsc(academyId);
+        List<ClassSchedule> schedules = scheduleRepository.findByAcademyIdAndActiveTrueOrderByDayOfWeekAscStartTimeAsc(academyId)
+                .stream().filter(Offering::scheduleOn).toList();
         LocalDateTime now = LocalDateTime.now();
         LocalDate today = now.toLocalDate();
 
@@ -104,7 +105,7 @@ public class ClassReservationService {
     @Transactional
     public void reserve(Long studentId, Long academyId, Long scheduleId, LocalDate date) {
         ClassSchedule schedule = requireSchedule(scheduleId, academyId);
-        if (Boolean.FALSE.equals(schedule.getActive())) {
+        if (!Offering.scheduleOn(schedule)) {
             throw new IllegalArgumentException("Esta clase ya no está disponible.");
         }
         if (DAY_MAP.get(schedule.getDayOfWeek()) != date.getDayOfWeek()) {

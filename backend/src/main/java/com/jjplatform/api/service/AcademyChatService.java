@@ -323,7 +323,7 @@ public class AcademyChatService {
         sb.append("\n");
 
         List<Plan> activePlans = planRepository.findByAcademyIdOrderByDisplayOrderAscIdAsc(academyId)
-                .stream().filter(p -> Boolean.TRUE.equals(p.getActive())).toList();
+                .stream().filter(Offering::planOn).toList();
         if (!activePlans.isEmpty()) {
             sb.append("PLANES Y PRECIOS:\n");
             for (Plan p : activePlans) {
@@ -340,7 +340,8 @@ public class AcademyChatService {
         }
 
         List<ClassSchedule> schedules = classScheduleRepository
-                .findByAcademyIdAndActiveTrueOrderByDayOfWeekAscStartTimeAsc(academyId);
+                .findByAcademyIdAndActiveTrueOrderByDayOfWeekAscStartTimeAsc(academyId)
+                .stream().filter(Offering::scheduleOn).toList();
         if (!schedules.isEmpty()) {
             sb.append("HORARIOS:\n");
             for (ClassSchedule s : schedules) {
