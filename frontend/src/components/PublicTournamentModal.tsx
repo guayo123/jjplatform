@@ -45,15 +45,28 @@ export default function PublicTournamentModal({
     };
   }, [academyId, tournamentId]);
 
-  // Cierra con Escape y evita que la página de fondo se desplace mientras está abierta.
+  // Cierra con Escape y congela la página de fondo mientras la ventana está abierta. En iOS `overflow: hidden`
+  // no basta (al arrastrar fuera de la ventana la página de atrás seguía desplazándose), así que se fija el
+  // body en su posición actual y al cerrar se vuelve exactamente al mismo punto.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     document.addEventListener('keydown', onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+
+    const body = document.body;
+    const scrollY = window.scrollY;
+    const prev = { position: body.style.position, top: body.style.top, width: body.style.width, overflow: body.style.overflow };
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
+
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.width = prev.width;
+      body.style.overflow = prev.overflow;
+      window.scrollTo(0, scrollY);
     };
   }, [onClose]);
 
@@ -87,12 +100,12 @@ export default function PublicTournamentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 sm:p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 sm:p-6 overscroll-none" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Detalle del torneo"
-        className="relative w-full sm:max-w-4xl max-h-[88vh] sm:max-h-[90vh] overflow-y-auto bg-white text-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl"
+        className="relative w-full sm:max-w-4xl max-h-[88vh] sm:max-h-[90vh] overflow-y-auto overscroll-contain bg-white text-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl"
         // `dvh` descuenta las barras del navegador del celular (con `vh` la cabecera quedaba tapada y no se podía cerrar);
         // si el navegador no lo entiende se ignora y vale el max-h de arriba.
         style={{ maxHeight: 'min(88dvh, 52rem)' }}
