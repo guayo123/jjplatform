@@ -149,7 +149,7 @@ public class AcademyController {
     public ResponseEntity<List<Map<String, Object>>> getSchedules() {
         Long academyId = securityHelper.getCurrentAcademyId();
         return ResponseEntity.ok(
-                classScheduleRepository.findByAcademyIdOrderByDayOfWeekAscStartTimeAsc(academyId)
+                classScheduleRepository.findByAcademyIdAndActiveTrueOrderByDayOfWeekAscStartTimeAsc(academyId)
                         .stream().map(this::scheduleToMap).toList()
         );
     }
@@ -233,10 +233,9 @@ public class AcademyController {
     @DeleteMapping("/schedules/{sid}")
     public ResponseEntity<Void> deleteSchedule(@PathVariable Long sid) {
         Long academyId = securityHelper.getCurrentAcademyId();
-        ClassSchedule s = classScheduleRepository.findById(sid).orElse(null);
-        if (s == null || !s.getAcademy().getId().equals(academyId))
+        // La clase se da de baja (no se borra) para conservar su historial y sus reservas.
+        if (!classReservationService.deactivateSchedule(academyId, sid))
             return ResponseEntity.notFound().build();
-        classScheduleRepository.delete(s);
         return ResponseEntity.noContent().build();
     }
 

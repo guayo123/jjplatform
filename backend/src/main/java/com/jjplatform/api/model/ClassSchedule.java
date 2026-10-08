@@ -42,4 +42,12 @@ public class ClassSchedule {
 
     /** Max students that can reserve a spot per session. Null = unlimited (reservations optional). */
     private Integer capacity;
+
+    /**
+     * false = clase dada de baja: deja de mostrarse y de aceptar reservas, pero se conserva (junto con sus
+     * reservas) para no perder historial. Las filas anteriores a esta columna quedan activas por el default.
+     */
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private Boolean active = true;
 }

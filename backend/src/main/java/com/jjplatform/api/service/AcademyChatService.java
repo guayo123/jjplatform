@@ -340,7 +340,7 @@ public class AcademyChatService {
         }
 
         List<ClassSchedule> schedules = classScheduleRepository
-                .findByAcademyIdOrderByDayOfWeekAscStartTimeAsc(academyId);
+                .findByAcademyIdAndActiveTrueOrderByDayOfWeekAscStartTimeAsc(academyId);
         if (!schedules.isEmpty()) {
             sb.append("HORARIOS:\n");
             for (ClassSchedule s : schedules) {

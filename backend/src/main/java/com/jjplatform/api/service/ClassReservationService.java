@@ -46,10 +46,23 @@ public class ClassReservationService {
     private final ClassReservationRepository reservationRepository;
     private final StudentRepository studentRepository;
 
+    /**
+     * Da de baja una clase del horario. No se borra: se conserva con sus reservas para no perder historial
+     * (y porque las reservas la referencian por clave foránea). Devuelve false si no existe o es de otra academia.
+     */
+    @Transactional
+    public boolean deactivateSchedule(Long academyId, Long scheduleId) {
+        ClassSchedule schedule = scheduleRepository.findById(scheduleId).orElse(null);
+        if (schedule == null || !schedule.getAcademy().getId().equals(academyId)) return false;
+        schedule.setActive(false);
+        scheduleRepository.save(schedule);
+        return true;
+    }
+
     /** Upcoming class occurrences for the next week in the student's academy, with reservation state. */
     @Transactional(readOnly = true)
     public List<UpcomingClassDto> getUpcoming(Long studentId, Long academyId) {
-        List<ClassSchedule> schedules = scheduleRepository.findByAcademyIdOrderByDayOfWeekAscStartTimeAsc(academyId);
+        List<ClassSchedule> schedules = scheduleRepository.findByAcademyIdAndActiveTrueOrderByDayOfWeekAscStartTimeAsc(academyId);
         LocalDateTime now = LocalDateTime.now();
         LocalDate today = now.toLocalDate();
 
@@ -91,6 +104,9 @@ public class ClassReservationService {
     @Transactional
     public void reserve(Long studentId, Long academyId, Long scheduleId, LocalDate date) {
         ClassSchedule schedule = requireSchedule(scheduleId, academyId);
+        if (Boolean.FALSE.equals(schedule.getActive())) {
+            throw new IllegalArgumentException("Esta clase ya no está disponible.");
+        }
         if (DAY_MAP.get(schedule.getDayOfWeek()) != date.getDayOfWeek()) {
             throw new IllegalArgumentException("La fecha no corresponde al día de esta clase.");
         }

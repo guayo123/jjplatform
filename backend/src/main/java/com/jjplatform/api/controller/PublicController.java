@@ -55,7 +55,7 @@ public class PublicController {
         dto.setWhatsapp(a.getWhatsapp());
         dto.setInstagram(a.getInstagram());
 
-        dto.setSchedules(a.getSchedules().stream().map(s -> {
+        dto.setSchedules(a.getSchedules().stream().filter(s -> !Boolean.FALSE.equals(s.getActive())).map(s -> {
             AcademyPublicDto.ScheduleDto sd = new AcademyPublicDto.ScheduleDto();
             sd.setId(s.getId());
             sd.setDayOfWeek(s.getDayOfWeek());
@@ -147,6 +147,7 @@ public class PublicController {
 
                     // Extra disciplines and class names from schedules explicitly assigned to this professor
                     List<com.jjplatform.api.model.ClassSchedule> profSchedules = a.getSchedules().stream()
+                            .filter(s -> !Boolean.FALSE.equals(s.getActive()))
                             .filter(s -> s.getProfessor() != null && s.getProfessor().getId().equals(p.getId()))
                             .collect(Collectors.toList());
 
