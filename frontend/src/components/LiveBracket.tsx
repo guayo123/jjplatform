@@ -11,7 +11,7 @@ import { isBye, isPlayable } from '../utils/tournamentSummary';
 
 const SLOT_H = 116; // alto de cada "slot" de la primera ronda
 const HEADER_H = 32;
-const COL_W = 'w-[min(84vw,19rem)] sm:w-72';
+const COL_W = 'w-[min(88vw,22rem)] sm:w-[22rem]';
 const PAD = 20; // padding lateral del contenedor (px-5)
 
 const RESULT_SHORT: Record<string, string> = {
@@ -23,9 +23,27 @@ const RESULT_SHORT: Record<string, string> = {
   DESCALIFICACION: 'Descalif.',
 };
 
+/** Color del punto según el cinturón (los nombres varían: "Blanca"/"Blanco", "Morada"/"Morado"…). */
+function beltDot(belt: string): string {
+  const b = belt.toLowerCase();
+  if (b.startsWith('blanc')) return 'bg-white';
+  if (b.startsWith('azul')) return 'bg-blue-500';
+  if (b.startsWith('morad')) return 'bg-purple-500';
+  if (b.startsWith('marr')) return 'bg-amber-800';
+  if (b.startsWith('negr')) return 'bg-black ring-1 ring-white/60';
+  if (b.startsWith('gris')) return 'bg-gray-400';
+  if (b.startsWith('amar')) return 'bg-yellow-400';
+  if (b.startsWith('naranj')) return 'bg-orange-500';
+  if (b.startsWith('verd')) return 'bg-green-500';
+  if (b.startsWith('roj') || b.startsWith('coral')) return 'bg-red-500';
+  return 'bg-gray-500';
+}
+
 function initials(name: string) {
+  // Con nombre completo se usa la primera letra del nombre y del primer apellido ("Diego Andrés Rivas Palma" → DR).
   const parts = name.replace('.', '').trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?';
+  const second = parts.length >= 3 ? parts[parts.length - 2] : parts[1];
+  return ((parts[0]?.[0] ?? '') + (second?.[0] ?? '')).toUpperCase() || '?';
 }
 
 export default function LiveBracket({
@@ -182,12 +200,20 @@ function Fighter({ p, winner, decided, bye }: { p: Participant | null; winner: b
           </span>
         )}
       </span>
-      <span
-        className={`text-sm font-medium truncate ${winner ? 'text-green-400' : decided ? 'text-gray-400' : 'text-white'}`}
-        title={p.studentName}
-      >
-        {p.seedRank != null && <span className="text-yellow-400 mr-1">⭐{p.seedRank}</span>}
-        {p.studentName}
+      <span className="min-w-0 leading-tight">
+        <span
+          className={`block text-sm font-medium truncate ${winner ? 'text-green-400' : decided ? 'text-gray-400' : 'text-white'}`}
+          title={p.studentName}
+        >
+          {p.seedRank != null && <span className="text-yellow-400 mr-1">⭐{p.seedRank}</span>}
+          {p.studentName}
+        </span>
+        {p.belt && (
+          <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-gray-400">
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${beltDot(p.belt)}`} />
+            <span className="truncate">{p.belt}</span>
+          </span>
+        )}
       </span>
     </div>
   );

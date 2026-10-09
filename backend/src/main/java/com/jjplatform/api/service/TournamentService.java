@@ -249,32 +249,14 @@ public class TournamentService {
     }
 
     /**
-     * Nombre para mostrar públicamente: nombre de pila + inicial del primer apellido ("Diego R.").
-     * Supone la forma chilena habitual: 2 palabras = nombre + apellido; 3 = nombre + 2 apellidos;
-     * 4 o más = 2 nombres + 2 apellidos (el primer apellido es la antepenúltima palabra).
+     * Vista pública de un torneo (página de la academia): nombre completo y cinturón de cada luchador,
+     * pero sin los identificadores internos de los alumnos.
      */
-    public static String publicName(String fullName) {
-        if (fullName == null || fullName.isBlank()) return fullName;
-        String[] parts = fullName.trim().split("\\s+");
-        if (parts.length == 1) return parts[0];
-        String surname = parts.length == 2 ? parts[1] : parts[parts.length - 2];
-        return parts[0] + " " + Character.toUpperCase(surname.charAt(0)) + ".";
-    }
-
-    /** Vista pública de un torneo (página de la academia): sin ids internos y con nombres abreviados. */
     @Transactional(readOnly = true)
     public TournamentDto getPublicTournament(Long id, Long academyId) {
         TournamentDto dto = toDto(findByIdAndAcademy(id, academyId));
-        dto.getParticipants().forEach(p -> {
-            p.setStudentId(null);
-            p.setStudentName(publicName(p.getStudentName()));
-        });
-        dto.getMatches().forEach(m -> {
-            if (m.getParticipant1() != null) m.getParticipant1().setStudentName(publicName(m.getParticipant1().getStudentName()));
-            if (m.getParticipant2() != null) m.getParticipant2().setStudentName(publicName(m.getParticipant2().getStudentName()));
-        });
+        dto.getParticipants().forEach(p -> p.setStudentId(null));
         dto.setChampionStudentId(null);
-        dto.setChampionName(publicName(dto.getChampionName()));
         return dto;
     }
 
@@ -352,6 +334,7 @@ public class TournamentService {
                 TournamentDto.ParticipantDto p1 = new TournamentDto.ParticipantDto();
                 p1.setId(m.getParticipant1().getId());
                 p1.setStudentName(m.getParticipant1().getStudent().getName());
+                p1.setBelt(m.getParticipant1().getStudent().getBelt());
                 p1.setSeedRank(m.getParticipant1().getSeedRank());
                 md.setParticipant1(p1);
             }
@@ -359,6 +342,7 @@ public class TournamentService {
                 TournamentDto.ParticipantDto p2 = new TournamentDto.ParticipantDto();
                 p2.setId(m.getParticipant2().getId());
                 p2.setStudentName(m.getParticipant2().getStudent().getName());
+                p2.setBelt(m.getParticipant2().getStudent().getBelt());
                 p2.setSeedRank(m.getParticipant2().getSeedRank());
                 md.setParticipant2(p2);
             }

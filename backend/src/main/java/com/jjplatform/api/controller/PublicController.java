@@ -93,7 +93,7 @@ public class PublicController {
             td.setStatus(t.getStatus().name());
             td.setParticipantCount(t.getParticipants().size());
             td.setTipo(t.getTipo().name());
-            tournamentService.championOf(t).ifPresent(c -> td.setChampionName(com.jjplatform.api.service.TournamentService.publicName(c.getStudent().getName())));
+            tournamentService.championOf(t).ifPresent(c -> td.setChampionName(c.getStudent().getName()));
             return td;
         }).toList());
 

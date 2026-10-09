@@ -242,21 +242,14 @@ class TournamentFlowIntegrationTest {
         assertThat(publicView.getChampionStudentId()).isNull();
         assertThat(publicView.getParticipants()).hasSize(4).allMatch(p -> p.getStudentId() == null);
         assertThat(publicView.getMatches()).isNotEmpty();
+        // Nombre completo y cinturón también dentro de cada combate (la vista pública los muestra)
+        assertThat(publicView.getMatches()).flatExtracting(m -> java.util.Arrays.asList(m.getParticipant1(), m.getParticipant2()))
+                .filteredOn(java.util.Objects::nonNull)
+                .allMatch(p -> p.getStudentName().startsWith("P") && "Blanca".equals(p.getBelt()));
 
         // Otra academia no puede ver este torneo
         Academy other = academy("other@test.cl");
         org.junit.jupiter.api.Assertions.assertThrows(com.jjplatform.api.exception.ResourceNotFoundException.class,
                 () -> tournamentService.getPublicTournament(id, other.getId()));
-    }
-
-    @Test
-    void publicNamesAreAbbreviatedToFirstNameAndSurnameInitial() {
-        assertThat(TournamentService.publicName("Diego Andrés Rivas Palma")).isEqualTo("Diego R.");
-        assertThat(TournamentService.publicName("Alejandro Quezada Contreras")).isEqualTo("Alejandro Q.");
-        assertThat(TournamentService.publicName("Maria Rodriguez")).isEqualTo("Maria R.");
-        assertThat(TournamentService.publicName("  Bruno   Villarroel ")).isEqualTo("Bruno V.");
-        assertThat(TournamentService.publicName("Cher")).isEqualTo("Cher");
-        assertThat(TournamentService.publicName(null)).isNull();
-        assertThat(TournamentService.publicName("")).isEmpty();
     }
 }
