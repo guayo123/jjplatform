@@ -77,3 +77,43 @@ export function pathOf(matches: BracketMatch[], participantId: number, group: st
       };
     });
 }
+
+/** Pase directo: tiene ganador pero solo un luchador. */
+export const isBye = (m: BracketMatch) => m.winnerId != null && (!m.participant1 || !m.participant2);
+/** Se puede jugar: ya están los dos luchadores y falta el ganador. */
+export const isPlayable = (m: BracketMatch) => m.winnerId == null && !!m.participant1 && !!m.participant2;
+
+/**
+ * Número de combate (#1, #2…) como en un torneo real: se numeran por categoría, ronda y posición, sin contar
+ * los pases directos. Es estable mientras el bracket no se regenere.
+ */
+export function matchNumbers(matches: BracketMatch[]): Map<number, number> {
+  const ordered = [...matches].sort(
+    (a, b) =>
+      (a.categoryGroup ?? '').localeCompare(b.categoryGroup ?? '') || a.round - b.round || a.matchNumber - b.matchNumber,
+  );
+  const numbers = new Map<number, number>();
+  let n = 0;
+  ordered.forEach((m) => {
+    if (!isBye(m)) numbers.set(m.id, ++n);
+  });
+  return numbers;
+}
+
+/** Ronda "actual": la primera con combates por jugar; si no hay, la primera con algo pendiente; si no, la final. */
+export function currentRound(groupMatches: BracketMatch[]): number {
+  const rounds = [...new Set(groupMatches.map((m) => m.round))].sort((a, b) => a - b);
+  const firstWith = (pred: (m: BracketMatch) => boolean) =>
+    rounds.find((r) => groupMatches.some((m) => m.round === r && pred(m)));
+  return (
+    firstWith(isPlayable) ??
+    firstWith((m) => m.winnerId == null && (!!m.participant1 || !!m.participant2)) ??
+    rounds[rounds.length - 1] ??
+    1
+  );
+}
+
+/** Llaves (categorías) del torneo, ordenadas; [null] si es una sola llave (Absoluto). */
+export function groupKeys(matches: BracketMatch[]): (string | null)[] {
+  return [...byGroup(matches).keys()].sort((a, b) => (a ?? '').localeCompare(b ?? ''));
+}
