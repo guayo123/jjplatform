@@ -30,3 +30,10 @@ export function usePlatform(): PlatformInfo {
 export function getPlatformInfo(): PlatformInfo {
   return info;
 }
+
+/** True when the website runs as an installed PWA (home-screen icon), not in a browser tab. */
+export function isInstalledPwa(): boolean {
+  if (typeof window === 'undefined') return false;
+  const iosStandalone = (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  return iosStandalone || window.matchMedia('(display-mode: standalone)').matches;
+}
