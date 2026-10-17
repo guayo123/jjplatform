@@ -26,6 +26,11 @@ async function bootstrap() {
     </React.StrictMode>
   );
 
+  // PWA: registra el service worker solo en la web (no dentro de la app nativa).
+  if (!Capacitor.isNativePlatform() && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+
   // Hide the native splash once the UI is mounted.
   if (Capacitor.isNativePlatform()) {
     const { SplashScreen } = await import('@capacitor/splash-screen');
