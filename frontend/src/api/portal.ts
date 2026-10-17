@@ -33,8 +33,8 @@ export const portalApi = {
   paymentOptions: (studentId: number) =>
     client.get<PaymentOptions>(`/portal/students/${studentId}/payment-options`).then((r) => r.data),
 
-  pay: (studentId: number, method: string, month: number, year: number) =>
-    client.post<{ url: string }>(`/portal/students/${studentId}/pay`, { method, month, year }).then((r) => r.data),
+  pay: (studentId: number, method: string, month: number, year: number, app = false) =>
+    client.post<{ url: string }>(`/portal/students/${studentId}/pay`, { method, month, year, app }).then((r) => r.data),
 
   upcomingClasses: (studentId: number) =>
     client.get<UpcomingClass[]>(`/portal/students/${studentId}/classes`).then((r) => r.data),

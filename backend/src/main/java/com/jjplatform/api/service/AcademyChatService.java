@@ -258,6 +258,7 @@ public class AcademyChatService {
         List<Student> students = studentRepository.findByAcademyIdAndActiveTrue(academyId);
         List<Payment> monthPayments = paymentRepository.findByAcademyIdAndMonthAndYear(academyId, currentMonth, currentYear);
         java.util.Set<Long> paidIds = monthPayments.stream()
+                .filter(p -> !"PENDING_CONFIRMATION".equals(p.getStatus()))
                 .map(p -> p.getStudent().getId()).collect(java.util.stream.Collectors.toSet());
 
         String[] beltOrder = {"Blanco", "Amarillo", "Naranja", "Verde", "Azul", "Morado", "Marron", "Marrón", "Negro"};

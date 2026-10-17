@@ -112,7 +112,7 @@ public class PortalController {
         String method = String.valueOf(body.get("method"));
         int month = ((Number) body.get("month")).intValue();
         int year = ((Number) body.get("year")).intValue();
-        String url = portalService.createCheckout(studentId, method, month, year);
+        String url = portalService.createCheckout(studentId, method, month, year, Boolean.TRUE.equals(body.get("app")));
         return ResponseEntity.ok(Map.of("url", url));
     }
 

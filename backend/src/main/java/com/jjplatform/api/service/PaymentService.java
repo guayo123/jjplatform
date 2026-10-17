@@ -24,14 +24,19 @@ public class PaymentService {
     private final StudentRepository studentRepository;
     private final AcademyRepository academyRepository;
 
+    private static final String PENDING = "PENDING_CONFIRMATION";
+
+    /** Staff views only list confirmed money: an unfinished online checkout is not a payment yet. */
     public List<PaymentDto> getPaymentsByYear(Long academyId, int year) {
         return paymentRepository.findByAcademyIdAndYear(academyId, year).stream()
+                .filter(p -> !PENDING.equals(p.getStatus()))
                 .map(this::toDto)
                 .toList();
     }
 
     public List<PaymentDto> getPaymentsByMonth(Long academyId, int month, int year) {
         return paymentRepository.findByAcademyIdAndMonthAndYear(academyId, month, year).stream()
+                .filter(p -> !PENDING.equals(p.getStatus()))
                 .map(this::toDto)
                 .toList();
     }
@@ -44,10 +49,16 @@ public class PaymentService {
 
     @Transactional
     public PaymentDto createPayment(PaymentDto dto, Long academyId) {
-        if (paymentRepository.existsByStudentIdAndMonthAndYear(
-                dto.getStudentId(), dto.getMonth(), dto.getYear())) {
-            throw new IllegalArgumentException(
-                    "Payment already exists for this student in the specified month");
+        var existing = paymentRepository.findByStudentIdAndMonthAndYear(
+                dto.getStudentId(), dto.getMonth(), dto.getYear());
+        if (existing.isPresent()) {
+            if (!PENDING.equals(existing.get().getStatus())) {
+                throw new IllegalArgumentException(
+                        "Payment already exists for this student in the specified month");
+            }
+            // Staff is recording the payment by hand over an unfinished online checkout: replace it.
+            paymentRepository.delete(existing.get());
+            paymentRepository.flush();
         }
 
         Student student = studentRepository.findByIdWithPlans(dto.getStudentId())

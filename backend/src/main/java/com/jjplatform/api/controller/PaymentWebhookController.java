@@ -20,6 +20,20 @@ public class PaymentWebhookController {
 
     private final PaymentGatewayService gatewayService;
 
+    /**
+     * Landing for the native app after the checkout: bounces the in-app browser to the app's custom
+     * scheme (jjplatform://pagos) so the app comes back to the foreground. Shows a plain fallback
+     * page when the browser does not follow the redirect.
+     */
+    @GetMapping(value = "/pay-return", produces = "text/html;charset=UTF-8")
+    public ResponseEntity<String> payReturn() {
+        String html = "<!doctype html><meta name=viewport content='width=device-width,initial-scale=1'>"
+                + "<body style='font-family:sans-serif;text-align:center;padding:48px'>"
+                + "<h3>Volviendo a la app…</h3><p><a href='jjplatform://pagos'>Toca aquí si no se abre sola</a></p>"
+                + "<script>location.href='jjplatform://pagos'</script></body>";
+        return ResponseEntity.ok(html);
+    }
+
     /** Khipu calls this (POST) when a transfer changes state. */
     @PostMapping("/khipu/{paymentId}")
     public ResponseEntity<Void> khipu(@PathVariable Long paymentId) {

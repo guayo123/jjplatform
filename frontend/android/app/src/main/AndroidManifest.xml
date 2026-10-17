@@ -17,6 +17,13 @@
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
             android:exported="true">
+            <!-- Vuelta desde el checkout de pago (Khipu / Mercado Pago): jjplatform://pagos -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="jjplatform" android:host="pagos" />
+            </intent-filter>
         </activity>
 
         <!-- Belt-icon aliases — only one is enabled at a time (switched by BeltIconPlugin). -->

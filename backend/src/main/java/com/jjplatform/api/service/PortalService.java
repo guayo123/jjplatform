@@ -143,9 +143,9 @@ public class PortalService {
     }
 
     /** Starts a gateway checkout for the student's monthly fee; returns the URL to open. */
-    public String createCheckout(Long studentId, String method, int month, int year) {
+    public String createCheckout(Long studentId, String method, int month, int year, boolean fromApp) {
         Student s = requireOwnedStudent(studentId);
-        return paymentGatewayService.createCheckout(studentId, s.getAcademy().getId(), month, year, method);
+        return paymentGatewayService.createCheckout(studentId, s.getAcademy().getId(), month, year, method, fromApp);
     }
 
     // --- Class reservations -------------------------------------------------

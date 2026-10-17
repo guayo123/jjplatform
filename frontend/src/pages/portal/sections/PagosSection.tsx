@@ -1,20 +1,42 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Payment, PaymentOptions } from '../../../types';
 import { portalApi } from '../../../api/portal';
 import { formatDate, money, SkeletonRows, MONTHS } from './shared';
 import { tapLight } from '../../../native/haptics';
+import { openCheckout, onCheckoutReturn } from '../../../native/checkout';
+import { getPlatformInfo } from '../../../native/usePlatform';
 
 interface Props {
   payments: Payment[];
   detailLoading: boolean;
   studentId: number;
   options: PaymentOptions | null;
+  /** Reloads the payment list (used to pick up a gateway confirmation after returning from checkout). */
+  onRefresh?: () => void;
 }
 
 /** "Mis pagos" — pay the monthly fee online (Khipu / Mercado Pago) plus the payment history. */
-export default function PagosSection({ payments, detailLoading, studentId, options }: Props) {
+export default function PagosSection({ payments, detailLoading, studentId, options, onRefresh }: Props) {
   const [starting, setStarting] = useState<string | null>(null);
   const [error, setError] = useState('');
+
+  // Back from the checkout in the native app (jjplatform://pagos): pull the fresh status right away.
+  useEffect(() => (onRefresh ? onCheckoutReturn(onRefresh) : undefined), [onRefresh]);
+
+  const hasPending = payments.some((p) => p.status === 'PENDING_CONFIRMATION');
+
+  // The gateway confirms through a webhook, so refresh when the student comes back to the app
+  // and poll gently while a payment is still pending.
+  useEffect(() => {
+    if (!onRefresh) return;
+    const onVisible = () => { if (document.visibilityState === 'visible') onRefresh(); };
+    document.addEventListener('visibilitychange', onVisible);
+    const timer = hasPending ? window.setInterval(onRefresh, 8000) : undefined;
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      if (timer) window.clearInterval(timer);
+    };
+  }, [onRefresh, hasPending]);
 
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -27,9 +49,8 @@ export default function PagosSection({ payments, detailLoading, studentId, optio
     setStarting(method);
     setError('');
     try {
-      const { url } = await portalApi.pay(studentId, method, month, year);
-      // Open the gateway checkout. _blank works on web; on native it hands off to the system browser.
-      window.open(url, '_blank');
+      const { url } = await portalApi.pay(studentId, method, month, year, getPlatformInfo().isNative);
+      await openCheckout(url);
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
       setError(msg || 'No se pudo iniciar el pago. Intenta de nuevo.');

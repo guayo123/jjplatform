@@ -116,6 +116,11 @@ export default function Portal() {
     }
   }, []);
 
+  const refreshPayments = useCallback(() => {
+    if (selectedId == null) return;
+    portalApi.payments(selectedId).then(setPayments).catch(() => {});
+  }, [selectedId]);
+
   useEffect(() => {
     loadProfiles()
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'No se pudo cargar tu información.'))
@@ -293,7 +298,8 @@ export default function Portal() {
     />
   );
   const pagos = student && (
-    <PagosSection payments={payments} detailLoading={detailLoading} studentId={student.id} options={paymentOptions} />
+    <PagosSection payments={payments} detailLoading={detailLoading} studentId={student.id} options={paymentOptions}
+      onRefresh={refreshPayments} />
   );
   const entreno = student && (
     <div className="space-y-6">

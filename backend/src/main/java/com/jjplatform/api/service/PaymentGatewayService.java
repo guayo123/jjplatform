@@ -59,23 +59,25 @@ public class PaymentGatewayService {
      * must open to pay. A PENDING_CONFIRMATION payment row is created/reused so the webhook can
      * reconcile it.
      */
-    public String createCheckout(Long studentId, Long academyId, int month, int year, String method) {
+    public String createCheckout(Long studentId, Long academyId, int month, int year, String method, boolean fromApp) {
         Academy academy = academyRepository.findById(academyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Academy not found"));
         Payment payment = paymentService.getOrCreatePendingPayment(studentId, academyId, month, year, method);
         int amount = payment.getAmount().intValueExact();
         String subject = "Mensualidad " + month + "/" + year + " - " + academy.getName();
 
+        // The native app returns through a redirect to its custom scheme; the web goes back to the portal.
+        String returnUrl = fromApp ? baseUrl + "/api/public/webhooks/pay-return" : portalUrl;
         return switch (method) {
-            case KHIPU -> createKhipu(academy, payment, amount, subject);
-            case MERCADO_PAGO -> createMercadoPago(academy, payment, amount, subject);
+            case KHIPU -> createKhipu(academy, payment, amount, subject, returnUrl);
+            case MERCADO_PAGO -> createMercadoPago(academy, payment, amount, subject, returnUrl);
             default -> throw new IllegalArgumentException("Método de pago no soportado: " + method);
         };
     }
 
     // ── Khipu ────────────────────────────────────────────────────────────────
 
-    private String createKhipu(Academy academy, Payment payment, int amount, String subject) {
+    private String createKhipu(Academy academy, Payment payment, int amount, String subject, String returnUrl) {
         requireCredential(academy.getKhipuApiKey(), "Khipu no está configurado en tu academia.");
 
         HttpHeaders headers = new HttpHeaders();
@@ -87,8 +89,8 @@ public class PaymentGatewayService {
                 "currency", "CLP",
                 "subject", subject,
                 "transaction_id", String.valueOf(payment.getId()),
-                "return_url", portalUrl,
-                "cancel_url", portalUrl,
+                "return_url", returnUrl,
+                "cancel_url", returnUrl,
                 "notify_url", baseUrl + "/api/public/webhooks/khipu/" + payment.getId());
 
         Map<?, ?> resp = restTemplate.postForObject(
@@ -121,6 +123,10 @@ public class PaymentGatewayService {
                     HttpMethod.GET, new HttpEntity<>(headers), Map.class);
             Map<?, ?> p = resp.getBody();
             if (p != null && "done".equalsIgnoreCase(String.valueOf(p.get("status")))) {
+                if (!coversAmount(payment, p.get("amount"))) {
+                    log.warn("Khipu payment {} confirmed with an amount below the expected {}", paymentId, payment.getAmount());
+                    return;
+                }
                 paymentService.markPaidByGateway(paymentId, KHIPU, payment.getGatewayPaymentId());
             }
         } catch (Exception e) {
@@ -130,7 +136,7 @@ public class PaymentGatewayService {
 
     // ── Mercado Pago ───────────────────────────────────────────────────────────
 
-    private String createMercadoPago(Academy academy, Payment payment, int amount, String subject) {
+    private String createMercadoPago(Academy academy, Payment payment, int amount, String subject, String returnUrl) {
         requireCredential(academy.getMpAccessToken(), "Mercado Pago no está configurado en tu academia.");
 
         HttpHeaders headers = new HttpHeaders();
@@ -144,7 +150,7 @@ public class PaymentGatewayService {
                         "unit_price", amount,
                         "currency_id", "CLP")),
                 "external_reference", String.valueOf(payment.getId()),
-                "back_urls", Map.of("success", portalUrl, "failure", portalUrl, "pending", portalUrl),
+                "back_urls", Map.of("success", returnUrl, "failure", returnUrl, "pending", returnUrl),
                 "auto_return", "approved",
                 "notification_url", baseUrl + "/api/public/webhooks/mp/" + payment.getId());
 
@@ -184,10 +190,24 @@ public class PaymentGatewayService {
             boolean approved = "approved".equalsIgnoreCase(String.valueOf(p.get("status")));
             boolean matches = String.valueOf(payment.getId()).equals(String.valueOf(p.get("external_reference")));
             if (approved && matches) {
+                if (!coversAmount(payment, p.get("transaction_amount"))) {
+                    log.warn("MP payment {} approved with an amount below the expected {}", paymentId, payment.getAmount());
+                    return;
+                }
                 paymentService.markPaidByGateway(paymentId, MERCADO_PAGO, mpPaymentId);
             }
         } catch (Exception e) {
             log.warn("Mercado Pago verification failed for payment {}: {}", paymentId, e.getMessage());
+        }
+    }
+
+    /** True when the gateway reports at least the amount we charged (a missing value is not trusted). */
+    private boolean coversAmount(Payment payment, Object gatewayAmount) {
+        if (gatewayAmount == null) return false;
+        try {
+            return new java.math.BigDecimal(String.valueOf(gatewayAmount)).compareTo(payment.getAmount()) >= 0;
+        } catch (NumberFormatException e) {
+            return false;
         }
     }
 
