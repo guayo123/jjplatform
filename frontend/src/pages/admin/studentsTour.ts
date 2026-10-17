@@ -32,7 +32,7 @@ export function startStudentsTour({
       ? [{
           element: '[data-tour="nuevo"]',
           popover: {
-            title: '➕ Nuevo alumno',
+            title: 'Nuevo alumno',
             description: 'Crea un alumno nuevo con sus datos personales, plan y foto.',
             side: 'bottom' as const,
             align: 'end' as const,
@@ -44,7 +44,7 @@ export function startStudentsTour({
           {
             element: '[data-tour="excel"]',
             popover: {
-              title: '📊 Exportar a Excel',
+              title: 'Exportar a Excel',
               description: 'Descarga el listado (con los filtros aplicados) en Excel, incluyendo las graduaciones.',
               side: 'bottom' as const,
               align: 'end' as const,
@@ -53,7 +53,7 @@ export function startStudentsTour({
           {
             element: '[data-tour="pdf"]',
             popover: {
-              title: '📄 Exportar a PDF',
+              title: 'Exportar a PDF',
               description: 'Descarga el mismo listado en PDF para imprimir o compartir.',
               side: 'bottom' as const,
               align: 'end' as const,
@@ -65,7 +65,7 @@ export function startStudentsTour({
       ? [{
           element: '[data-tour="filtros"]',
           popover: {
-            title: '🔎 Filtros',
+            title: 'Filtros',
             description: 'Filtra y busca a tus alumnos por nombre, cinturón, edad, peso y estado (activo/inactivo).',
             side: 'bottom' as const,
             align: 'start' as const,
@@ -76,7 +76,7 @@ export function startStudentsTour({
       ? [{
           element: `[data-tour="detalle${suffix}"]`,
           popover: {
-            title: '👁️ Ver detalle',
+            title: 'Ver detalle',
             description: 'Entra a la ficha del alumno. Ahí agregas su cinturón, grados y torneos, y revisas todo su historial.',
             side: 'top' as const,
             align: 'end' as const,
@@ -87,7 +87,7 @@ export function startStudentsTour({
       ? [{
           element: `[data-tour="editar${suffix}"]`,
           popover: {
-            title: '✏️ Editar',
+            title: 'Editar',
             description: 'Modifica los datos del alumno: nombre, contacto, plan, foto y más.',
             side: 'top' as const,
             align: 'end' as const,
@@ -97,7 +97,7 @@ export function startStudentsTour({
   ];
 
   runGuidedTour({
-    welcomeTitle: '👋 Gestión de alumnos',
+    welcomeTitle: 'Gestión de alumnos',
     welcomeBody: '<p>Desde aquí administras a tus alumnos. Te muestro rápidamente las opciones disponibles.</p>',
     steps,
     initialDismiss,

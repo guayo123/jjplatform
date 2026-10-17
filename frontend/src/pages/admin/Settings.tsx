@@ -83,14 +83,14 @@ export default function Settings() {
 
   const startTour = useGuidedTour({
     storageKey: 'jjp_settings_tour',
-    welcomeTitle: '👋 Configuración',
+    welcomeTitle: 'Configuración',
     welcomeBody: '<p>Aquí defines los datos de tu academia que se muestran en el perfil público.</p>',
     loading,
     buildSteps: () => [
-      { element: '[data-tour="set-logo"]', popover: { title: '🏷️ Logo', description: 'Sube el logo de tu academia.', side: 'bottom', align: 'start' } },
-      { element: '[data-tour="set-info"]', popover: { title: '📝 Información básica', description: 'Edita el nombre, descripción y dirección de la academia.', side: 'bottom', align: 'start' } },
-      { element: '[data-tour="set-bot"]', popover: { title: '🤖 Bot de WhatsApp', description: 'Configura (opcional) el bot que responde consultas por WhatsApp.', side: 'bottom', align: 'start' } },
-      { element: '[data-tour="set-guardar"]', popover: { title: '💾 Guardar', description: 'Guarda los cambios de la configuración.', side: 'top', align: 'start' } },
+      { element: '[data-tour="set-logo"]', popover: { title: 'Logo', description: 'Sube el logo de tu academia.', side: 'bottom', align: 'start' } },
+      { element: '[data-tour="set-info"]', popover: { title: 'Información básica', description: 'Edita el nombre, descripción y dirección de la academia.', side: 'bottom', align: 'start' } },
+      { element: '[data-tour="set-bot"]', popover: { title: 'Bot de WhatsApp', description: 'Configura (opcional) el bot que responde consultas por WhatsApp.', side: 'bottom', align: 'start' } },
+      { element: '[data-tour="set-guardar"]', popover: { title: 'Guardar', description: 'Guarda los cambios de la configuración.', side: 'top', align: 'start' } },
     ],
   });
 

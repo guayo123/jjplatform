@@ -1,3 +1,4 @@
+import { PersonSimpleThrow, HandGrabbing, Mountains, Barbell, Star, Trophy, Target } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import Lightbox from 'yet-another-react-lightbox';
@@ -36,27 +37,26 @@ function classColor(name: string): string {
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
   return CLASS_COLORS[h % CLASS_COLORS.length];
 }
-function planIcon(disciplineName: string | null): string {
+function planIcon(disciplineName: string | null) {
   const n = (disciplineName ?? '').toLowerCase();
-  if (n.includes('jiu') || n.includes('bjj')) return '🥋';
-  if (n.includes('grap')) return '🤼';
-  if (n.includes('escala') || n.includes('climb')) return '🧗';
-  if (n.includes('lucha') || n.includes('wrestling')) return '🤼‍♂️';
-  if (n.includes('funcional') || n.includes('fitness')) return '💪';
-  if (n.includes('kid') || n.includes('niño')) return '⭐';
-  return '🥋';
+  if (n.includes('jiu') || n.includes('bjj')) return <PersonSimpleThrow size="1em" />;
+  if (n.includes('grap')) return <HandGrabbing size="1em" />;
+  if (n.includes('escala') || n.includes('climb')) return <Mountains size="1em" />;
+  if (n.includes('lucha') || n.includes('wrestling')) return <HandGrabbing size="1em" />;
+  if (n.includes('funcional') || n.includes('fitness')) return <Barbell size="1em" />;
+  if (n.includes('kid') || n.includes('niño')) return <Star weight="fill" size="1em" />;
+  return <PersonSimpleThrow size="1em" />;
 }
 
-function classIcon(name: string): string {
+function classIcon(name: string) {
   const n = name.toLowerCase();
-  if (n.includes('kid') || n.includes('niño') || n.includes('infant')) return '⭐';
-  if (n.includes('olimp')) return '🏆';
-  if (n.includes('grap')) return '🤼';
-  if (n.includes('lucha') || n.includes('greco') || n.includes('wrestling')) return '🤼‍♂️';
-  if (n.includes('fundament') || n.includes('básic') || n.includes('basic')) return '🎯';
-  if (n.includes('escala') || n.includes('climb')) return '🧗';
-  if (n.includes('bjj') || n.includes('jiu')) return '🥋';
-  return '🥋';
+  if (n.includes('kid') || n.includes('niño') || n.includes('infant')) return <Star weight="fill" size="1em" />;
+  if (n.includes('olimp')) return <Trophy weight="fill" size="1em" />;
+  if (n.includes('grap')) return <HandGrabbing size="1em" />;
+  if (n.includes('lucha') || n.includes('greco') || n.includes('wrestling')) return <HandGrabbing size="1em" />;
+  if (n.includes('fundament') || n.includes('básic') || n.includes('basic')) return <Target size="1em" />;
+  if (n.includes('escala') || n.includes('climb')) return <Mountains size="1em" />;
+  return <PersonSimpleThrow size="1em" />;
 }
 
 function beltColors(belt: string): { bg: string; text: string; border: string } {
@@ -92,7 +92,7 @@ function BeltBadge({ belt, size = 'sm' }: { belt: string; size?: 'sm' | 'lg' }) 
       className={`inline-flex items-center gap-1 font-bold rounded-full border ${size === 'lg' ? 'px-3 py-1 text-sm' : 'px-2 py-0.5 text-[10px]'}`}
       style={{ background: c.bg, color: c.text, borderColor: c.border }}
     >
-      🥋 {belt}
+      <PersonSimpleThrow size="1em" /> {belt}
     </span>
   );
 }
@@ -191,7 +191,7 @@ export default function AcademyProfile({ academyId }: { academyId?: number }) {
   if (!academy)
     return (
       <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center text-gray-400 gap-4">
-        <span className="text-5xl">🥋</span>
+        <PersonSimpleThrow size={56} />
         <p>Academia no encontrada</p>
         {!isCustomDomain && (
           <Link to="/" className="text-primary-400 hover:text-primary-300 text-sm">← Volver al listado</Link>
@@ -546,7 +546,7 @@ export default function AcademyProfile({ academyId }: { academyId?: number }) {
                           <ul className="space-y-2">
                             {selectedProfessor.achievements.split('\n').filter(Boolean).map((a, i) => (
                               <li key={i} className="flex items-start gap-2.5 text-sm text-gray-300">
-                                <span className="text-yellow-400 flex-shrink-0 mt-0.5">🏆</span>
+                                <Trophy weight="fill" size={14} className="text-yellow-400 flex-shrink-0 mt-0.5" />
                                 {a}
                               </li>
                             ))}
@@ -924,7 +924,7 @@ export default function AcademyProfile({ academyId }: { academyId?: number }) {
                     <span>{t.participantCount} participantes</span>
                   </div>
                   {t.championName && (
-                    <p className="mt-2 text-sm text-yellow-400 font-medium">🏆 {t.championName}</p>
+                    <p className="mt-2 text-sm text-yellow-400 font-medium flex items-center gap-1.5"><Trophy weight="fill" size="1em" />{t.championName}</p>
                   )}
                   <p className="mt-2 text-xs text-primary-400 font-medium">Ver bracket y resultados →</p>
                 </button>

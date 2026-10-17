@@ -1,3 +1,4 @@
+import { ClipboardText, X, PersonSimpleThrow } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { academiesApi } from '../../api/academies';
 import { disciplineBeltsApi } from '../../api/disciplineBelts';
@@ -42,10 +43,10 @@ function BeltChip({ belt, onDelete, onManage }: { belt: DisciplineBelt; onDelete
         {belt.name}
       </button>
       <button onClick={onManage} className="hover:opacity-70 transition-opacity leading-none" title="Programa técnico">
-        📋
+        <ClipboardText size="1em" />
       </button>
       <button onClick={onDelete} className="hover:opacity-70 transition-opacity leading-none" title="Eliminar cinturón">
-        ✕
+        <X size="1em" weight="bold" />
       </button>
     </div>
   );
@@ -194,18 +195,18 @@ export default function Disciplines() {
 
   const startTour = useGuidedTour({
     storageKey: 'jjp_disciplines_tour',
-    welcomeTitle: '👋 Disciplinas',
+    welcomeTitle: 'Disciplinas',
     welcomeBody: '<p>Aquí configuras las artes marciales, sus categorías de edad y los cinturones de cada una.</p>',
     loading,
     buildSteps: () => [
       {
         element: '[data-tour="nueva-disciplina"]',
-        popover: { title: '➕ Nueva disciplina', description: 'Crea una disciplina (arte marcial) para tu academia.', side: 'bottom', align: 'end' },
+        popover: { title: 'Nueva disciplina', description: 'Crea una disciplina (arte marcial) para tu academia.', side: 'bottom', align: 'end' },
       },
       ...(disciplines.length > 0
         ? [{
             element: '[data-tour="disc-cinturones"]',
-            popover: { title: '🥋 Cinturones y categorías', description: 'Abre "Cinturones" en cada disciplina para definir sus categorías de edad y los cinturones disponibles.', side: 'bottom' as const, align: 'end' as const },
+            popover: { title: 'Cinturones y categorías', description: 'Abre "Cinturones" en cada disciplina para definir sus categorías de edad y los cinturones disponibles.', side: 'bottom' as const, align: 'end' as const },
           }]
         : []),
     ],
@@ -254,7 +255,7 @@ export default function Disciplines() {
               <h2 className="font-bold text-white">
                 {editingId != null ? 'Editar disciplina' : 'Nueva disciplina'}
               </h2>
-              <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-white text-xl leading-none transition-colors">✕</button>
+              <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-white leading-none transition-colors"><X size={20} weight="bold" /></button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
@@ -285,7 +286,7 @@ export default function Disciplines() {
       {/* Disciplines list */}
       {disciplines.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-          <p className="text-gray-400 text-4xl mb-3">🥋</p>
+          <PersonSimpleThrow size={44} className="mx-auto mb-3 text-gray-400" />
           <p className="text-gray-500 font-medium">No hay disciplinas creadas aún</p>
           <p className="text-gray-400 text-sm mt-1">Crea tu primera disciplina para organizar los planes</p>
         </div>
@@ -298,7 +299,7 @@ export default function Disciplines() {
                 {/* Discipline header row */}
                 <div className="flex items-center justify-between px-5 py-4">
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-lg flex-shrink-0">🥋</span>
+                    <PersonSimpleThrow size={22} className="flex-shrink-0 text-gray-500" />
                     <div className="min-w-0">
                       <p className="font-semibold text-gray-800">{d.name}</p>
                       <div className="flex items-center gap-2 mt-0.5">

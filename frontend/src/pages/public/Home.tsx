@@ -1,3 +1,4 @@
+import { PersonSimpleThrow, Trophy, Camera } from '@phosphor-icons/react';
 import { textIncludes } from '../../utils/text';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -105,7 +106,7 @@ export default function Home() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20">
-            <div className="text-5xl mb-4">🥋</div>
+            <PersonSimpleThrow size={56} className="mx-auto mb-4 text-gray-500" />
             <p className="text-gray-400 text-lg">
               {search ? 'No se encontraron academias con esa búsqueda.' : 'Aún no hay academias registradas. ¡Sé el primero!'}
             </p>
@@ -165,10 +166,10 @@ export default function Home() {
                   <div className="mt-4 pt-4 border-t border-gray-800 flex items-center justify-between">
                     <div className="flex gap-3 text-xs text-gray-500">
                       {academy.tournaments.length > 0 && (
-                        <span>🏆 {academy.tournaments.length} torneos</span>
+                        <span className="inline-flex items-center gap-1"><Trophy size="1.1em" />{academy.tournaments.length} torneos</span>
                       )}
                       {academy.photos.length > 0 && (
-                        <span>📷 {academy.photos.length} fotos</span>
+                        <span className="inline-flex items-center gap-1"><Camera size="1.1em" />{academy.photos.length} fotos</span>
                       )}
                     </div>
                     <span className="text-xs text-primary-400 font-medium group-hover:translate-x-0.5 transition-transform">

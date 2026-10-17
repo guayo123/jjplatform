@@ -1,3 +1,4 @@
+import { UsersThree } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { academiesApi } from '../../api/academies';
 import { professorsApi } from '../../api/professors';
@@ -267,17 +268,17 @@ export default function Schedules() {
 
   const startTour = useGuidedTour({
     storageKey: 'jjp_schedules_tour',
-    welcomeTitle: '👋 Horarios de clases',
+    welcomeTitle: 'Horarios de clases',
     welcomeBody: '<p>Aquí defines el horario de clases que se muestra en tu perfil público.</p>',
     loading,
     buildSteps: () => [
       {
         element: '[data-tour="agregar-clase"]',
-        popover: { title: '➕ Agregar clase', description: 'Agrega una clase al horario: día(s), hora, nombre de la clase y profesor.', side: 'bottom', align: 'end' },
+        popover: { title: 'Agregar clase', description: 'Agrega una clase al horario: día(s), hora, nombre de la clase y profesor.', side: 'bottom', align: 'end' },
       },
       {
         element: '[data-tour="generar-imagen"]',
-        popover: { title: '🖼️ Generar imagen', description: 'Crea un afiche con el horario para compartir en redes.', side: 'bottom', align: 'end' },
+        popover: { title: 'Generar imagen', description: 'Crea un afiche con el horario para compartir en redes.', side: 'bottom', align: 'end' },
       },
     ],
   });
@@ -373,7 +374,7 @@ export default function Schedules() {
                           title="Ver reservas"
                           className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-medium text-gray-500 hover:text-primary-600 rounded px-1.5 py-0.5 -ml-1 hover:bg-white/60 transition-colors"
                         >
-                          <span aria-hidden>👥</span>
+                          <UsersThree size="1em" aria-hidden />
                           Reservas{s.capacity != null ? ` · cupo ${s.capacity}` : ''}
                         </button>
                       </div>

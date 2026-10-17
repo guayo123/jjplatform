@@ -1,3 +1,4 @@
+import { Trophy } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { BracketMatch } from '../types';
 import { RESULT_TYPES, resultLabel, seededName } from './bracketShared';
@@ -93,7 +94,7 @@ function GroupBracket({
           <h3 className="font-semibold text-gray-700 text-sm">{groupName}</h3>
           {champion && (
             <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-              🏆 {champion}
+              <Trophy weight="fill" size="1em" />{champion}
             </span>
           )}
         </div>

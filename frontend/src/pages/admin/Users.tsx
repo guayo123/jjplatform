@@ -43,17 +43,17 @@ export default function Users() {
 
   const startTour = useGuidedTour({
     storageKey: 'jjp_users_tour',
-    welcomeTitle: '👋 Usuarios',
+    welcomeTitle: 'Usuarios',
     welcomeBody: '<p>Aquí gestionas quién tiene acceso a tu academia. Te muestro las opciones.</p>',
     loading,
     buildSteps: () => [
       {
         element: '[data-tour="nuevo-usuario"]',
-        popover: { title: '➕ Nuevo usuario', description: 'Crea un encargado con acceso al sistema. Recibirá una clave temporal por correo.', side: 'bottom', align: 'end' },
+        popover: { title: 'Nuevo usuario', description: 'Crea un encargado con acceso al sistema. Recibirá una clave temporal por correo.', side: 'bottom', align: 'end' },
       },
       {
         element: '[data-tour="lista-usuarios"]',
-        popover: { title: '👥 Usuarios con acceso', description: 'Aquí ves los usuarios y puedes activar o desactivar su acceso.', side: 'top', align: 'start' },
+        popover: { title: 'Usuarios con acceso', description: 'Aquí ves los usuarios y puedes activar o desactivar su acceso.', side: 'top', align: 'start' },
       },
     ],
   });

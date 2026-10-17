@@ -1,3 +1,4 @@
+import { X } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { techniquesApi } from '../../api/techniques';
 import { useToast } from '../../components/ToastContext';
@@ -81,7 +82,7 @@ export default function TechniqueManager({ beltId, beltName, onClose }: Props) {
             <h2 className="font-bold text-gray-900">Programa técnico</h2>
             <p className="text-xs text-gray-400 mt-0.5">Cinturón {beltName}</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none transition-colors">✕</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 leading-none transition-colors"><X size={20} weight="bold" /></button>
         </div>
 
         {/* Technique list */}
@@ -104,7 +105,7 @@ export default function TechniqueManager({ beltId, beltName, onClose }: Props) {
                   {t.description && <p className="text-xs text-gray-400 mt-0.5">{t.description}</p>}
                 </div>
                 <button onClick={() => startEdit(t)} className="text-xs text-primary-600 hover:text-primary-700 font-medium px-2 py-1 rounded hover:bg-primary-50">Editar</button>
-                <button onClick={() => handleDelete(t)} className="text-gray-300 hover:text-red-400 transition-colors px-1" title="Eliminar">✕</button>
+                <button onClick={() => handleDelete(t)} className="text-gray-300 hover:text-red-400 transition-colors px-1" title="Eliminar"><X size="1em" weight="bold" /></button>
               </div>
             ))
           )}

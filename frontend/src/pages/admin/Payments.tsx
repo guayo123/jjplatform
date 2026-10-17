@@ -1,3 +1,4 @@
+import { Check } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { paymentsApi } from '../../api/payments';
 import { academiesApi } from '../../api/academies';
@@ -161,24 +162,24 @@ export default function Payments() {
 
   const startTour = useGuidedTour({
     storageKey: 'jjp_payments_tour',
-    welcomeTitle: '👋 Pagos',
+    welcomeTitle: 'Pagos',
     welcomeBody: '<p>Aquí registras y revisas los pagos de tus alumnos. Te muestro las opciones.</p>',
     loading,
     buildSteps: () => [
       {
         element: '[data-tour="vista-pagos"]',
-        popover: { title: '🗓️ Vista y período', description: 'Cambia entre ver los pagos por mes o por plan, y elige el mes y año.', side: 'bottom', align: 'start' },
+        popover: { title: 'Vista y período', description: 'Cambia entre ver los pagos por mes o por plan, y elige el mes y año.', side: 'bottom', align: 'start' },
       },
       ...(canEdit
         ? [{
             element: '[data-tour="registrar-pago"]',
-            popover: { title: '➕ Registrar pago', description: 'Registra el pago o abono de un alumno para el período seleccionado.', side: 'bottom' as const, align: 'end' as const },
+            popover: { title: 'Registrar pago', description: 'Registra el pago o abono de un alumno para el período seleccionado.', side: 'bottom' as const, align: 'end' as const },
           }]
         : []),
       ...(payments.length > 0
         ? [{
             element: '[data-tour="export-pagos"]',
-            popover: { title: '📊 Exportar', description: 'Descarga los pagos del mes en Excel o PDF.', side: 'bottom' as const, align: 'end' as const },
+            popover: { title: 'Exportar', description: 'Descarga los pagos del mes en Excel o PDF.', side: 'bottom' as const, align: 'end' as const },
           }]
         : []),
     ],
@@ -677,7 +678,7 @@ export default function Payments() {
                     <td className="px-6 py-4 text-sm">
                       {remaining > 0
                         ? <span className="text-orange-600 font-medium">Pendiente {formatCLP(remaining)}</span>
-                        : <span className="text-green-600 font-medium">✓ Completo</span>}
+                        : <span className="text-green-600 font-medium inline-flex items-center gap-1"><Check weight="bold" size="1em" />Completo</span>}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">{p.paidAt?.slice(0, 10)}</td>
                     <td className="px-6 py-4 text-sm text-gray-500">{p.notes || '—'}</td>

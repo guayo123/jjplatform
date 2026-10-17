@@ -1,3 +1,4 @@
+import { CheckCircle } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { retentionApi } from '../api/retention';
 import { useToast } from './ToastContext';
@@ -37,7 +38,7 @@ export default function AtRiskPanel() {
   if (students.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow-sm p-6 text-center">
-        <p className="text-2xl mb-1">✅</p>
+        <CheckCircle weight="fill" size={32} className="mx-auto mb-1 text-green-500" />
         <p className="text-sm text-gray-500 font-medium">Sin alumnos en riesgo</p>
         <p className="text-xs text-gray-400 mt-0.5">Todos al día con su pago y entrenando.</p>
       </div>

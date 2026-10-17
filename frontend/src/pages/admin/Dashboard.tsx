@@ -1,3 +1,4 @@
+import { UsersThree, Wallet, ChartBar, Warning, Trophy, ChalkboardTeacher, PersonSimpleThrow, ClipboardText, CalendarBlank, Camera, Bell, Gear, LockKey, Wrench } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { Link } from 'react-router-dom';
@@ -21,34 +22,34 @@ export default function Dashboard() {
 
   const startTour = useGuidedTour({
     storageKey: 'jjp_dashboard_tour',
-    welcomeTitle: '👋 ¡Bienvenido!',
+    welcomeTitle: '¡Bienvenido!',
     welcomeBody: '<p>Este es tu panel. Desde aquí accedes a todas las secciones de tu academia.</p>',
     loading: tourLoading,
     buildSteps: () => [
       {
         element: '[data-tour="dash-cards"]',
-        popover: { title: '🧭 Secciones', description: 'Toca cualquier tarjeta para ir a esa sección: alumnos, pagos, torneos, profesores, planes y más. En cada pantalla verás un botón "?" con su propia ayuda.', side: 'top', align: 'center' },
+        popover: { title: 'Secciones', description: 'Toca cualquier tarjeta para ir a esa sección: alumnos, pagos, torneos, profesores, planes y más. En cada pantalla verás un botón "?" con su propia ayuda.', side: 'top', align: 'center' },
       },
     ],
   });
 
   const cards = [
-    { title: 'Alumnos',        desc: 'Gestiona tu lista de estudiantes',      link: '/admin/students',         icon: '👥' },
-    { title: 'Pagos',          desc: 'Control de pagos mensuales',             link: '/admin/payments',         icon: '💰' },
-    { title: 'Reporte',        desc: 'Resumen de ingresos y pagos',            link: '/admin/payments/report',  icon: '📊' },
-    { title: 'En riesgo',      desc: 'Alumnos sin pagar o sin entrenar',       link: '/admin/at-risk',          icon: '⚠️', badge: atRiskCount },
-    { title: 'Torneos',        desc: 'Crea torneos y genera brackets',         link: '/admin/tournaments',      icon: '🏆' },
-    { title: 'Profesores',     desc: 'Instructores de tu academia',            link: '/admin/professors',       icon: '🥋' },
-    { title: 'Disciplinas',    desc: 'Artes marciales que ofreces',            link: '/admin/disciplines',      icon: '🎯' },
-    { title: 'Planes',         desc: 'Define los planes de membresía',         link: '/admin/plans',            icon: '📋' },
-    { title: 'Horarios',       desc: 'Grilla semanal de clases',               link: '/admin/schedules',        icon: '📅' },
-    { title: 'Fotos',          desc: 'Galería de tu academia',                 link: '/admin/photos',           icon: '📸' },
-    { title: 'Notificaciones', desc: 'Avisos y mensajes a los alumnos',        link: '/admin/notifications',    icon: '🔔' },
-    { title: 'Configuración',  desc: 'Datos, redes sociales y perfil público', link: '/admin/settings',         icon: '⚙️' },
+    { title: 'Alumnos',        desc: 'Gestiona tu lista de estudiantes',      link: '/admin/students',         icon: UsersThree },
+    { title: 'Pagos',          desc: 'Control de pagos mensuales',             link: '/admin/payments',         icon: Wallet },
+    { title: 'Reporte',        desc: 'Resumen de ingresos y pagos',            link: '/admin/payments/report',  icon: ChartBar },
+    { title: 'En riesgo',      desc: 'Alumnos sin pagar o sin entrenar',       link: '/admin/at-risk',          icon: Warning, badge: atRiskCount },
+    { title: 'Torneos',        desc: 'Crea torneos y genera brackets',         link: '/admin/tournaments',      icon: Trophy },
+    { title: 'Profesores',     desc: 'Instructores de tu academia',            link: '/admin/professors',       icon: ChalkboardTeacher },
+    { title: 'Disciplinas',    desc: 'Artes marciales que ofreces',            link: '/admin/disciplines',      icon: PersonSimpleThrow },
+    { title: 'Planes',         desc: 'Define los planes de membresía',         link: '/admin/plans',            icon: ClipboardText },
+    { title: 'Horarios',       desc: 'Grilla semanal de clases',               link: '/admin/schedules',        icon: CalendarBlank },
+    { title: 'Fotos',          desc: 'Galería de tu academia',                 link: '/admin/photos',           icon: Camera },
+    { title: 'Notificaciones', desc: 'Avisos y mensajes a los alumnos',        link: '/admin/notifications',    icon: Bell },
+    { title: 'Configuración',  desc: 'Datos, redes sociales y perfil público', link: '/admin/settings',         icon: Gear },
     ...(isAdmin
       ? [
-          { title: 'Usuarios',      desc: 'Gestión de accesos y roles',     link: '/admin/users',       icon: '🔐' },
-          { title: 'Mantenimiento', desc: 'Limpieza y tareas del sistema',  link: '/admin/maintenance', icon: '🛠️' },
+          { title: 'Usuarios',      desc: 'Gestión de accesos y roles',     link: '/admin/users',       icon: LockKey },
+          { title: 'Mantenimiento', desc: 'Limpieza y tareas del sistema',  link: '/admin/maintenance', icon: Wrench },
         ]
       : []),
   ];
@@ -82,7 +83,7 @@ export default function Dashboard() {
                 {card.badge}
               </span>
             )}
-            <span className="text-3xl mb-3 block">{card.icon}</span>
+            <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><card.icon size={26} weight="duotone" /></span>
             <h3 className="font-semibold text-base sm:text-lg">{card.title}</h3>
             <p className="text-gray-500 text-xs sm:text-sm mt-1">{card.desc}</p>
           </Link>

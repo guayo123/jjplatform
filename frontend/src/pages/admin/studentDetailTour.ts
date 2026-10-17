@@ -23,7 +23,7 @@ export function startStudentDetailTour({
     {
       element: '[data-tour="editar"]',
       popover: {
-        title: '✏️ Editar',
+        title: 'Editar',
         description: 'Modifica los datos del alumno: nombre, contacto, plan, foto y más.',
         side: 'bottom',
         align: 'end',
@@ -32,7 +32,7 @@ export function startStudentDetailTour({
     {
       element: '[data-tour="agregar-disciplina"]',
       popover: {
-        title: '➕ Agregar disciplina',
+        title: 'Agregar disciplina',
         description: 'Inscribe al alumno en una disciplina (arte marcial) con su cinturón inicial.',
         side: 'bottom',
         align: 'end',
@@ -43,7 +43,7 @@ export function startStudentDetailTour({
           {
             element: '[data-tour="cinturon"]',
             popover: {
-              title: '🏆 Cinturón',
+              title: 'Cinturón',
               description: 'Cambia el cinturón del alumno en esta disciplina (promoción o degradación).',
               side: 'bottom' as const,
               align: 'end' as const,
@@ -53,7 +53,7 @@ export function startStudentDetailTour({
             ? [{
                 element: '[data-tour="grado"]',
                 popover: {
-                  title: '⭐ Grado',
+                  title: 'Grado',
                   description: 'Registra un nuevo grado (franja/estrella) dentro del cinturón actual.',
                   side: 'bottom' as const,
                   align: 'end' as const,
@@ -63,7 +63,7 @@ export function startStudentDetailTour({
           {
             element: '[data-tour="torneo"]',
             popover: {
-              title: '🏅 Torneo',
+              title: 'Torneo',
               description: 'Registra un resultado de competición: torneo, posición, categoría y cinturón.',
               side: 'bottom' as const,
               align: 'end' as const,
@@ -72,7 +72,7 @@ export function startStudentDetailTour({
           {
             element: '[data-tour="historial"]',
             popover: {
-              title: '📋 Historial',
+              title: 'Historial',
               description: 'Despliega el historial de graduaciones y los resultados de torneos de la disciplina.',
               side: 'bottom' as const,
               align: 'end' as const,
@@ -83,7 +83,7 @@ export function startStudentDetailTour({
   ];
 
   runGuidedTour({
-    welcomeTitle: '👋 Ficha del alumno',
+    welcomeTitle: 'Ficha del alumno',
     welcomeBody: '<p>Aquí ves y gestionas toda la información del alumno. Te muestro las acciones disponibles.</p>',
     steps,
     initialDismiss,

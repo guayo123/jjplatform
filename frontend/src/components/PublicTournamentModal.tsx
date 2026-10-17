@@ -1,3 +1,4 @@
+import PlaceMedal from './PlaceMedal';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { academiesApi } from '../api/academies';
 import LiveBracket from './LiveBracket';
@@ -392,9 +393,9 @@ function Podium({ results }: { results: GroupResult[] }) {
       <section>
         <h3 className="font-semibold mb-3">Podio</h3>
         <div className="space-y-2">
-          <PodiumRow medal="🥇" place="Campeón" names={[r.champion.studentName]} highlight />
-          {r.runnerUp && <PodiumRow medal="🥈" place="Segundo lugar" names={[r.runnerUp.studentName]} />}
-          {r.thirds.length > 0 && <PodiumRow medal="🥉" place="Tercer lugar" names={r.thirds.map((p) => p.studentName)} />}
+          <PodiumRow medal={<PlaceMedal place={1} size="1em" />} place="Campeón" names={[r.champion.studentName]} highlight />
+          {r.runnerUp && <PodiumRow medal={<PlaceMedal place={2} size="1em" />} place="Segundo lugar" names={[r.runnerUp.studentName]} />}
+          {r.thirds.length > 0 && <PodiumRow medal={<PlaceMedal place={3} size="1em" />} place="Tercer lugar" names={r.thirds.map((p) => p.studentName)} />}
         </div>
       </section>
     );
@@ -408,9 +409,9 @@ function Podium({ results }: { results: GroupResult[] }) {
           <div key={r.group ?? 'x'} className="border border-white/10 bg-white/5 rounded-xl p-3">
             <p className="text-xs font-semibold text-gray-400 mb-1.5">{r.group}</p>
             <p className="text-sm">
-              🥇 <span className="font-bold text-yellow-300">{r.champion.studentName}</span>
-              {r.runnerUp && <span className="text-gray-300"> · 🥈 {r.runnerUp.studentName}</span>}
-              {r.thirds.length > 0 && <span className="text-gray-400"> · 🥉 {r.thirds.map((p) => p.studentName).join(', ')}</span>}
+              <PlaceMedal place={1} /> <span className="font-bold text-yellow-300">{r.champion.studentName}</span>
+              {r.runnerUp && <span className="text-gray-300"> · <PlaceMedal place={2} /> {r.runnerUp.studentName}</span>}
+              {r.thirds.length > 0 && <span className="text-gray-400"> · <PlaceMedal place={3} /> {r.thirds.map((p) => p.studentName).join(', ')}</span>}
             </p>
           </div>
         ))}
@@ -419,10 +420,10 @@ function Podium({ results }: { results: GroupResult[] }) {
   );
 }
 
-function PodiumRow({ medal, place, names, highlight }: { medal: string; place: string; names: string[]; highlight?: boolean }) {
+function PodiumRow({ medal, place, names, highlight }: { medal: React.ReactNode; place: string; names: string[]; highlight?: boolean }) {
   return (
     <div className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${highlight ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-white/5 border-white/10'}`}>
-      <span className={highlight ? 'text-4xl' : 'text-2xl'}>{medal}</span>
+      <span className={`flex-shrink-0 ${highlight ? 'text-4xl' : 'text-2xl'}`}>{medal}</span>
       <div className="min-w-0">
         <p className={`text-xs font-medium ${highlight ? 'text-yellow-300' : 'text-gray-400'}`}>{place}</p>
         <p className={`${highlight ? 'text-xl font-bold text-yellow-100' : 'text-base font-semibold text-gray-100'} break-words`}>{names.join(' · ')}</p>

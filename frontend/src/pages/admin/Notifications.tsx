@@ -1,3 +1,4 @@
+import { Megaphone } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notificationsApi } from '../../api/notifications';
 import { useAuthStore } from '../../stores/authStore';
@@ -28,7 +29,7 @@ export default function Notifications() {
     try {
       const { sent } = await notificationsApi.broadcast(title.trim(), message.trim(), scope);
       setResult(sent > 0
-        ? `✓ Notificación enviada a ${sent} dispositivo${sent === 1 ? '' : 's'}.`
+        ? `Notificación enviada a ${sent} dispositivo${sent === 1 ? '' : 's'}.`
         : 'No hay dispositivos registrados para recibirla todavía.');
       setTitle('');
       setMessage('');
@@ -50,7 +51,7 @@ export default function Notifications() {
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value.slice(0, 80))}
-            placeholder="Ej. ¡Torneo este sábado! 🥋"
+            placeholder="Ej. ¡Torneo este sábado!"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
           />
           <p className="text-xs text-gray-400 mt-1 text-right">{title.length}/80</p>
@@ -69,7 +70,7 @@ export default function Notifications() {
         </div>
 
         <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2 text-sm text-gray-600">
-          📣 Destinatarios: <strong>{target}</strong>
+          <Megaphone size="1em" className="inline -mt-0.5" /> Destinatarios: <strong>{target}</strong>
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}

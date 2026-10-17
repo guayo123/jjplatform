@@ -1,3 +1,4 @@
+import { PersonSimpleThrow, Trophy } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { professorsApi } from '../../api/professors';
@@ -92,23 +93,23 @@ export default function Professors() {
 
   const startTour = useGuidedTour({
     storageKey: 'jjp_professors_tour',
-    welcomeTitle: '👋 Profesores',
+    welcomeTitle: 'Profesores',
     welcomeBody: '<p>Aquí gestionas a los profesores que se muestran en el perfil público. Te muestro las opciones.</p>',
     loading,
     buildSteps: () => [
       {
         element: '[data-tour="nuevo-profesor"]',
-        popover: { title: '➕ Nuevo profesor', description: 'Agrega un profesor con su foto, disciplina y biografía.', side: 'bottom', align: 'end' },
+        popover: { title: 'Nuevo profesor', description: 'Agrega un profesor con su foto, disciplina y biografía.', side: 'bottom', align: 'end' },
       },
       ...(professors.length > 0
         ? [
             {
               element: '[data-tour="prof-editar"]',
-              popover: { title: '✏️ Editar', description: 'Edita los datos del profesor.', side: 'top' as const, align: 'start' as const },
+              popover: { title: 'Editar', description: 'Edita los datos del profesor.', side: 'top' as const, align: 'start' as const },
             },
             {
               element: '[data-tour="prof-acceso"]',
-              popover: { title: '🔑 Acceso al sistema', description: 'Crea una cuenta para el profesor (clave temporal por correo) o reenvíale una nueva.', side: 'top' as const, align: 'start' as const },
+              popover: { title: 'Acceso al sistema', description: 'Crea una cuenta para el profesor (clave temporal por correo) o reenvíale una nueva.', side: 'top' as const, align: 'start' as const },
             },
           ]
         : []),
@@ -152,7 +153,7 @@ export default function Professors() {
 
       {professors.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-          <p className="text-gray-400 text-4xl mb-3">🥋</p>
+          <PersonSimpleThrow size={44} className="mx-auto mb-3 text-gray-400" />
           <p className="text-gray-500 font-medium">No hay profesores registrados</p>
           <p className="text-gray-400 text-sm mt-1">Agrega el primer profesor de tu academia</p>
         </div>
@@ -222,7 +223,7 @@ export default function Professors() {
                 <ul className="space-y-0.5">
                   {p.achievements.split('\n').filter(Boolean).slice(0, 3).map((a, i) => (
                     <li key={i} className="flex items-start gap-1.5 text-xs text-gray-600">
-                      <span className="text-primary-500 mt-0.5">🏆</span>
+                      <Trophy weight="fill" size={14} className="text-primary-500 mt-0.5 flex-shrink-0" />
                       {a}
                     </li>
                   ))}

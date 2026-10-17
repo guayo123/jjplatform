@@ -50,18 +50,18 @@ export default function Tournaments() {
 
   const startTour = useGuidedTour({
     storageKey: 'jjp_tournaments_tour',
-    welcomeTitle: '👋 Torneos',
+    welcomeTitle: 'Torneos',
     welcomeBody: '<p>Aquí creas torneos internos, inscribes participantes y generas las llaves (brackets).</p>',
     loading,
     buildSteps: () => [
       {
         element: '[data-tour="nuevo-torneo"]',
-        popover: { title: '➕ Nuevo torneo', description: 'Crea un torneo por categorías o absoluto, con fecha y cupos.', side: 'bottom', align: 'end' },
+        popover: { title: 'Nuevo torneo', description: 'Crea un torneo por categorías o absoluto, con fecha y cupos.', side: 'bottom', align: 'end' },
       },
       ...(tournaments.length > 0
         ? [{
             element: '[data-tour="ver-torneo"]',
-            popover: { title: '🥋 Abrir torneo', description: 'Entra al torneo para inscribir participantes, generar la llave y registrar los resultados.', side: 'top' as const, align: 'start' as const },
+            popover: { title: 'Abrir torneo', description: 'Entra al torneo para inscribir participantes, generar la llave y registrar los resultados.', side: 'top' as const, align: 'start' as const },
           }]
         : []),
     ],

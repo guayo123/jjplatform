@@ -1,3 +1,4 @@
+import { Trophy, TrendDown, Star, CalendarBlank, Warning, Medal, Scales, X, ClipboardText, type Icon as PhIcon } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { startStudentDetailTour } from './studentDetailTour';
@@ -25,10 +26,15 @@ const BELT_COLORS: Record<string, { bg: string; text: string; border: string }> 
 
 const ALL_BELTS = ['Blanco', 'Gris', 'Amarillo', 'Naranja', 'Verde', 'Azul', 'Morado', 'Café', 'Negro'];
 
-const TYPE_CONFIG: Record<PromotionType, { icon: string; label: string; color: string }> = {
-  PROMOCION:   { icon: '🏆', label: 'Promoción',   color: 'text-green-600' },
-  DEGRADACION: { icon: '🔻', label: 'Degradación', color: 'text-red-500' },
-  GRADO:       { icon: '⭐', label: 'Grado',        color: 'text-amber-500' },
+function TypeIcon({ type }: { type: PromotionType }) {
+  const I = TYPE_CONFIG[type]?.icon;
+  return I ? <I weight="fill" size="1em" /> : null;
+}
+
+const TYPE_CONFIG: Record<PromotionType, { icon: PhIcon; label: string; color: string }> = {
+  PROMOCION:   { icon: Trophy, label: 'Promoción',   color: 'text-green-600' },
+  DEGRADACION: { icon: TrendDown, label: 'Degradación', color: 'text-red-500' },
+  GRADO:       { icon: Star, label: 'Grado',        color: 'text-amber-500' },
 };
 
 
@@ -361,7 +367,7 @@ export default function StudentDetail() {
               ))}
               {student.joinDate && (
                 <span className="text-xs text-gray-400">
-                  📅 Ingresó el {formatDate(student.joinDate)}
+                  <CalendarBlank size="1em" className="inline -mt-0.5" /> Ingresó el {formatDate(student.joinDate)}
                 </span>
               )}
             </div>
@@ -390,7 +396,7 @@ export default function StudentDetail() {
       <div className="bg-white rounded-xl shadow-sm p-5">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h2 className="font-bold text-gray-900">Progreso Pro ⭐</h2>
+            <h2 className="font-bold text-gray-900">Progreso Pro <Star weight="fill" size="0.9em" className="inline -mt-1 text-amber-400" /></h2>
             {student.isPremium ? (
               <p className="text-sm text-green-600 mt-0.5">Activo hasta {student.premiumUntil}</p>
             ) : (
@@ -475,7 +481,7 @@ export default function StudentDetail() {
                   : 'bg-white border-gray-200 text-gray-600 hover:border-primary-300 hover:text-primary-700'
               }`}
             >
-              {showDiscForm ? '✕ Cancelar' : '+ Agregar disciplina'}
+              {showDiscForm ? 'Cancelar' : '+ Agregar disciplina'}
             </button>
           </div>
         </div>
@@ -665,7 +671,7 @@ export default function StudentDetail() {
                               : 'border-gray-200 text-gray-500 hover:border-amber-300 hover:text-amber-700'
                           }`}
                         >
-                          ⭐ Grado
+                          <Star weight="fill" size="1em" className="inline -mt-0.5" /> Grado
                         </button>
                       )}
                       <button
@@ -680,7 +686,7 @@ export default function StudentDetail() {
                             : 'border-gray-200 text-gray-500 hover:border-blue-300 hover:text-blue-700'
                         }`}
                       >
-                        🏆 Cinturón
+                        <Trophy weight="fill" size="1em" className="inline -mt-0.5" /> Cinturón
                       </button>
                       <button
                         data-tour={idx === 0 ? 'torneo' : undefined}
@@ -700,7 +706,7 @@ export default function StudentDetail() {
                             : 'border-gray-200 text-gray-500 hover:border-green-300 hover:text-green-700'
                         }`}
                       >
-                        🏅 Torneo
+                        <Medal weight="fill" size="1em" className="inline -mt-0.5" /> Torneo
                       </button>
                       <button
                         data-tour={idx === 0 ? 'historial' : undefined}
@@ -717,7 +723,7 @@ export default function StudentDetail() {
                             : 'border-gray-200 text-gray-500 hover:border-primary-300 hover:text-primary-700'
                         }`}
                       >
-                        📋 Historial
+                        <ClipboardText size="1em" className="inline -mt-0.5" /> Historial
                       </button>
                       <button
                         onClick={() => handleDeleteDiscipline(disc.id)}
@@ -735,7 +741,7 @@ export default function StudentDetail() {
                   {activeDiscForm === 'grado' && (
                     <div className="border-t border-amber-100 bg-amber-50 px-4 py-4 space-y-4">
                       <div className="flex items-center justify-between flex-wrap gap-2">
-                        <p className="text-sm font-semibold text-amber-800">⭐ Nuevo grado — {disc.belt}</p>
+                        <p className="text-sm font-semibold text-amber-800"><Star weight="fill" size="1em" className="inline -mt-0.5" /> Nuevo grado — {disc.belt}</p>
                       </div>
                       {/* Belt image preview */}
                       <div className="flex items-center gap-4 flex-wrap">
@@ -798,7 +804,9 @@ export default function StudentDetail() {
                     return (
                       <div className={`border-t ${borderColor} ${bgColor} px-4 py-4 space-y-4`}>
                         <p className={`text-sm font-semibold ${isDemotion ? 'text-red-800' : 'text-blue-800'}`}>
-                          {isDemotion ? '⚠️ Degradación — ' : '🏆 Cambiar cinturón — '}{disc.disciplineName}
+                          {isDemotion
+  ? <><Warning weight="fill" size="1em" className="inline -mt-0.5" /> Degradación — </>
+  : <><Trophy weight="fill" size="1em" className="inline -mt-0.5" /> Cambiar cinturón — </>}{disc.disciplineName}
                         </p>
 
                         {/* Belt image preview */}
@@ -823,7 +831,7 @@ export default function StudentDetail() {
                         {/* Demotion warning */}
                         {isDemotion && (
                           <div className="flex items-start gap-2 bg-red-100 border border-red-200 rounded-lg px-3 py-2.5">
-                            <span className="text-red-500 flex-shrink-0 mt-0.5">⚠️</span>
+                            <Warning weight="fill" size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
                             <p className="text-xs text-red-700">
                               Estás bajando de <strong>{disc.belt}</strong> a <strong>{discBeltForm.toBelt}</strong>. Esto quedará registrado como una <strong>degradación</strong> en el historial. Si fue un error de carga, usa <em>Anular</em> en el historial en vez de degradar.
                             </p>
@@ -920,7 +928,7 @@ export default function StudentDetail() {
                               const toHex = getBeltColorHex(promo.toBelt);
                               return (
                                 <div key={promo.id} className={`flex items-start gap-3 bg-white rounded-lg p-3 border ${promo.deleted ? 'opacity-50 border-gray-100' : 'border-gray-100'}`}>
-                                  <span className="text-base mt-0.5 flex-shrink-0">{tc.icon}</span>
+                                  <span className="text-base mt-0.5 flex-shrink-0"><tc.icon weight="fill" size="1em" /></span>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap">
                                       <span className={`text-xs font-semibold ${tc.color}`}>{tc.label}</span>
@@ -957,7 +965,7 @@ export default function StudentDetail() {
                                       className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0 text-xs"
                                       title="Anular registro"
                                     >
-                                      ✕
+                                      <X size="1em" weight="bold" />
                                     </button>
                                   )}
                                 </div>
@@ -982,8 +990,8 @@ export default function StudentDetail() {
                                     <p className="font-medium text-sm text-gray-900">{result.tournamentName}</p>
                                     <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-gray-500">
                                       <span>{formatDate(result.date)}</span>
-                                      {result.placement && <span>🏅 {result.placement}</span>}
-                                      {result.category && <span>⚖️ {result.category}</span>}
+                                      {result.placement && <span className="inline-flex items-center gap-1"><Medal size="1em" />{result.placement}</span>}
+                                      {result.category && <span className="inline-flex items-center gap-1"><Scales size="1em" />{result.category}</span>}
                                     </div>
                                     {result.beltAtCompetition && (
                                       <div className="flex items-center gap-1.5 mt-1.5">
@@ -1014,7 +1022,7 @@ export default function StudentDetail() {
                     </div>
                   )}
 
-                  {/* Add tournament result form — triggered by 🏅 Torneo button */}
+                  {/* Add tournament result form — triggered by the Torneo button */}
                   {showResultFormFor === disc.id && (
                     <div className="border-t border-green-100 bg-green-50 px-4 py-4 space-y-3">
                       <p className="text-xs font-semibold text-gray-700">Agregar resultado de torneo — {disc.disciplineName}</p>
@@ -1138,7 +1146,7 @@ export default function StudentDetail() {
               El registro quedará visible en el historial marcado como anulado. La acción no se puede deshacer.
             </p>
             <div className="bg-gray-800 rounded-lg px-3 py-2.5 text-xs text-gray-300 space-y-0.5">
-              <p className="font-semibold">{TYPE_CONFIG[discAnularTarget.type as PromotionType]?.icon} {TYPE_CONFIG[discAnularTarget.type as PromotionType]?.label}</p>
+              <p className="font-semibold flex items-center gap-1.5"><TypeIcon type={discAnularTarget.type as PromotionType} />{TYPE_CONFIG[discAnularTarget.type as PromotionType]?.label}</p>
               <p>{discAnularTarget.toBelt}{discAnularTarget.toStripes > 0 ? ` · ${'★'.repeat(discAnularTarget.toStripes)}` : ''} — {formatDate(discAnularTarget.promotionDate)}</p>
             </div>
             <div>

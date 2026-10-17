@@ -130,10 +130,10 @@ type FontChoice = 'default' | 'bangers' | 'pressstart' | 'russo' | 'marker';
 
 const FONT_OPTIONS: { id: FontChoice; label: string; family: string; google: string | null }[] = [
   { id: 'default',    label: 'Clásica',    family: 'Arial, sans-serif',      google: null },
-  { id: 'bangers',    label: '💥 Acción',  family: 'Bangers',                google: 'Bangers' },
-  { id: 'russo',      label: '🥋 Combate', family: 'Russo One',              google: 'Russo+One' },
-  { id: 'pressstart', label: '👾 Arcade',  family: "'Press Start 2P'",       google: 'Press+Start+2P' },
-  { id: 'marker',     label: '✍️ Marcador',family: "'Permanent Marker'",      google: 'Permanent+Marker' },
+  { id: 'bangers',    label: 'Acción',     family: 'Bangers',                google: 'Bangers' },
+  { id: 'russo',      label: 'Combate', family: 'Russo One',              google: 'Russo+One' },
+  { id: 'pressstart', label: 'Arcade',   family: "'Press Start 2P'",       google: 'Press+Start+2P' },
+  { id: 'marker',     label: 'Marcador',family: "'Permanent Marker'",      google: 'Permanent+Marker' },
 ];
 
 async function loadGoogleFont(googleName: string) {
@@ -492,16 +492,16 @@ export default function SchedulePosterModal({ schedules, academy, onClose }: Pro
           <div>
             <p className="text-gray-400 text-xs font-medium mb-1.5">Tema</p>
             <div className="flex gap-1.5 flex-wrap">
-              <ToggleBtn active={theme === 'dark'}  onClick={() => setTheme('dark')}  label="🌙 Oscuro" />
-              <ToggleBtn active={theme === 'light'} onClick={() => setTheme('light')} label="☀️ Claro" />
-              <ToggleBtn active={theme === 'brand'} onClick={() => setTheme('brand')} label="🔴 Marca" />
+              <ToggleBtn active={theme === 'dark'}  onClick={() => setTheme('dark')}  label="Oscuro" />
+              <ToggleBtn active={theme === 'light'} onClick={() => setTheme('light')} label="Claro" />
+              <ToggleBtn active={theme === 'brand'} onClick={() => setTheme('brand')} label="Marca" />
             </div>
           </div>
           <div>
             <p className="text-gray-400 text-xs font-medium mb-1.5">Formato</p>
             <div className="flex gap-1.5">
-              <ToggleBtn active={format === 'poster'} onClick={() => setFormat('poster')} label="🖼️ Poster" />
-              <ToggleBtn active={format === 'story'}  onClick={() => setFormat('story')}  label="📱 Story" />
+              <ToggleBtn active={format === 'poster'} onClick={() => setFormat('poster')} label="Poster" />
+              <ToggleBtn active={format === 'story'}  onClick={() => setFormat('story')}  label="Story" />
             </div>
           </div>
         </div>

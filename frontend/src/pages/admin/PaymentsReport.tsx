@@ -1,3 +1,4 @@
+import { CheckCircle, Warning } from '@phosphor-icons/react';
 import { useEffect, useState, useMemo } from 'react';
 import { paymentsApi } from '../../api/payments';
 import { useStudentStore } from '../../stores/studentStore';
@@ -134,7 +135,9 @@ export default function PaymentsReport() {
             <div className={`rounded-xl border-2 p-5 ${pendingStudents.length === 0 ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
               <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">{pendingStudents.length === 0 ? '✅' : '⚠️'}</span>
+                  {pendingStudents.length === 0
+                    ? <CheckCircle weight="fill" size={28} className="text-green-600" />
+                    : <Warning weight="fill" size={28} className="text-orange-500" />}
                   <div>
                     <h2 className={`font-bold text-lg ${pendingStudents.length === 0 ? 'text-green-800' : 'text-orange-800'}`}>
                       {pendingStudents.length === 0

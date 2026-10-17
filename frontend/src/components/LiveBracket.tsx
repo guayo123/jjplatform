@@ -1,3 +1,4 @@
+import { Check, Star } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef } from 'react';
 import type { BracketMatch, Participant } from '../types';
 import { roundName } from './bracketShared';
@@ -195,8 +196,8 @@ function Fighter({ p, winner, decided, bye }: { p: Participant | null; winner: b
       >
         {initials(p.studentName)}
         {winner && (
-          <span className="absolute -right-1 -bottom-1 w-3.5 h-3.5 rounded-full bg-green-400 text-[9px] leading-none text-black flex items-center justify-center font-bold">
-            ✓
+          <span className="absolute -right-1 -bottom-1 w-3.5 h-3.5 rounded-full bg-green-400 text-black flex items-center justify-center">
+            <Check weight="bold" size={9} />
           </span>
         )}
       </span>
@@ -205,7 +206,7 @@ function Fighter({ p, winner, decided, bye }: { p: Participant | null; winner: b
           className={`block text-sm font-medium truncate ${winner ? 'text-green-400' : decided ? 'text-gray-400' : 'text-white'}`}
           title={p.studentName}
         >
-          {p.seedRank != null && <span className="text-yellow-400 mr-1">⭐{p.seedRank}</span>}
+          {p.seedRank != null && <span className="text-yellow-400 mr-1 inline-flex items-center gap-0.5"><Star weight="fill" size="0.8em" />{p.seedRank}</span>}
           {p.studentName}
         </span>
         {p.belt && (

@@ -1,3 +1,4 @@
+import { Sword } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { duelsAdminApi } from '../api/duelsAdmin';
 import { useToast } from './ToastContext';
@@ -28,7 +29,7 @@ export default function DuelMaintenanceCard() {
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-5">
-      <h3 className="font-semibold text-gray-900">Mantenimiento de duelos ⚔️</h3>
+      <h3 className="font-semibold text-gray-900 flex items-center gap-1.5"><Sword size="1.1em" />Mantenimiento de duelos</h3>
       <p className="text-xs text-gray-400 mt-0.5 mb-3">
         Expira los duelos aceptados que quedaron sin resolver más de 5 días después de su fecha
         pactada. El sistema también lo hace solo cada día a las 03:00.

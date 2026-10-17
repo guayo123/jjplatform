@@ -1,3 +1,4 @@
+import { Trophy, Check } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import type { BracketMatch } from '../types';
 import { RESULT_TYPES, resultLabel, roundName, seededName, type ResultHandler } from './bracketShared';
@@ -67,7 +68,7 @@ export default function MobileGroup({
         >
           <span className="min-w-0">
             <span className="block text-sm font-semibold text-gray-700 truncate">{groupName}</span>
-            {champion && <span className="block text-xs text-yellow-700">🏆 {champion.studentName}</span>}
+            {champion && <span className="flex items-center gap-1 text-xs text-yellow-700"><Trophy weight="fill" size="1em" className="flex-shrink-0" />{champion.studentName}</span>}
           </span>
           <span className="flex items-center gap-2 flex-shrink-0">
             {hasPending && (
@@ -240,7 +241,7 @@ function MobileMatch({
               } ${tone} ${canRecord && p ? 'active:bg-primary-50' : ''}`}
             >
               <span className="min-w-0 break-words">{p ? seededName(p) : 'Por definir'}</span>
-              {winner && <span aria-hidden>✓</span>}
+              {winner && <Check weight="bold" size="1em" aria-hidden />}
             </button>
           );
         })}

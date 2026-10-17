@@ -9,9 +9,9 @@ export const RESULT_TYPES: { value: string; label: string; short: string; color:
   { value: 'DESCALIFICACION',  label: 'Descalificación',         short: 'Descalif', color: 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200' },
 ];
 
-/** Nombre con la estrella de cabeza de serie, si la tiene. */
+/** Nombre con el numero de cabeza de serie, si lo tiene. */
 export function seededName(p: { studentName: string; seedRank?: number | null }) {
-  return p.seedRank != null ? `⭐#${p.seedRank} ${p.studentName}` : p.studentName;
+  return p.seedRank != null ? `#${p.seedRank} ${p.studentName}` : p.studentName;
 }
 
 export function resultLabel(rt: string | null) {

@@ -32,18 +32,18 @@ export default function Photos() {
 
   const startTour = useGuidedTour({
     storageKey: 'jjp_photos_tour',
-    welcomeTitle: '👋 Galería de fotos',
+    welcomeTitle: 'Galería de fotos',
     welcomeBody: '<p>Aquí gestionas las fotos que se muestran en el perfil público de tu academia.</p>',
     loading,
     buildSteps: () => [
       {
         element: '[data-tour="subir-foto"]',
-        popover: { title: '⬆️ Subir foto', description: 'Arrastra una imagen o haz clic para subirla a la galería. Puedes agregarle una descripción.', side: 'bottom', align: 'start' },
+        popover: { title: 'Subir foto', description: 'Arrastra una imagen o haz clic para subirla a la galería. Puedes agregarle una descripción.', side: 'bottom', align: 'start' },
       },
       ...(photos.length > 0
         ? [{
             element: '[data-tour="galeria"]',
-            popover: { title: '🖼️ Tus fotos', description: 'Aquí ves las fotos publicadas; pasa el cursor sobre una y usa la ✕ para quitarla.', side: 'top' as const, align: 'start' as const },
+            popover: { title: 'Tus fotos', description: 'Aquí ves las fotos publicadas; pasa el cursor sobre una y usa la ✕ para quitarla.', side: 'top' as const, align: 'start' as const },
           }]
         : []),
     ],

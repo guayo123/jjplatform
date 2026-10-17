@@ -1,3 +1,4 @@
+import { X, Wallet, User, Check } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { academiesApi } from '../../api/academies';
@@ -96,17 +97,17 @@ export default function Plans() {
 
   const startTour = useGuidedTour({
     storageKey: 'jjp_plans_tour',
-    welcomeTitle: '👋 Planes y tarifas',
+    welcomeTitle: 'Planes y tarifas',
     welcomeBody: '<p>Aquí defines los planes que se muestran en tu perfil público y se usan para los pagos.</p>',
     loading,
     buildSteps: () => [
       {
         element: '[data-tour="nuevo-plan"]',
-        popover: { title: '➕ Nuevo plan', description: 'Crea un plan con su precio, disciplina y profesor.', side: 'bottom', align: 'end' },
+        popover: { title: 'Nuevo plan', description: 'Crea un plan con su precio, disciplina y profesor.', side: 'bottom', align: 'end' },
       },
       {
         element: '[data-tour="filtro-planes"]',
-        popover: { title: '🔎 Filtro', description: 'Filtra los planes por estado: todos, activos o inactivos.', side: 'bottom', align: 'start' },
+        popover: { title: 'Filtro', description: 'Filtra los planes por estado: todos, activos o inactivos.', side: 'bottom', align: 'start' },
       },
     ],
   });
@@ -175,7 +176,7 @@ export default function Plans() {
               <h2 className="font-bold text-white">
                 {editingId != null ? 'Editar plan' : 'Nuevo plan'}
               </h2>
-              <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-white text-xl leading-none transition-colors">✕</button>
+              <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-white leading-none transition-colors"><X size={20} weight="bold" /></button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -311,7 +312,7 @@ export default function Plans() {
       {/* Plans list */}
       {plans.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-          <p className="text-gray-400 text-4xl mb-3">💰</p>
+          <Wallet size={44} className="mx-auto mb-3 text-gray-400" />
           <p className="text-gray-500 font-medium">No hay planes creados aún</p>
           <p className="text-gray-400 text-sm mt-1">Crea tu primer plan de entrenamiento</p>
         </div>
@@ -334,7 +335,7 @@ export default function Plans() {
                     )}
                     {plan.professorName && (
                       <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                        👤 {plan.professorName}
+                        <User size="1em" className="inline -mt-0.5" /> {plan.professorName}
                       </span>
                     )}
                   </div>
@@ -361,7 +362,7 @@ export default function Plans() {
                 <ul className="space-y-1">
                   {plan.features.split('\n').filter(Boolean).map((f, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                      <span className="text-primary-500 mt-0.5">✓</span>
+                      <Check weight="bold" size={14} className="text-primary-500 mt-1 flex-shrink-0" />
                       {f}
                     </li>
                   ))}

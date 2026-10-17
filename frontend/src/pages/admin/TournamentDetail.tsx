@@ -1,3 +1,4 @@
+import { Trophy, Star } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { tournamentsApi } from '../../api/tournaments';
@@ -110,7 +111,7 @@ export default function TournamentDetail() {
       {/* Banner campeón */}
       {tournament.status === 'COMPLETED' && tournament.championName && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-5 mb-6 flex items-center gap-4">
-          <span className="text-4xl">🏆</span>
+          <Trophy weight="fill" size={40} className="text-yellow-500 flex-shrink-0" />
           <div>
             <p className="text-sm text-yellow-700 font-medium">Campeón del torneo</p>
             <p className="text-xl font-bold text-yellow-900">{tournament.championName}</p>
@@ -136,7 +137,7 @@ export default function TournamentDetail() {
             </div>
           )}
           <p className="mb-3 text-xs text-gray-500">
-            ⭐ <strong>Cabeza de serie (opcional):</strong> en la lista de participantes puedes marcar a los mejores luchadores.
+            <Star weight="fill" size="1em" className="inline -mt-0.5 text-yellow-500" /> <strong>Cabeza de serie (opcional):</strong> en la lista de participantes puedes marcar a los mejores luchadores.
             El <strong>#1 es el mejor</strong>, el #2 el segundo, y así. Los cabezas de serie no se enfrentan entre sí al
             comienzo (el #1 y el #2 solo se cruzan en la final) y reciben el pase directo si sobran puestos en la llave.
             Los demás se sortean al azar. Si no marcas a nadie, todo se sortea.
@@ -170,7 +171,7 @@ export default function TournamentDetail() {
               >
                 <div>
                   <span className="font-medium text-primary-800">
-                    {p.seedRank != null && <span className="text-yellow-600 mr-1" title="Cabeza de serie">⭐#{p.seedRank}</span>}
+                    {p.seedRank != null && <span className="text-yellow-600 mr-1 inline-flex items-center gap-0.5" title="Cabeza de serie"><Star weight="fill" size="0.85em" />#{p.seedRank}</span>}
                     {p.studentName}
                   </span>
                   <div className="flex gap-1 mt-0.5 flex-wrap">
@@ -200,7 +201,7 @@ export default function TournamentDetail() {
                     <option value="">Sin cabeza de serie</option>
                     {tournament.participants.map((_, i) => (
                       <option key={i + 1} value={i + 1}>
-                        ⭐ Cabeza #{i + 1}{i === 0 ? ' (mejor)' : ''}
+                        Cabeza #{i + 1}{i === 0 ? ' (mejor)' : ''}
                       </option>
                     ))}
                   </select>
