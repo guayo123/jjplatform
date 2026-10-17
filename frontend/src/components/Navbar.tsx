@@ -1,24 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-
-const PRIMARY_LINKS = [
-  { to: '/admin/students',       label: 'Alumnos' },
-  { to: '/admin/payments',       label: 'Pagos' },
-  { to: '/admin/payments/report',label: 'Reporte' },
-  { to: '/admin/tournaments',    label: 'Torneos' },
-];
-
-const GESTION_LINKS = [
-  { to: '/admin/professors',     label: 'Profesores' },
-  { to: '/admin/disciplines',    label: 'Disciplinas' },
-  { to: '/admin/plans',          label: 'Planes' },
-  { to: '/admin/schedules',      label: 'Horarios' },
-  { to: '/admin/photos',         label: 'Fotos' },
-  { to: '/admin/at-risk',        label: 'Alumnos en riesgo' },
-  { to: '/admin/notifications',  label: 'Notificaciones' },
-  { to: '/admin/settings',       label: 'Configuración' },
-];
+import { PRIMARY_LINKS, GESTION_LINKS, ADMIN_ONLY_LINKS } from './adminNav';
 
 export default function Navbar() {
   const { academyName, role, logout } = useAuthStore();
@@ -38,11 +21,11 @@ export default function Navbar() {
     : [
         ...PRIMARY_LINKS,
         ...GESTION_LINKS,
-        ...(isAdmin ? [{ to: '/admin/users', label: 'Usuarios' }, { to: '/admin/maintenance', label: 'Mantenimiento' }] : []),
+        ...(isAdmin ? ADMIN_ONLY_LINKS : []),
       ];
 
   const gestionLinks = isAdmin
-    ? [...GESTION_LINKS, { to: '/admin/users', label: 'Usuarios' }, { to: '/admin/maintenance', label: 'Mantenimiento' }]
+    ? [...GESTION_LINKS, ...ADMIN_ONLY_LINKS]
     : GESTION_LINKS;
 
   const gestionActive = gestionLinks.some(l => location.pathname === l.to);
@@ -140,7 +123,7 @@ export default function Navbar() {
             {/* Hamburger */}
             <button
               onClick={() => setMenuOpen(o => !o)}
-              className="lg:hidden p-2 rounded-lg hover:bg-primary-600 transition-colors"
+              className={`${isSuperAdmin ? 'lg:hidden' : 'hidden'} p-2 rounded-lg hover:bg-primary-600 transition-colors`}
               aria-label="Menú"
             >
               {menuOpen ? (

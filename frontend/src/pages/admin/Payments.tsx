@@ -647,7 +647,60 @@ export default function Payments() {
       {loading ? (
         <p className="text-gray-400">Cargando...</p>
       ) : payments.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <>
+        {/* Movil: una tarjeta por pago (la tabla de 8 columnas obliga a hacer scroll lateral) */}
+        <div className="md:hidden space-y-3">
+          {payments.map((p) => {
+            const remaining = p.remaining ?? 0;
+            const discountLabel = p.discount && Number(p.discount) > 0
+              ? p.discountType === 'PERCENT' ? `${p.discount}%` : formatCLP(Number(p.discount))
+              : null;
+            const canDelete = role === 'ADMIN' || role === 'ENCARGADO' || role === 'PROFESOR';
+            return (
+              <div key={p.id} className="bg-white rounded-xl shadow-sm p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-semibold text-gray-900 min-w-0 break-words">{p.studentName}</p>
+                  {remaining > 0
+                    ? <span className="flex-shrink-0 rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700">Pendiente {formatCLP(remaining)}</span>
+                    : <span className="flex-shrink-0 inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700"><Check weight="bold" size="1em" />Completo</span>}
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div><dt className="text-xs text-gray-400">Pagado</dt><dd className="font-semibold">{formatCLP(Number(p.amount))}</dd></div>
+                  <div><dt className="text-xs text-gray-400">Esperado</dt><dd className="text-gray-600">{p.expectedAmount != null ? formatCLP(p.expectedAmount) : '—'}</dd></div>
+                  {discountLabel && <div><dt className="text-xs text-gray-400">Descuento</dt><dd className="text-gray-600">{discountLabel}</dd></div>}
+                  <div><dt className="text-xs text-gray-400">Fecha</dt><dd className="text-gray-600">{p.paidAt?.slice(0, 10) || '—'}</dd></div>
+                </dl>
+                {p.notes && <p className="mt-2 text-xs text-gray-500 break-words">{p.notes}</p>}
+                {canEdit && (remaining > 0 || canDelete) && (
+                  <div className="mt-3 flex gap-2">
+                    {remaining > 0 && (
+                      <button
+                        onClick={() => setAbonoTarget(p)}
+                        className="flex-1 min-h-[44px] rounded-lg bg-primary-600 text-sm font-semibold text-white active:bg-primary-700"
+                      >
+                        + Abonar
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`¿Eliminar el pago de ${p.studentName}?`)) return;
+                          await paymentsApi.delete(p.id);
+                          loadPayments();
+                        }}
+                        className="flex-1 min-h-[44px] rounded-lg border border-red-200 text-sm font-semibold text-red-600 active:bg-red-50"
+                      >
+                        Eliminar
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="hidden md:block bg-white rounded-xl shadow-sm overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -714,6 +767,7 @@ export default function Payments() {
             </tbody>
           </table>
         </div>
+        </>
       )}
       </>)}
     </div>
