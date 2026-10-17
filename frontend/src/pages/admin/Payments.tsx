@@ -1,3 +1,4 @@
+import { useConfirm } from '../../components/ConfirmContext';
 import { Check } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { paymentsApi } from '../../api/payments';
@@ -30,6 +31,7 @@ function toCLPDisplay(n: number): string {
 }
 
 export default function Payments() {
+  const confirm = useConfirm();
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
@@ -684,7 +686,7 @@ export default function Payments() {
                     {canDelete && (
                       <button
                         onClick={async () => {
-                          if (!confirm(`¿Eliminar el pago de ${p.studentName}?`)) return;
+                          if (!(await confirm({ title: 'Eliminar pago', message: `¿Eliminar el pago de ${p.studentName}?`, confirmLabel: 'Eliminar', danger: true }))) return;
                           await paymentsApi.delete(p.id);
                           loadPayments();
                         }}
@@ -749,7 +751,7 @@ export default function Payments() {
                           {role === 'ADMIN' || role === 'ENCARGADO' || role === 'PROFESOR' ? (
                             <button
                               onClick={async () => {
-                                if (!confirm(`¿Eliminar el pago de ${p.studentName}?`)) return;
+                                if (!(await confirm({ title: 'Eliminar pago', message: `¿Eliminar el pago de ${p.studentName}?`, confirmLabel: 'Eliminar', danger: true }))) return;
                                 await paymentsApi.delete(p.id);
                                 loadPayments();
                               }}

@@ -162,7 +162,32 @@ export default function Academies() {
         ) : academies.length === 0 ? (
           <div className="p-4 text-sm text-gray-600">No hay academias registradas.</div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <ul className="md:hidden divide-y">
+            {academies.map((academy) => (
+              <li key={academy.id} className={`p-4 ${!academy.active ? 'opacity-50' : ''}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 break-words">{academy.name}</p>
+                    <p className="text-xs text-gray-500">{academy.address || 'Sin direccion'}</p>
+                  </div>
+                  <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${academy.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {academy.active ? 'Activa' : 'Inactiva'}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-gray-600 break-all">{academy.adminEmail}</p>
+                <p className="text-xs text-gray-400">{academy.studentCount} alumnos · creada {new Date(academy.createdAt).toLocaleDateString('es-CL')}</p>
+                <button
+                  onClick={() => handleToggleActive(academy)}
+                  className={`mt-3 w-full min-h-[44px] rounded-lg border text-sm font-semibold ${academy.active ? 'border-amber-200 text-amber-700' : 'border-green-200 text-green-700'}`}
+                >
+                  {academy.active ? 'Desactivar' : 'Activar'}
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
@@ -204,6 +229,7 @@ export default function Academies() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
     </div>

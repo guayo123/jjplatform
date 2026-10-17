@@ -1,3 +1,4 @@
+import { useConfirm } from '../../components/ConfirmContext';
 import { Megaphone } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notificationsApi } from '../../api/notifications';
@@ -5,6 +6,7 @@ import { useAuthStore } from '../../stores/authStore';
 
 /** Admin maintainer: send a push notification to the academy's students (or all, for super admin). */
 export default function Notifications() {
+  const confirm = useConfirm();
   const { role, academyName } = useAuthStore();
   const isSuper = role === 'SUPER_ADMIN';
   const scope: 'ACADEMY' | 'ALL' = isSuper ? 'ALL' : 'ACADEMY';
@@ -24,7 +26,8 @@ export default function Notifications() {
       setError('Completa el título y el mensaje.');
       return;
     }
-    if (!window.confirm(`Se enviará la notificación a ${target}. ¿Confirmar?`)) return;
+    const ok = await confirm({ title: 'Enviar notificación', message: `Se enviará la notificación a ${target}. ¿Confirmar?`, confirmLabel: 'Enviar' });
+    if (!ok) return;
     setSending(true);
     try {
       const { sent } = await notificationsApi.broadcast(title.trim(), message.trim(), scope);

@@ -215,6 +215,35 @@ export default function Users() {
             No hay usuarios adicionales. Crea uno con el botón de arriba.
           </p>
         ) : (
+          <>
+          {/* Movil: una tarjeta por usuario */}
+          <ul className="md:hidden divide-y divide-gray-100">
+            {users.map((u) => {
+              const badge = ROLE_LABELS[u.role] ?? { label: u.role, color: 'bg-gray-100 text-gray-700' };
+              return (
+                <li key={u.id} className={`p-4 ${!u.active ? 'opacity-60' : ''}`}>
+                  <p className="text-sm font-medium text-gray-800 break-all">{u.email}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${badge.color}`}>{badge.label}</span>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${u.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {u.active ? 'Activo' : 'Inactivo'}
+                    </span>
+                    <span className="text-xs text-gray-400">Creado {new Date(u.createdAt).toLocaleDateString('es-CL')}</span>
+                  </div>
+                  <button
+                    onClick={() => handleToggleActive(u)}
+                    className={`mt-3 w-full min-h-[44px] rounded-lg border text-sm font-semibold ${
+                      u.active ? 'border-amber-200 text-amber-700 active:bg-amber-50' : 'border-green-200 text-green-700 active:bg-green-50'
+                    }`}
+                  >
+                    {u.active ? 'Desactivar' : 'Activar'}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="hidden md:block">
           <table className="min-w-full divide-y divide-gray-100">
             <thead className="bg-gray-50">
               <tr>
@@ -265,6 +294,8 @@ export default function Users() {
               })}
             </tbody>
           </table>
+          </div>
+          </>
         )}
       </div>
     </div>
