@@ -1,3 +1,4 @@
+import { textIncludes } from '../../utils/text';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStudentStore } from '../../stores/studentStore';
@@ -127,7 +128,7 @@ export default function Students() {
 
   const filtered = useMemo(() => {
     return students.filter((s) => {
-      if (filters.name && !s.name.toLowerCase().includes(filters.name.toLowerCase())) return false;
+      if (filters.name && !textIncludes(s.name, filters.name)) return false;
       if (filters.belt) {
         const hasBelt = s.disciplineBelts && s.disciplineBelts.length > 0
           ? s.disciplineBelts.some((db) => db.belt === filters.belt)

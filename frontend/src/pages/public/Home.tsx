@@ -1,3 +1,4 @@
+import { textIncludes } from '../../utils/text';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { academiesApi } from '../../api/academies';
@@ -19,8 +20,8 @@ export default function Home() {
 
   const filtered = academies.filter(
     (a) =>
-      a.name.toLowerCase().includes(search.toLowerCase()) ||
-      (a.address ?? '').toLowerCase().includes(search.toLowerCase()),
+      textIncludes(a.name, search) ||
+      textIncludes(a.address, search),
   );
 
   return (

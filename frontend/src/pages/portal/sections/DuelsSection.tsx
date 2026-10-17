@@ -1,3 +1,4 @@
+import { textIncludes } from '../../../utils/text';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Classmate, Duel, DuelCloseReason, DuelFormat, DuelMethod, DuelRankingEntry, TrainingModality } from '../../../types';
 import { duelsApi, type DuelFeedTab } from '../../../api/duels';
@@ -860,13 +861,13 @@ function ChallengeModal({
   const [location, setLocation] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const q = search.trim().toLowerCase();
-  const matches = q ? classmates.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 8) : [];
+  const q = search.trim();
+  const matches = q ? classmates.filter((c) => textIncludes(c.name, q)).slice(0, 8) : [];
 
   // Referee must be a third person — exclude whoever is already picked as the rival.
-  const rq = refSearch.trim().toLowerCase();
+  const rq = refSearch.trim();
   const refMatches = rq
-    ? classmates.filter((c) => c.id !== opponent?.id && c.name.toLowerCase().includes(rq)).slice(0, 8)
+    ? classmates.filter((c) => c.id !== opponent?.id && textIncludes(c.name, rq)).slice(0, 8)
     : [];
 
   const submit = async () => {

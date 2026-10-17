@@ -1,3 +1,4 @@
+import { textIncludes } from '../../../utils/text';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Classmate, ConditioningSession, ConditioningSessionForm, Leaderboards, StudentDiscipline, TrainingModality, TrainingSession, TrainingSessionForm, TrainingSummary } from '../../../types';
 import { trainingApi } from '../../../api/training';
@@ -1230,8 +1231,8 @@ interface ProgressExercise { name: string; bestKg: number; count: number; lastDa
 function MyProgressCard({ exercises, onPick }: { exercises: ProgressExercise[]; onPick: (name: string) => void }) {
   const [q, setQ] = useState('');
   if (exercises.length === 0) return null; // nothing logged with weight yet
-  const query = q.trim().toLowerCase();
-  const filtered = query ? exercises.filter((e) => e.name.toLowerCase().includes(query)) : exercises;
+  const query = q.trim();
+  const filtered = query ? exercises.filter((e) => textIncludes(e.name, query)) : exercises;
 
   return (
     <div className="bg-white rounded-xl shadow-sm jjp-accent-bar">

@@ -1,3 +1,4 @@
+import { textIncludes } from '../utils/text';
 import { useMemo, useState } from 'react';
 
 export interface PickableStudent {
@@ -22,8 +23,8 @@ export default function StudentPicker({ students, slotsLeft, onAdd }: Props) {
   const [saving, setSaving] = useState(false);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return q ? students.filter((s) => s.name.toLowerCase().includes(q)) : students;
+    const q = query.trim();
+    return q ? students.filter((s) => textIncludes(s.name, q)) : students;
   }, [students, query]);
 
   const allFilteredSelected = filtered.length > 0 && filtered.every((s) => selected.has(s.id));

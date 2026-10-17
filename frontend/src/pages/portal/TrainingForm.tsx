@@ -1,3 +1,4 @@
+import { textIncludes } from '../../utils/text';
 import { useMemo, useState } from 'react';
 import type {
   Classmate,
@@ -127,11 +128,11 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
     const fromHistory: TrainingPartner[] = [...new Set(recentSessions.flatMap((s) => s.partners.map((p) => p.name)))]
       .filter((n) => !known.has(n.toLowerCase()))
       .map((n) => ({ name: n, belt: null, partnerStudentId: null }));
-    const q = partnerInput.trim().toLowerCase();
+    const q = partnerInput.trim();
     const added = new Set(partners.map((p) => p.name.toLowerCase()));
     return [...fromClassmates, ...fromHistory]
       .filter((c) => !added.has(c.name.toLowerCase()))
-      .filter((c) => (q ? c.name.toLowerCase().includes(q) : true))
+      .filter((c) => (q ? textIncludes(c.name, q) : true))
       .slice(0, 8);
   }, [classmates, recentSessions, partnerInput, partners]);
 
