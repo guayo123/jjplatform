@@ -5,6 +5,24 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/app.webmanifest",
+      "has": [{ "type": "host", "value": "(www.)?jiujitsupuentealto.cl" }],
+      "destination": "/manifests/academy-2.webmanifest"
+    },
+    {
+      "source": "/apple-touch-icon",
+      "has": [{ "type": "host", "value": "(www.)?jiujitsupuentealto.cl" }],
+      "destination": "/icons/academy-2/apple-touch-icon.png"
+    },
+    {
+      "source": "/app.webmanifest",
+      "destination": "/manifest.webmanifest"
+    },
+    {
+      "source": "/apple-touch-icon",
+      "destination": "/icons/apple-touch-icon.png"
+    },
+    {
       "source": "/sitemap.xml",
       "destination": "/api/sitemap"
     },
