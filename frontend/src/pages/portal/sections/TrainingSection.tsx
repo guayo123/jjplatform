@@ -1,3 +1,6 @@
+import { ShareNetwork, Timer, Lightning, Star, Check, X, Handshake, Trash, Fire, Lock, Target, CheckCircle, Ticket, Barbell, Repeat, TrendUp, Trophy } from '@phosphor-icons/react';
+import PlaceMedal from '../../../components/PlaceMedal';
+import AppIcon, { type IconKey } from '../../../components/AppIcon';
 import { textIncludes } from '../../../utils/text';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Classmate, ConditioningSession, ConditioningSessionForm, Leaderboards, StudentDiscipline, TrainingModality, TrainingSession, TrainingSessionForm, TrainingSummary } from '../../../types';
@@ -99,7 +102,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     for (const a of fresh) {
       celebrate({
         eyebrow: 'Logro desbloqueado',
-        emoji: a.emoji,
+        icon: a.icon,
         count: a.target,
         unit: a.unit,
         message: `¡${a.title}!`,
@@ -218,16 +221,16 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     if (!prevGoalMet && sum.weeklyGoalMet) {
       celebrate({
         eyebrow: '¡Meta semanal!',
-        emoji: '🏆',
+        icon: 'trophy',
         count: sum.thisWeekCount,
         unit: `de ${sum.weeklyGoal} entrenos esta semana`,
-        message: '¡Cumpliste tu meta de la semana! 💪',
+        message: '¡Cumpliste tu meta de la semana!',
         buttonLabel: '¡Excelente!',
       });
     } else if (sum.currentStreak > prevStreak) {
       celebrate({
         eyebrow: 'Racha en marcha',
-        emoji: '🔥',
+        icon: 'fire',
         count: sum.currentStreak,
         unit: sum.currentStreak === 1 ? 'día de racha' : 'días de racha',
         message: streakMessage(sum.currentStreak),
@@ -262,7 +265,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     if (sum.conditioningStreak > prevStreak) {
       celebrate({
         eyebrow: 'Racha física en marcha',
-        emoji: '🏋️',
+        icon: 'gym',
         count: sum.conditioningStreak,
         unit: sum.conditioningStreak === 1 ? 'día de racha física' : 'días de racha física',
         message: streakMessage(sum.conditioningStreak),
@@ -291,7 +294,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
     try {
       const result = await shareCard(shareView.canvas);
       if (result === 'shared') setShareView(null);
-      else if (result === 'downloaded') setShareNote('Imagen descargada 📥');
+      else if (result === 'downloaded') setShareNote('Imagen descargada');
       // 'aborted': the user closed the share sheet — keep the preview open, no message.
     } catch {
       setShareNote('No se pudo compartir la imagen.');
@@ -387,7 +390,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
 
       {/* Resumen | Historial segmented control */}
       <div className="bg-gray-200/70 rounded-xl p-1 flex">
-        {([['resumen', 'Resumen'], ['pro', 'Pro ⭐'], ['historial', `Historial (${sessions.length + condSessions.length})`]] as const).map(([key, label]) => (
+        {([['resumen', 'Resumen'], ['pro', 'Pro'], ['historial', `Historial (${sessions.length + condSessions.length})`]] as const).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setView(key)}
@@ -441,7 +444,7 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
               {sessions.length === 0 && condSessions.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-gray-400 text-sm">Aún no registras entrenamientos.</p>
-                  <p className="text-gray-300 text-xs mt-1">Toca el botón + al salir del tatami 🥋</p>
+                  <p className="text-gray-300 text-xs mt-1">Toca el botón + al salir del tatami</p>
                 </div>
               ) : historyItems.length === 0 ? (
                 <p className="text-center py-8 text-gray-400 text-sm">
@@ -570,15 +573,13 @@ export default function TrainingSection({ studentId, disciplines, studentName, a
   );
 }
 
-const MEDALS = ['🥇', '🥈', '🥉'];
-
 /**
  * Academy ranking by sessions this week (streak as tiebreaker); the logged-in student is
  * highlighted. Compact by default (top 3 + my position) — "Ver todo" expands to 10.
  */
 const LEADERBOARD_TABS = [
-  { key: 'martial' as const, label: '🥋 Arte marcial', unit: 'entrenos', noun: 'arte marcial' },
-  { key: 'conditioning' as const, label: '🏋️ Físico', unit: 'sesiones', noun: 'físico' },
+  { key: 'martial' as const, label: 'Arte marcial', unit: 'entrenos', noun: 'arte marcial' },
+  { key: 'conditioning' as const, label: 'Físico', unit: 'sesiones', noun: 'físico' },
 ];
 
 function LeaderboardCard({ boards, meId, onOpen }: { boards: Leaderboards; meId: number; onOpen: (studentId: number) => void }) {
@@ -596,8 +597,8 @@ function LeaderboardCard({ boards, meId, onOpen }: { boards: Leaderboards; meId:
   return (
     <div className="bg-white rounded-xl shadow-sm jjp-accent-bar">
       <div className="p-5 border-b border-gray-100">
-        <h2 className="font-bold text-gray-900">Ranking de la semana 🏆</h2>
-        <p className="text-xs text-gray-400 mt-0.5">Por racha 🔥 · desempatan los entrenos de la semana</p>
+        <h2 className="font-bold text-gray-900">Ranking de la semana</h2>
+        <p className="text-xs text-gray-400 mt-0.5">Por racha · desempatan los entrenos de la semana</p>
       </div>
       {/* Type tabs: 🥋 arte marcial / 🏋️ físico */}
       <div className="px-3 pt-3">
@@ -631,7 +632,7 @@ function LeaderboardCard({ boards, meId, onOpen }: { boards: Leaderboards; meId:
                   className={`w-full text-left flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-50 transition-colors ${isMe ? 'bg-primary-50' : ''}`}
                 >
                   <span className="w-7 text-center text-sm font-bold text-gray-500 flex-shrink-0">
-                    {MEDALS[i] ?? i + 1}
+                    {i < 3 ? <PlaceMedal place={(i + 1) as 1 | 2 | 3} /> : i + 1}
                   </span>
                   {e.photoUrl ? (
                     <img src={e.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
@@ -647,7 +648,7 @@ function LeaderboardCard({ boards, meId, onOpen }: { boards: Leaderboards; meId:
                     {e.thisWeekCount} {active.unit}
                   </span>
                   <span className="text-sm font-extrabold w-14 text-right flex-shrink-0 text-orange-500">
-                    {e.currentStreak > 0 ? `🔥 ${e.currentStreak}` : '—'}
+                    {e.currentStreak > 0 ? <span className="inline-flex items-center justify-end gap-0.5"><Fire weight="fill" size="1em" />{e.currentStreak}</span> : '—'}
                   </span>
                 </button>
               );
@@ -664,7 +665,7 @@ function LeaderboardCard({ boards, meId, onOpen }: { boards: Leaderboards; meId:
                     {board[myIndex].thisWeekCount} {active.unit}
                   </span>
                   <span className="text-sm font-extrabold w-14 text-right flex-shrink-0 text-orange-500">
-                    {board[myIndex].currentStreak > 0 ? `🔥 ${board[myIndex].currentStreak}` : '—'}
+                    {board[myIndex].currentStreak > 0 ? <span className="inline-flex items-center justify-end gap-0.5"><Fire weight="fill" size="1em" />{board[myIndex].currentStreak}</span> : '—'}
                   </span>
                 </button>
               </div>
@@ -691,24 +692,24 @@ function LeaderboardCard({ boards, meId, onOpen }: { boards: Leaderboards; meId:
 function GoalSetupModal({ onSave, saving }: { onSave: (martial: number, conditioning: number) => void; saving: boolean }) {
   const [martial, setMartial] = useState(4);
   const [conditioning, setConditioning] = useState(2);
-  const rows = [
-    { icon: '🥋', label: 'Arte marcial', value: martial, set: setMartial },
-    { icon: '🏋️', label: 'Físico', value: conditioning, set: setConditioning },
+  const rows: Array<{ icon: IconKey; label: string; value: number; set: (n: number) => void }> = [
+    { icon: 'martial', label: 'Arte marcial', value: martial, set: setMartial },
+    { icon: 'gym', label: 'Físico', value: conditioning, set: setConditioning },
   ];
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm p-4 pt-safe pb-safe">
       <div className="w-full max-w-sm bg-white rounded-2xl p-5 shadow-2xl">
         <div className="text-center mb-4">
-          <div className="text-3xl mb-1">🎯</div>
+          <div className="text-3xl mb-1 flex justify-center text-primary-600"><Target weight="fill" /></div>
           <h2 className="font-bold text-lg text-gray-900">Define tu meta semanal</h2>
           <p className="text-xs text-gray-500 mt-1">
-            ¿Cuántos días por semana quieres entrenar de cada tipo? Cumple tu meta cada semana para mantener tu racha 🔥.
+            ¿Cuántos días por semana quieres entrenar de cada tipo? Cumple tu meta cada semana para mantener tu racha.
           </p>
         </div>
         <div className="space-y-4">
           {rows.map((r) => (
             <div key={r.label}>
-              <p className="text-xs font-medium text-gray-500 mb-1.5">{r.icon} {r.label}</p>
+              <p className="text-xs font-medium text-gray-500 mb-1.5"><AppIcon name={r.icon} className="inline -mt-0.5" /> {r.label}</p>
               <div className="flex flex-wrap gap-2">
                 {[1, 2, 3, 4, 5, 6, 7].map((n) => (
                   <button
@@ -726,7 +727,7 @@ function GoalSetupModal({ onSave, saving }: { onSave: (martial: number, conditio
             </div>
           ))}
         </div>
-        <p className="text-[11px] text-amber-600 mt-3">🔒 Después solo podrás ajustarla los lunes, al comenzar la semana.</p>
+        <p className="text-[11px] text-amber-600 mt-3"><Lock size="1em" className="inline -mt-0.5" /> Después solo podrás ajustarla los lunes, al comenzar la semana.</p>
         <div className="flex gap-2 mt-4">
           <button
             onClick={() => onSave(4, 2)}
@@ -756,7 +757,7 @@ function GoalSetupModal({ onSave, saving }: { onSave: (martial: number, conditio
 function StreakRow({
   icon, label, streak, thisWeek, goal, met, record, onChangeGoal, saving, locked, onLockedTap,
 }: {
-  icon: string; label: string; streak: number; thisWeek: number; goal: number;
+  icon: IconKey; label: string; streak: number; thisWeek: number; goal: number;
   met: boolean; record: number; onChangeGoal: (n: number) => void; saving: boolean; locked: boolean;
   onLockedTap: () => void;
 }) {
@@ -768,16 +769,16 @@ function StreakRow({
         <Ring pct={pct} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-base leading-none">{icon}</span>
+            <span className="text-base leading-none text-gray-500"><AppIcon name={icon} weight="fill" /></span>
             <span className="text-sm font-semibold text-gray-700">{label}</span>
           </div>
           <div className="flex items-baseline gap-2 mt-0.5">
-            <span className="text-xl font-extrabold text-orange-500">{streak > 0 ? `🔥 ${streak}` : '💨'}</span>
+            <span className="text-xl font-extrabold text-orange-500">{streak > 0 ? <span className="inline-flex items-center gap-1"><Fire weight="fill" size="1em" />{streak}</span> : '—'}</span>
             <span className="text-xs text-gray-400">{streak > 0 ? (streak === 1 ? 'día de racha' : 'días de racha') : 'sin racha'}</span>
           </div>
           <p className="text-xs text-gray-400 mt-0.5">
             Esta semana <span className="font-semibold text-gray-600">{thisWeek}/{goal}</span>
-            {met && <span className="text-green-600 font-semibold"> · ✅ meta cumplida</span>}
+            {met && <span className="text-green-600 font-semibold"> · <CheckCircle weight="fill" size="1em" className="inline -mt-0.5" /> meta cumplida</span>}
             {record > streak && record > 0 && <span> · récord {record}</span>}
           </p>
         </div>
@@ -816,7 +817,7 @@ function StreakRow({
           </div>
           {locked && (
             <p className="text-xs text-amber-600 mt-2">
-              🔒 Tu meta solo se cambia los <span className="font-semibold">lunes</span>, al comenzar la semana — así nadie la baja al ir fallando.
+              <Lock size="1em" className="inline -mt-0.5" /> Tu meta solo se cambia los <span className="font-semibold">lunes</span>, al comenzar la semana — así nadie la baja al ir fallando.
             </p>
           )}
         </div>
@@ -873,7 +874,7 @@ function ProgressCard({ summary, onChangeGoal, savingGoal, onShare }: {
   return (
     <div className="bg-white rounded-xl shadow-sm p-5 pl-6 jjp-accent-bar">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-bold text-gray-900">Tus rachas 🔥</h2>
+        <h2 className="font-bold text-gray-900">Tus rachas</h2>
         {onShare && (
           <button
             onClick={onShare}
@@ -888,13 +889,13 @@ function ProgressCard({ summary, onChangeGoal, savingGoal, onShare }: {
 
       {summary.comodinUsed && (
         <div className="mb-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
-          🎟️ Usaste tu comodín del mes — tu racha sigue viva aunque faltaras a la meta de una semana.
+          <Ticket size="1em" className="inline -mt-0.5" /> Usaste tu comodín del mes — tu racha sigue viva aunque faltaras a la meta de una semana.
         </div>
       )}
 
       <div className="space-y-4">
         <StreakRow
-          icon="🥋" label="Arte marcial"
+          icon="martial" label="Arte marcial"
           streak={summary.currentStreak} thisWeek={summary.thisWeekCount}
           goal={summary.weeklyGoal ?? 4} met={summary.weeklyGoalMet} record={summary.maxStreak}
           onChangeGoal={(n) => onChangeGoal('martial', n)} saving={savingGoal}
@@ -902,7 +903,7 @@ function ProgressCard({ summary, onChangeGoal, savingGoal, onShare }: {
         />
         <div className="border-t border-gray-100" />
         <StreakRow
-          icon="🏋️" label="Físico"
+          icon="gym" label="Físico"
           streak={summary.conditioningStreak} thisWeek={summary.conditioningThisWeek}
           goal={summary.conditioningGoal ?? 2} met={summary.conditioningGoalMet} record={summary.conditioningMax}
           onChangeGoal={(n) => onChangeGoal('conditioning', n)} saving={savingGoal}
@@ -980,7 +981,7 @@ function InsightsCard({ insights, hasSessions }: { insights: Insight[]; hasSessi
       <ul className="space-y-2.5">
         {insights.map((ins, i) => (
           <li key={i} className="flex items-start gap-3">
-            <span className="text-lg leading-none mt-0.5 flex-shrink-0">{ins.icon}</span>
+            <span className="text-lg leading-none mt-0.5 flex-shrink-0 text-primary-600"><AppIcon name={ins.icon} weight="fill" /></span>
             <span className={`text-sm ${toneClass[ins.tone]}`}>{ins.text}</span>
           </li>
         ))}
@@ -1001,19 +1002,19 @@ function SessionRow({ s, onDelete, onOpen }: { s: TrainingSession; onDelete: () 
           {s.disciplineName && <span className="text-xs text-gray-400">{s.disciplineName}</span>}
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">
-          {s.durationMin != null && <span>⏱ {s.durationMin} min</span>}
-          {s.roundsCount != null && s.roundsCount > 0 && <span>🥋 {s.roundsCount} rounds</span>}
-          {subsLogradas > 0 && <span className="text-green-600">✓ {subsLogradas}</span>}
-          {subsRecibidas > 0 && <span className="text-red-500">✕ {subsRecibidas}</span>}
-          {s.energy != null && <span>⚡{s.energy}</span>}
-          {s.performance != null && <span>⭐{s.performance}</span>}
+          {s.durationMin != null && <span className="inline-flex items-center gap-1"><Timer size="1em" />{s.durationMin} min</span>}
+          {s.roundsCount != null && s.roundsCount > 0 && <span className="inline-flex items-center gap-1"><AppIcon name="martial" />{s.roundsCount} rounds</span>}
+          {subsLogradas > 0 && <span className="text-green-600 inline-flex items-center gap-1"><Check weight="bold" size="1em" />{subsLogradas}</span>}
+          {subsRecibidas > 0 && <span className="text-red-500 inline-flex items-center gap-1"><X weight="bold" size="1em" />{subsRecibidas}</span>}
+          {s.energy != null && <span className="inline-flex items-center gap-0.5"><Lightning weight="fill" size="1em" />{s.energy}</span>}
+          {s.performance != null && <span className="inline-flex items-center gap-0.5"><Star weight="fill" size="1em" />{s.performance}</span>}
         </div>
         {s.partners.length > 0 && (
-          <p className="text-xs text-gray-400 mt-1 truncate">🤝 {s.partners.map((p) => p.name).join(', ')}</p>
+          <p className="text-xs text-gray-400 mt-1 truncate"><Handshake size="1em" className="inline -mt-0.5" /> {s.partners.map((p) => p.name).join(', ')}</p>
         )}
         {s.notes && <p className="text-xs text-gray-400 italic mt-1 line-clamp-2">"{s.notes}"</p>}
       </button>
-      <button onClick={onDelete} className="text-gray-300 hover:text-red-500 px-1 flex-shrink-0" aria-label="Eliminar">🗑</button>
+      <button onClick={onDelete} className="text-gray-300 hover:text-red-500 px-1 flex-shrink-0" aria-label="Eliminar"><Trash size="1.1em" /></button>
     </div>
   );
 }
@@ -1026,8 +1027,8 @@ function SessionDetail({ s, studentName, academyName, onClose }: { s: TrainingSe
   const stats: Array<{ label: string; value: string }> = [];
   if (s.durationMin != null) stats.push({ label: 'Duración', value: `${s.durationMin} min` });
   if (s.roundsCount != null && s.roundsCount > 0) stats.push({ label: 'Rounds', value: String(s.roundsCount) });
-  if (s.energy != null) stats.push({ label: 'Energía', value: `⚡ ${s.energy}/5` });
-  if (s.performance != null) stats.push({ label: 'Desempeño', value: `⭐ ${s.performance}/5` });
+  if (s.energy != null) stats.push({ label: 'Energía', value: `${s.energy}/5` });
+  if (s.performance != null) stats.push({ label: 'Desempeño', value: `${s.performance}/5` });
 
   const handleShare = async () => {
     if (sharing) return;
@@ -1062,7 +1063,7 @@ function SessionDetail({ s, studentName, academyName, onClose }: { s: TrainingSe
       <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl jjp-pop max-h-[88vh] overflow-y-auto">
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <button onClick={handleShare} disabled={sharing} className="text-xs font-semibold text-primary-600 hover:text-primary-700 disabled:opacity-40 px-2 py-1 rounded-lg hover:bg-primary-50 transition-colors">
-            {sharing ? '...' : '📤 Compartir'}
+            {sharing ? '...' : <><ShareNetwork size="1em" className="inline -mt-0.5" /> Compartir</>}
           </button>
           <button onClick={onClose} className="text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
         </div>
@@ -1100,8 +1101,8 @@ function SessionDetail({ s, studentName, academyName, onClose }: { s: TrainingSe
 
         {(logradas.length > 0 || recibidas.length > 0) && (
           <DetailBlock title="Sumisiones">
-            {logradas.length > 0 && <p className="text-sm text-green-600">✓ Logradas: {logradas.map((x) => x.name).join(', ')}</p>}
-            {recibidas.length > 0 && <p className="text-sm text-red-500 mt-0.5">✕ Recibidas: {recibidas.map((x) => x.name).join(', ')}</p>}
+            {logradas.length > 0 && <p className="text-sm text-green-600"><Check weight="bold" size="1em" className="inline -mt-0.5" /> Logradas: {logradas.map((x) => x.name).join(', ')}</p>}
+            {recibidas.length > 0 && <p className="text-sm text-red-500 mt-0.5"><X weight="bold" size="1em" className="inline -mt-0.5" /> Recibidas: {recibidas.map((x) => x.name).join(', ')}</p>}
           </DetailBlock>
         )}
 
@@ -1109,7 +1110,7 @@ function SessionDetail({ s, studentName, academyName, onClose }: { s: TrainingSe
           <DetailBlock title="Compañeros">
             <ul className="space-y-0.5">
               {s.partners.map((p, i) => (
-                <li key={i} className="text-sm text-gray-700">🤝 {p.name}{p.belt ? <span className="text-gray-400"> · {p.belt}</span> : null}</li>
+                <li key={i} className="text-sm text-gray-700"><Handshake size="1em" className="inline -mt-0.5" /> {p.name}{p.belt ? <span className="text-gray-400"> · {p.belt}</span> : null}</li>
               ))}
             </ul>
           </DetailBlock>
@@ -1136,8 +1137,8 @@ function DetailBlock({ title, children }: { title: string; children: React.React
 }
 
 const FOCUS_LABEL: Record<string, string> = {
-  PIERNA: '🦵 Pierna', ESPALDA: '🔙 Espalda', PECHO: '🎯 Pecho', HOMBRO: '🤲 Hombro',
-  BRAZO: '💪 Brazo', CORE: '🧱 Core', CARDIO: '🏃 Cardio', FULL_BODY: '🔥 Full body',
+  PIERNA: 'Pierna', ESPALDA: 'Espalda', PECHO: 'Pecho', HOMBRO: 'Hombro',
+  BRAZO: 'Brazo', CORE: 'Core', CARDIO: 'Cardio', FULL_BODY: 'Full body',
 };
 
 function BeltKnotIcon({ className = '' }: { className?: string }) {
@@ -1206,16 +1207,16 @@ function ConditioningRow({ c, onDelete, onOpen }: { c: ConditioningSession; onDe
       <button onClick={onOpen} className="flex-1 min-w-0 text-left">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-semibold text-gray-900">{formatDate(c.date)}</span>
-          <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">🏋️ Físico</span>
+          <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1"><Barbell size="1em" />Físico</span>
           {c.focus && <span className="text-xs text-gray-400">{FOCUS_LABEL[c.focus] ?? c.focus}</span>}
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">
-          {c.exercises.length > 0 && <span>🔁 {c.exercises.length} ej · {totalSets} series</span>}
-          {c.durationMin != null && <span>⏱ {c.durationMin} min</span>}
+          {c.exercises.length > 0 && <span className="inline-flex items-center gap-1"><Repeat size="1em" />{c.exercises.length} ej · {totalSets} series</span>}
+          {c.durationMin != null && <span className="inline-flex items-center gap-1"><Timer size="1em" />{c.durationMin} min</span>}
         </div>
         {c.notes && <p className="text-xs text-gray-400 italic mt-1 line-clamp-2">"{c.notes}"</p>}
       </button>
-      <button onClick={onDelete} className="text-gray-300 hover:text-red-500 px-1 flex-shrink-0" aria-label="Eliminar">🗑</button>
+      <button onClick={onDelete} className="text-gray-300 hover:text-red-500 px-1 flex-shrink-0" aria-label="Eliminar"><Trash size="1.1em" /></button>
     </div>
   );
 }
@@ -1237,7 +1238,7 @@ function MyProgressCard({ exercises, onPick }: { exercises: ProgressExercise[]; 
   return (
     <div className="bg-white rounded-xl shadow-sm jjp-accent-bar">
       <div className="p-5 border-b border-gray-100">
-        <h2 className="font-bold text-gray-900">📈 Mi progresión</h2>
+        <h2 className="font-bold text-gray-900"><TrendUp weight="bold" size="1.1em" className="inline -mt-1" /> Mi progresión</h2>
         <p className="text-xs text-gray-400 mt-0.5">Elige un ejercicio para ver tu histórico de kilos y tu PR.</p>
       </div>
       <div className="p-3">
@@ -1262,7 +1263,7 @@ function MyProgressCard({ exercises, onPick }: { exercises: ProgressExercise[]; 
                 {e.name}
                 <span className="font-normal text-gray-400"> · {e.count} {e.count === 1 ? 'sesión' : 'sesiones'}</span>
               </span>
-              <span className="flex-shrink-0 text-xs font-bold text-orange-500">🏆 {e.bestKg} kg</span>
+              <span className="flex-shrink-0 text-xs font-bold text-orange-500 inline-flex items-center gap-1"><Trophy weight="fill" size="1em" />{e.bestKg} kg</span>
             </button>
           ))}
         </div>
@@ -1302,7 +1303,7 @@ function ConditioningDetail({ c, allSessions, studentName, academyName, onClose 
       <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl jjp-pop max-h-[88vh] overflow-y-auto">
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <button onClick={handleShare} disabled={sharing} className="text-xs font-semibold text-primary-600 hover:text-primary-700 disabled:opacity-40 px-2 py-1 rounded-lg hover:bg-primary-50 transition-colors">
-            {sharing ? '...' : '📤 Compartir'}
+            {sharing ? '...' : <><ShareNetwork size="1em" className="inline -mt-0.5" /> Compartir</>}
           </button>
           <button onClick={onClose} className="text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
         </div>
@@ -1310,9 +1311,9 @@ function ConditioningDetail({ c, allSessions, studentName, academyName, onClose 
         <div className="text-center">
           <p className="text-lg font-extrabold text-gray-900">{formatDate(c.date)}</p>
           <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
-            <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">🏋️ Acondicionamiento</span>
+            <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1"><Barbell size="1em" />Acondicionamiento</span>
             {c.focus && <span className="text-xs text-gray-400">{FOCUS_LABEL[c.focus] ?? c.focus}</span>}
-            {c.durationMin != null && <span className="text-xs text-gray-400">⏱ {c.durationMin} min</span>}
+            {c.durationMin != null && <span className="text-xs text-gray-400 inline-flex items-center gap-1"><Timer size="1em" />{c.durationMin} min</span>}
             {c.backdated && <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded-full">Registrado tarde</span>}
           </div>
         </div>

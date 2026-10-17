@@ -1,3 +1,4 @@
+import AppIcon, { type IconKey } from '../../components/AppIcon';
 import { useEffect, useMemo } from 'react';
 import BeltImage from '../../components/BeltImage';
 import { notifySuccess } from '../../native/haptics';
@@ -37,7 +38,7 @@ export default function PromotionCelebration({ promotion, onClose }: Props) {
   // A grade promotion keeps the belt and adds stripes; a belt promotion changes the belt itself.
   const isGrade = promotion.type === 'GRADO' || promotion.fromBelt === promotion.toBelt;
   const title = isGrade ? '¡Nuevo grado!' : '¡Ascendiste de cinturón!';
-  const emoji = isGrade ? '⭐' : '🥋';
+  const iconKey: IconKey = isGrade ? 'star' : 'martial';
   const fromStripes = promotion.fromStripes ?? 0;
 
   return (
@@ -62,7 +63,7 @@ export default function PromotionCelebration({ promotion, onClose }: Props) {
       </div>
 
       <div className="relative mx-4 w-full max-w-sm rounded-2xl bg-white p-7 text-center shadow-2xl jjp-pop">
-        <div className="text-5xl mb-2">{emoji}</div>
+        <div className="text-5xl mb-2 flex justify-center text-amber-500"><AppIcon name={iconKey} weight="fill" /></div>
         <h2 className="text-2xl font-extrabold text-gray-900">{title}</h2>
         {promotion.disciplineName && (
           <p className="text-sm text-primary-600 font-medium mt-0.5">{promotion.disciplineName}</p>
@@ -86,7 +87,7 @@ export default function PromotionCelebration({ promotion, onClose }: Props) {
           )}
         </p>
         {promotion.notes && <p className="text-sm text-gray-400 italic mt-2">"{promotion.notes}"</p>}
-        <p className="text-xs text-gray-400 mt-3">¡Felicitaciones por tu esfuerzo en el tatami! 🙌</p>
+        <p className="text-xs text-gray-400 mt-3">¡Felicitaciones por tu esfuerzo en el tatami!</p>
 
         <button
           onClick={onClose}

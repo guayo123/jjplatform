@@ -1,3 +1,4 @@
+import { Key, Check } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi } from '../../api/auth';
@@ -38,7 +39,7 @@ export default function StudentForgotPassword() {
             className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-lg mb-4"
             style={{ background: 'var(--gradient-acc)' }}
           >
-            🔑
+            <Key weight="fill" />
           </div>
           <h1 className="jjp-display text-3xl font-extrabold tracking-tight text-center">
             Recuperar acceso
@@ -55,7 +56,7 @@ export default function StudentForgotPassword() {
           {done ? (
             <div className="text-center space-y-4">
               <div className="w-14 h-14 mx-auto rounded-full bg-green-100 text-green-600 flex items-center justify-center text-3xl">
-                ✓
+                <Check weight="bold" />
               </div>
               <p className="text-sm" style={{ color: 'var(--text)' }}>
                 Te enviamos una contraseña temporal a <strong>{email}</strong>. Revisa tu correo

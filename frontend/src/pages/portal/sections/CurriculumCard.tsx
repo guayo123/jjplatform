@@ -1,3 +1,4 @@
+import { Books, Check } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { TechniqueCurriculum, TechniqueBeltGroup, Technique } from '../../../types';
 import { tapLight, notifySuccess } from '../../../native/haptics';
@@ -28,7 +29,7 @@ export default function CurriculumCard({ curriculum, loading, onToggle }: Props)
           <SkeletonRows rows={4} />
         ) : curriculum.length === 0 ? (
           <div className="text-center py-6">
-            <p className="text-3xl mb-2">📚</p>
+            <Books size={32} className="mx-auto mb-2 text-gray-400" />
             <p className="text-sm text-gray-500 font-medium">Aún no hay programa técnico</p>
             <p className="text-xs text-gray-400 mt-1">Tu academia todavía no ha publicado las técnicas de tu disciplina.</p>
           </div>
@@ -90,7 +91,7 @@ function BeltAccordion({ group, onToggle }: { group: TechniqueBeltGroup; onToggl
           </div>
         </div>
         <span className={`text-xs font-medium flex-shrink-0 ${complete ? 'text-green-600' : 'text-gray-400'}`}>
-          {complete ? '✓ ' : ''}{group.learnedCount}/{group.totalCount}
+          {complete ? <Check weight="bold" size="1em" className="inline -mt-0.5 mr-0.5" /> : null}{group.learnedCount}/{group.totalCount}
         </span>
         <span className={`text-gray-400 text-xs flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
       </button>

@@ -26,8 +26,8 @@ export function startPortalTour({
     {
       element: '[data-tour="portada"]',
       popover: {
-        title: '🎨 Tu portada',
-        description: 'Personaliza esta barra superior: toca el botón 🎨 y elige un diseño (Japonés, Jiu-Jitsu o Minimalista).',
+        title: 'Tu portada',
+        description: 'Personaliza esta barra superior: toca el botón y elige un diseño (Japonés, Jiu-Jitsu o Minimalista).',
         side: 'bottom',
         align: 'start',
       },
@@ -35,7 +35,7 @@ export function startPortalTour({
     {
       element: '[data-tour="photo"]',
       popover: {
-        title: '📸 Tu foto',
+        title: 'Tu foto',
         description: 'Toca tu foto para subir o cambiar tu imagen de perfil.',
         side: 'right',
         align: 'start',
@@ -46,7 +46,7 @@ export function startPortalTour({
           {
             element: '[data-tour="cinturon"]',
             popover: {
-              title: '🥋 Tu cinturón',
+              title: 'Tu cinturón',
               description: 'Este es tu cinturón actual en cada disciplina.',
               side: 'top' as const,
               align: 'start' as const,
@@ -55,7 +55,7 @@ export function startPortalTour({
           {
             element: '[data-tour="grados"]',
             popover: {
-              title: '⭐ Tus grados',
+              title: 'Tus grados',
               description: 'Las estrellas (★) junto al cinturón son tus grados dentro de él.',
               side: 'bottom' as const,
               align: 'start' as const,
@@ -64,7 +64,7 @@ export function startPortalTour({
           {
             element: '[data-tour="historial"]',
             popover: {
-              title: '📋 Tu historial',
+              title: 'Tu historial',
               description: 'Toca "Historial" para ver cuándo te promovieron, cambios de cinturón y resultados de torneos.',
               side: 'top' as const,
               align: 'start' as const,
@@ -75,8 +75,8 @@ export function startPortalTour({
     {
       element: '[data-tour="registrar-entreno"]',
       popover: {
-        title: '➕ Registrar entrenamiento',
-        description: 'Toca el <b>+</b> y elige qué registrar:<br><br>🥋 <b>Jiujitsu</b> — sesión en el tatami (Gi, No-Gi, Open Mat o Competición)<br>🥊 <b>Kickboxing</b> — sesión de golpeo (striking)<br>🏋️ <b>Físico</b> — gym, pesas o cardio',
+        title: 'Registrar entrenamiento',
+        description: 'Toca el <b>+</b> y elige qué registrar:<br><br><b>Jiujitsu</b> — sesión en el tatami (Gi, No-Gi, Open Mat o Competición)<br><b>Kickboxing</b> — sesión de golpeo (striking)<br><b>Físico</b> — gym, pesas o cardio',
         side: 'top',
         align: 'end',
       },
@@ -84,7 +84,7 @@ export function startPortalTour({
     {
       element: '[data-tour="peso"]',
       popover: {
-        title: '⚖️ Control de peso',
+        title: 'Control de peso',
         description: 'Registra tu peso corporal y sigue tu evolución con un gráfico. Disponible desde cualquier dispositivo.',
         side: 'top',
         align: 'center',
@@ -93,7 +93,7 @@ export function startPortalTour({
     {
       element: '[data-tour="cumpleanos"]',
       popover: {
-        title: '🎂 Cumpleaños del mes',
+        title: 'Cumpleaños del mes',
         description: 'Los cumpleaños de tus compañeros de academia este mes para que no se te pase ninguno.',
         side: 'top',
         align: 'center',
@@ -102,7 +102,7 @@ export function startPortalTour({
     {
       element: '[data-tour="pagos"]',
       popover: {
-        title: '💳 Tus pagos',
+        title: 'Tus pagos',
         description: 'Aquí revisas tus cuotas mensuales y saldos pendientes.',
         side: 'top',
         align: 'start',
@@ -112,7 +112,7 @@ export function startPortalTour({
       ? [{
           element: '[data-tour="academias"]',
           popover: {
-            title: '🏫 Tus academias',
+            title: 'Tus academias',
             description: 'Cambia entre las academias en las que estás inscrito.',
             side: 'bottom' as const,
             align: 'start' as const,
@@ -163,15 +163,15 @@ export function startPortalTourNative({
   const steps: DriveStep[] = [
     tabStep(
       'entreno',
-      '🥋 Entreno',
+      'Entreno',
       'Toca aquí para registrar cada entrenamiento al salir del tatami, mantener tu racha de días y cumplir tu meta semanal.',
     ),
     {
       element: '[data-tour="registrar-entreno"]',
       onHighlightStarted: () => onNavigate('entreno'),
       popover: {
-        title: '➕ Registrar entrenamiento',
-        description: 'Toca el <b>+</b> y elige qué registrar:<br><br>🥋 <b>Jiujitsu</b> — sesión en el tatami (Gi, No-Gi, Open Mat o Competición)<br>🥊 <b>Kickboxing</b> — sesión de golpeo (striking)<br>🏋️ <b>Físico</b> — gym, pesas o cardio',
+        title: 'Registrar entrenamiento',
+        description: 'Toca el <b>+</b> y elige qué registrar:<br><br><b>Jiujitsu</b> — sesión en el tatami (Gi, No-Gi, Open Mat o Competición)<br><b>Kickboxing</b> — sesión de golpeo (striking)<br><b>Físico</b> — gym, pesas o cardio',
         side: 'top',
         align: 'end',
       },
@@ -180,7 +180,7 @@ export function startPortalTourNative({
       element: '[data-tour="peso"]',
       onHighlightStarted: () => onNavigate('entreno'),
       popover: {
-        title: '⚖️ Control de peso',
+        title: 'Control de peso',
         description: 'Registra tu peso corporal y sigue tu evolución con un gráfico. Tus datos se guardan en la nube — disponibles desde cualquier dispositivo.',
         side: 'top',
         align: 'center',
@@ -188,12 +188,12 @@ export function startPortalTourNative({
     },
     tabStep(
       'retos',
-      '⚔️ Retos',
+      'Retos',
       'Desde este botón desafías a tus compañeros a un duelo y registras los resultados.',
     ),
     tabStep(
       'fichas',
-      '🥋 Fichas',
+      'Fichas',
       hasDisciplines
         ? 'Aquí ves tu cinturón actual, tus grados (★) y el historial de promociones, cambios de cinturón y torneos.'
         : 'Aquí aparecerá tu cinturón, tus grados y tu historial cuando tu academia los registre.',
@@ -202,22 +202,22 @@ export function startPortalTourNative({
       element: '[data-tour="cumpleanos"]',
       onHighlightStarted: () => onNavigate('fichas'),
       popover: {
-        title: '🎂 Cumpleaños del mes',
+        title: 'Cumpleaños del mes',
         description: 'Aquí ves los cumpleaños de tus compañeros de academia este mes para que no se te pase ninguno.',
         side: 'top',
         align: 'center',
       },
     },
-    tabStep('pagos', '💳 Pagos', 'En esta pestaña consultas tus cuotas mensuales y cualquier saldo pendiente.'),
+    tabStep('pagos', 'Pagos', 'En esta pestaña consultas tus cuotas mensuales y cualquier saldo pendiente.'),
     tabStep(
       'perfil',
-      '🙂 Perfil',
+      'Perfil',
       'Tu foto y tus datos viven aquí. Toca tu foto para cambiarla.',
     ),
     {
       element: '[data-tour="portada-btn"]',
       popover: {
-        title: '🎨 Tu portada',
+        title: 'Tu portada',
         description: 'Con este botón personalizas la portada de arriba: elige un diseño (Japonés, Jiu-Jitsu o Minimalista).',
         side: 'bottom',
         align: 'end',
@@ -227,7 +227,7 @@ export function startPortalTourNative({
       ? [{
           element: '[data-tour="academias"]',
           popover: {
-            title: '🏫 Tus academias',
+            title: 'Tus academias',
             description: 'Si entrenas en más de una academia, cambia entre ellas con estos botones.',
             side: 'bottom' as const,
             align: 'start' as const,
@@ -237,7 +237,7 @@ export function startPortalTourNative({
     {
       element: '[data-tour="ayuda-btn"]',
       popover: {
-        title: '❔ ¿La ves de nuevo?',
+        title: '¿La ves de nuevo?',
         description: 'Toca este botón cuando quieras repetir esta guía. ¡Listo, a entrenar!',
         side: 'bottom',
         align: 'end',

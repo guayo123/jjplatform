@@ -1,3 +1,4 @@
+import AppIcon, { type IconKey } from '../../components/AppIcon';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { tapHeavy, tapLight } from '../../native/haptics';
 
@@ -6,8 +7,8 @@ const CONFETTI_COLORS = ['#F59E0B', '#EF4444', '#FB923C', '#22C55E', '#FCD34D', 
 export interface CelebrationContent {
   /** Small uppercase label above the emoji, e.g. "Racha en marcha". */
   eyebrow: string;
-  /** Hero emoji that pulses with a glow, e.g. 🔥 or 🏆. */
-  emoji: string;
+  /** Hero icon that pulses with a glow, e.g. "fire" or "trophy". */
+  icon: IconKey;
   /** The number that counts up from 0 (streak days, sessions this week, …). */
   count: number;
   /** Label under the number, e.g. "días seguidos entrenando". */
@@ -32,7 +33,7 @@ const prefersReducedMotion = () =>
  * as it lands → message → button. Haptics (light on enter, heavy on landing) make it
  * feel native. Honors prefers-reduced-motion by showing the final state without motion.
  */
-export default function Celebration({ eyebrow, emoji, count, unit, message, buttonLabel = '¡A seguir!', onClose }: Props) {
+export default function Celebration({ eyebrow, icon, count, unit, message, buttonLabel = '¡A seguir!', onClose }: Props) {
   const reduced = useMemo(prefersReducedMotion, []);
   const [value, setValue] = useState(reduced ? count : 0);
   const [landed, setLanded] = useState(reduced);
@@ -121,7 +122,7 @@ export default function Celebration({ eyebrow, emoji, count, unit, message, butt
         </p>
 
         <div className="jjp-flame-glow my-3 text-6xl" style={{ animationDelay: '150ms' }}>
-          {emoji}
+          <AppIcon name={icon} weight="fill" />
         </div>
 
         {/* Count-up number */}
@@ -152,12 +153,12 @@ export function streakMessage(days: number): string {
     1: '¡Arrancaste tu racha!',
     3: '¡Vas tomando ritmo!',
     5: '¡Cinco días al hilo!',
-    7: '¡Una semana seguida! 🗓️',
+    7: '¡Una semana seguida!',
     14: '¡Dos semanas imparable!',
     21: '¡Tres semanas de fuego!',
-    30: '¡Un mes entero! 🏆',
-    60: '¡Dos meses! Bestia 🦈',
-    100: '¡100 días! Leyenda 🐉',
+    30: '¡Un mes entero!',
+    60: '¡Dos meses! Bestia',
+    100: '¡100 días! Leyenda',
   };
   return MILESTONES[days] ?? '¡Día sumado a tu racha!';
 }

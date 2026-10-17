@@ -1,3 +1,4 @@
+import type { IconKey } from '../../../components/AppIcon';
 import type { PromotionType } from '../../../types';
 
 // Shared helpers and small presentational atoms used across the portal sections.
@@ -6,10 +7,10 @@ import type { PromotionType } from '../../../types';
 
 export const MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-export const TYPE_CONFIG: Record<PromotionType, { icon: string; label: string; color: string }> = {
-  PROMOCION:   { icon: '🏆', label: 'Promoción',   color: 'text-green-600' },
-  DEGRADACION: { icon: '🔻', label: 'Degradación', color: 'text-red-500' },
-  GRADO:       { icon: '⭐', label: 'Grado',        color: 'text-amber-500' },
+export const TYPE_CONFIG: Record<PromotionType, { icon: IconKey; label: string; color: string }> = {
+  PROMOCION:   { icon: 'trophy', label: 'Promoción',   color: 'text-green-600' },
+  DEGRADACION: { icon: 'chartDown', label: 'Degradación', color: 'text-red-500' },
+  GRADO:       { icon: 'star', label: 'Grado',        color: 'text-amber-500' },
 };
 
 export function formatDate(iso: string | null) {

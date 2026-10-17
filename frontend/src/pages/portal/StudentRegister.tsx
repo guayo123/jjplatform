@@ -1,3 +1,4 @@
+import { Check } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi } from '../../api/auth';
@@ -31,7 +32,7 @@ export default function StudentRegister() {
         {done ? (
           <div className="text-center space-y-4">
             <div className="w-14 h-14 mx-auto rounded-full bg-green-100 text-green-600 flex items-center justify-center text-3xl">
-              ✓
+              <Check weight="bold" />
             </div>
             <h1 className="text-2xl font-bold">¡Listo!</h1>
             <p className="text-gray-600 text-sm">

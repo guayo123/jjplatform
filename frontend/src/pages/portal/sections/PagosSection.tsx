@@ -1,3 +1,4 @@
+import { Check } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import type { Payment, PaymentOptions } from '../../../types';
 import { portalApi } from '../../../api/portal';
@@ -71,7 +72,7 @@ export default function PagosSection({ payments, detailLoading, studentId, optio
         <div className="p-5 border-b border-gray-100 space-y-3">
           {currentPaid ? (
             <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2">
-              <span>✓</span> Tu mensualidad de {MONTHS[month - 1]} está al día.
+              <Check weight="bold" size="1em" /> Tu mensualidad de {MONTHS[month - 1]} está al día.
             </div>
           ) : (
             <>

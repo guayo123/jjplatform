@@ -1,3 +1,4 @@
+import { Trophy } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import type { ConditioningSession } from '../../types';
 
@@ -71,7 +72,7 @@ export default function ExerciseProgressModal({ exerciseName, sessions, onClose 
             <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500 mb-0.5">Progresión</p>
             <h2 className="font-extrabold text-gray-900 text-base leading-tight">{exerciseName}</h2>
             {pr != null && (
-              <p className="text-xs text-gray-400 mt-0.5">🏆 PR: <span className="font-bold text-orange-500">{pr} kg</span></p>
+              <p className="text-xs text-gray-400 mt-0.5"><Trophy weight="fill" size="1em" className="inline -mt-0.5 text-orange-500" /> PR: <span className="font-bold text-orange-500">{pr} kg</span></p>
             )}
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none mt-0.5">×</button>
@@ -121,7 +122,7 @@ export default function ExerciseProgressModal({ exerciseName, sessions, onClose 
                     <tr key={date} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
                       <td className="px-4 py-2 text-gray-600">{formatDate(date)}</td>
                       <td className={`px-4 py-2 text-right font-bold ${weight === pr ? 'text-orange-500' : 'text-gray-800'}`}>
-                        {weight} kg {weight === pr && '🏆'}
+                        {weight} kg {weight === pr && <Trophy weight="fill" size="1em" className="inline -mt-0.5" />}
                       </td>
                     </tr>
                   ))}

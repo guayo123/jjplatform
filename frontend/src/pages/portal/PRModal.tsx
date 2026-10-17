@@ -1,3 +1,4 @@
+import { Trophy } from '@phosphor-icons/react';
 import { useEffect, useMemo } from 'react';
 import { tapHeavy, tapLight } from '../../native/haptics';
 import type { PR } from './prDetection';
@@ -55,7 +56,7 @@ export default function PRModal({ prs, onClose }: Props) {
         <p className="jjp-rise text-xs font-bold uppercase tracking-[0.2em] text-orange-500">
           Récord personal
         </p>
-        <div className="jjp-flame-glow my-2 text-5xl">🏆</div>
+        <div className="jjp-flame-glow my-2 text-5xl flex justify-center"><Trophy weight="fill" /></div>
         <p className="jjp-rise mt-1 text-lg font-extrabold text-gray-900">
           {prs.length === 1 ? '¡Nuevo PR!' : `¡${prs.length} PRs en una sesión!`}
         </p>

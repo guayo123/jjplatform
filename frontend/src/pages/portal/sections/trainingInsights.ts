@@ -1,7 +1,8 @@
+import type { IconKey } from '../../../components/AppIcon';
 import type { TrainingSession } from '../../../types';
 
 export interface Insight {
-  icon: string;
+  icon: IconKey;
   text: string;
   tone: 'good' | 'bad' | 'neutral';
 }
@@ -41,7 +42,7 @@ export function computeInsights(sessions: TrainingSession[]): Insight[] {
   const logradas = thisMonth.flatMap((s) => s.submissions.filter((x) => x.direction === 'LOGRADA').map((x) => x.name));
   const star = topCount(logradas);
   if (star) {
-    out.push({ icon: '🏆', tone: 'good', text: `Tu sumisión estrella este mes: ${star.name} (×${star.count}).` });
+    out.push({ icon: 'trophy', tone: 'good', text: `Tu sumisión estrella este mes: ${star.name} (×${star.count}).` });
   }
 
   // 2. Gi vs No-Gi split this month.
@@ -51,8 +52,8 @@ export function computeInsights(sessions: TrainingSession[]): Insight[] {
     const nogiPct = Math.round((nogi / (gi + nogi)) * 100);
     out.push(
       nogiPct >= 50
-        ? { icon: '👕', tone: 'neutral', text: `Entrenaste ${nogiPct}% No-Gi este mes.` }
-        : { icon: '🥋', tone: 'neutral', text: `Entrenaste ${100 - nogiPct}% Gi este mes.` },
+        ? { icon: 'shirt', tone: 'neutral', text: `Entrenaste ${nogiPct}% No-Gi este mes.` }
+        : { icon: 'martial', tone: 'neutral', text: `Entrenaste ${100 - nogiPct}% Gi este mes.` },
     );
   }
 
@@ -64,9 +65,9 @@ export function computeInsights(sessions: TrainingSession[]): Insight[] {
     const rateLast = recLast / lastMonth.length;
     const change = Math.round(((rateThis - rateLast) / rateLast) * 100);
     if (change <= -10) {
-      out.push({ icon: '🛡️', tone: 'good', text: `Tu defensa mejoró: te sometieron ${Math.abs(change)}% menos por entreno que el mes pasado.` });
+      out.push({ icon: 'shield', tone: 'good', text: `Tu defensa mejoró: te sometieron ${Math.abs(change)}% menos por entreno que el mes pasado.` });
     } else if (change >= 10) {
-      out.push({ icon: '🛡️', tone: 'bad', text: `Te sometieron ${change}% más por entreno que el mes pasado — ¡a reforzar la defensa!` });
+      out.push({ icon: 'shield', tone: 'bad', text: `Te sometieron ${change}% más por entreno que el mes pasado — ¡a reforzar la defensa!` });
     }
   }
 
@@ -74,9 +75,9 @@ export function computeInsights(sessions: TrainingSession[]): Insight[] {
   const logradasCount = logradas.length;
   if (logradasCount + recThis >= 3) {
     if (logradasCount > recThis) {
-      out.push({ icon: '⚔️', tone: 'good', text: `Sometiste ${logradasCount} veces y te sometieron ${recThis}. ¡Vas al ataque!` });
+      out.push({ icon: 'sword', tone: 'good', text: `Sometiste ${logradasCount} veces y te sometieron ${recThis}. ¡Vas al ataque!` });
     } else {
-      out.push({ icon: '⚔️', tone: 'neutral', text: `Este mes: ${logradasCount} logradas · ${recThis} recibidas.` });
+      out.push({ icon: 'sword', tone: 'neutral', text: `Este mes: ${logradasCount} logradas · ${recThis} recibidas.` });
     }
   }
 
@@ -86,25 +87,25 @@ export function computeInsights(sessions: TrainingSession[]): Insight[] {
       const delta = thisMonth.length - lastMonth.length;
       const sign = delta > 0 ? `+${delta}` : `${delta}`;
       out.push({
-        icon: delta >= 0 ? '📈' : '📉',
+        icon: delta >= 0 ? 'chartUp' : 'chartDown',
         tone: delta >= 0 ? 'good' : 'bad',
         text: `${thisMonth.length} entrenos este mes (${sign} vs el mes pasado).`,
       });
     } else {
-      out.push({ icon: '📈', tone: 'neutral', text: `${thisMonth.length} entrenos este mes. ¡Sigue así!` });
+      out.push({ icon: 'chartUp', tone: 'neutral', text: `${thisMonth.length} entrenos este mes. ¡Sigue así!` });
     }
   }
 
   // 6. Most-worked technique this month.
   const tech = topCount(thisMonth.flatMap((s) => s.techniques));
   if (tech && tech.count >= 2) {
-    out.push({ icon: '🔧', tone: 'neutral', text: `Más trabajaste: ${tech.name} (×${tech.count}).` });
+    out.push({ icon: 'wrench', tone: 'neutral', text: `Más trabajaste: ${tech.name} (×${tech.count}).` });
   }
 
   // 7. Most frequent training partner this month.
   const partner = topCount(thisMonth.flatMap((s) => s.partners.map((p) => p.name)));
   if (partner && partner.count >= 2) {
-    out.push({ icon: '🤝', tone: 'neutral', text: `Tu compañero de tatami este mes: ${partner.name} (×${partner.count}).` });
+    out.push({ icon: 'handshake', tone: 'neutral', text: `Tu compañero de tatami este mes: ${partner.name} (×${partner.count}).` });
   }
 
   return out.slice(0, 6);

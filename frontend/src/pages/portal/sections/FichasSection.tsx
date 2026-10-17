@@ -1,3 +1,5 @@
+import { ClipboardText, Trophy, Plus, PencilSimple, Medal, Scales, Cake, Confetti } from '@phosphor-icons/react';
+import AppIcon from '../../../components/AppIcon';
 import { useState } from 'react';
 import type { StudentDiscipline, BeltPromotion, TechniqueCurriculum, Birthday, CompetitionResult, CompetitionResultForm } from '../../../types';
 import BeltImage from '../../../components/BeltImage';
@@ -60,7 +62,7 @@ export default function FichasSection({ disciplines, promotions, detailLoading, 
                       isExpanded ? 'bg-primary-50 border-primary-300 text-primary-700' : 'border-gray-200 text-gray-500 hover:border-primary-300 hover:text-primary-700'
                     }`}
                   >
-                    📋 Historial
+                    <ClipboardText size="1em" className="inline -mt-0.5" /> Historial
                   </button>
                 </div>
 
@@ -78,7 +80,7 @@ export default function FichasSection({ disciplines, promotions, detailLoading, 
                           return (
                             <div key={promo.id} className="bg-white rounded-lg p-3 border border-gray-100">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-base flex-shrink-0">{tc.icon}</span>
+                                <span className="text-base flex-shrink-0"><AppIcon name={tc.icon} weight="fill" /></span>
                                 <span className={`text-xs font-semibold ${tc.color}`}>{tc.label}</span>
                                 {beltChange && (
                                   <span className="text-xs text-gray-400">desde {promo.fromBelt}</span>
@@ -143,7 +145,7 @@ function TournamentsCard({ disciplines, onAdd, onEdit }: {
     <div className="bg-white rounded-xl shadow-sm">
       <div className="p-5 border-b border-gray-100 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-bold text-gray-900">🏆 Torneos</h2>
+          <h2 className="font-bold text-gray-900"><Trophy weight="fill" size="1em" className="inline -mt-1 text-yellow-500" /> Torneos</h2>
           <p className="text-xs text-gray-400 mt-0.5">{all.length} participaci{all.length === 1 ? 'ón' : 'ones'}</p>
         </div>
         {disciplines.length > 0 && (
@@ -151,7 +153,7 @@ function TournamentsCard({ disciplines, onAdd, onEdit }: {
             onClick={onAdd}
             className="flex-shrink-0 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 px-3 py-2 rounded-xl transition-colors"
           >
-            ➕ Agregar
+            <Plus weight="bold" size="1em" className="inline -mt-0.5" /> Agregar
           </button>
         )}
       </div>
@@ -174,13 +176,13 @@ function TournamentsCard({ disciplines, onAdd, onEdit }: {
                     className="text-xs text-gray-400 hover:text-primary-700 flex-shrink-0"
                     aria-label="Editar torneo"
                   >
-                    ✎ Editar
+                    <PencilSimple size="1em" className="inline -mt-0.5" /> Editar
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-gray-500">
                   <span>{formatDate(r.date)}</span>
-                  {r.placement && <span>🏅 {r.placement}</span>}
-                  {r.category && <span>⚖️ {r.category}</span>}
+                  {r.placement && <span className="inline-flex items-center gap-1"><Medal size="1em" />{r.placement}</span>}
+                  {r.category && <span className="inline-flex items-center gap-1"><Scales size="1em" />{r.category}</span>}
                 </div>
                 {r.notes && <p className="text-xs text-gray-400 italic mt-1">"{r.notes}"</p>}
               </div>
@@ -338,7 +340,7 @@ function BirthdaysCard({ birthdays }: { birthdays: Birthday[] }) {
   return (
     <div className="bg-white rounded-xl shadow-sm jjp-accent-bar">
       <div className="p-5 pl-6 border-b border-gray-100">
-        <h2 className="font-bold text-gray-900">🎂 Cumpleaños de {monthName}</h2>
+        <h2 className="font-bold text-gray-900"><Cake size="1.1em" className="inline -mt-1" /> Cumpleaños de {monthName}</h2>
         <p className="text-xs text-gray-400 mt-0.5">Celebra a tus compañeros de academia</p>
       </div>
       <ul className="p-3 pl-4">
@@ -355,7 +357,7 @@ function BirthdaysCard({ birthdays }: { birthdays: Birthday[] }) {
               )}
               <span className="flex-1 min-w-0 truncate text-sm text-gray-800">{b.name}</span>
               {isToday ? (
-                <span className="text-xs font-bold text-orange-600 flex-shrink-0">¡Hoy! 🎉</span>
+                <span className="text-xs font-bold text-orange-600 flex-shrink-0">¡Hoy! <Confetti weight="fill" size="1em" className="inline -mt-0.5" /></span>
               ) : (
                 <span className="text-xs font-semibold text-gray-400 flex-shrink-0 tabular-nums">{b.day} {monthName.slice(0, 3)}</span>
               )}

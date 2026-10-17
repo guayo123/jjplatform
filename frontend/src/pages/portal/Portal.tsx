@@ -1,3 +1,4 @@
+import { Palette } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { portalApi } from '../../api/portal';
@@ -353,7 +354,7 @@ export default function Portal() {
               aria-label="Personalizar portada"
               className="w-9 h-9 flex items-center justify-center text-white/90 hover:text-white bg-black/20 border border-white/30 hover:border-white/60 rounded-lg transition-colors"
             >
-              🎨
+              <Palette size={20} />
             </button>
             <button
               data-tour="ayuda-btn"
@@ -377,7 +378,7 @@ export default function Portal() {
             </p>
             {/* Greet by first name — the email reads like a debug screen, not an app. */}
             <p className="jjp-display font-bold text-2xl truncate [text-shadow:_0_1px_4px_rgb(0_0_0_/_60%)]">
-              {student ? `Hola, ${student.name.trim().split(/\s+/)[0]} 👋` : email}
+              {student ? `Hola, ${student.name.trim().split(/\s+/)[0]}` : email}
             </p>
             <HeaderBeltChips student={student} />
           </div>

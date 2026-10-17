@@ -1,3 +1,4 @@
+import { X, Scales } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { migrateLegacyWeights, todayYmd, weightApi, type WeightEntry } from './bodyWeight';
 
@@ -179,7 +180,7 @@ function WeightModal({ studentId, onClose, onChange }: {
                       <td className="px-4 py-2 text-gray-600">{formatDate(e.date)}</td>
                       <td className="px-4 py-2 text-right font-bold text-gray-800">{e.weightKg} kg</td>
                       <td className="px-2 py-2 text-center">
-                        <button onClick={() => handleDelete(e.date)} className="text-gray-300 hover:text-red-400 text-xs">✕</button>
+                        <button onClick={() => handleDelete(e.date)} className="text-gray-300 hover:text-red-400 text-xs"><X size="1em" weight="bold" /></button>
                       </td>
                     </tr>
                   ))}
@@ -213,7 +214,7 @@ export default function BodyWeightCard({ studentId }: { studentId: number }) {
     <>
       <div className="bg-white rounded-xl shadow-sm jjp-accent-bar p-5">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-gray-900 text-sm">⚖️ Mi peso</h3>
+          <h3 className="font-bold text-gray-900 text-sm"><Scales size="1.1em" className="inline -mt-0.5" /> Mi peso</h3>
           <button onClick={() => setOpen(true)} className="text-xs font-semibold text-primary-600 hover:text-primary-700">
             {latest ? 'Ver historial' : '+ Registrar'}
           </button>

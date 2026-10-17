@@ -1,3 +1,5 @@
+import { PersonSimpleThrow, TShirt, Handshake, Trophy } from '@phosphor-icons/react';
+import AppIcon, { type IconKey } from '../../components/AppIcon';
 import { textIncludes } from '../../utils/text';
 import { useMemo, useState } from 'react';
 import type {
@@ -246,10 +248,10 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
           {showModality && (
             <Group label="Tipo de sesión">
               <div className="grid grid-cols-2 gap-2">
-                <BigToggle active={modality === 'GI'} onClick={() => { void tapLight(); setModality('GI'); }}>🥋 Gi</BigToggle>
-                <BigToggle active={modality === 'NOGI'} onClick={() => { void tapLight(); setModality('NOGI'); }}>👕 No-Gi</BigToggle>
-                <BigToggle active={modality === 'OPEN_MAT'} onClick={() => { void tapLight(); setModality('OPEN_MAT'); }}>🤝 Open Mat</BigToggle>
-                <BigToggle active={modality === 'COMPETITION'} onClick={() => { void tapLight(); setModality('COMPETITION'); }}>🏆 Competición</BigToggle>
+                <BigToggle active={modality === 'GI'} onClick={() => { void tapLight(); setModality('GI'); }}><PersonSimpleThrow size="1.1em" className="inline -mt-0.5" /> Gi</BigToggle>
+                <BigToggle active={modality === 'NOGI'} onClick={() => { void tapLight(); setModality('NOGI'); }}><TShirt size="1.1em" className="inline -mt-0.5" /> No-Gi</BigToggle>
+                <BigToggle active={modality === 'OPEN_MAT'} onClick={() => { void tapLight(); setModality('OPEN_MAT'); }}><Handshake size="1.1em" className="inline -mt-0.5" /> Open Mat</BigToggle>
+                <BigToggle active={modality === 'COMPETITION'} onClick={() => { void tapLight(); setModality('COMPETITION'); }}><Trophy size="1.1em" className="inline -mt-0.5" /> Competición</BigToggle>
               </div>
             </Group>
           )}
@@ -388,10 +390,10 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
           {/* Energy & performance */}
           <div className="grid grid-cols-2 gap-4">
             <Group label="Energía">
-              <Rating value={energy} onChange={setEnergy} icon="⚡" />
+              <Rating value={energy} onChange={setEnergy} icon="lightning" />
             </Group>
             <Group label="Rendimiento">
-              <Rating value={performance} onChange={setPerformance} icon="⭐" />
+              <Rating value={performance} onChange={setPerformance} icon="star" />
             </Group>
           </div>
 
@@ -499,7 +501,7 @@ function Stepper({ value, onChange }: { value: number; onChange: (v: number) => 
   );
 }
 
-function Rating({ value, onChange, icon }: { value: number | null; onChange: (v: number) => void; icon: string }) {
+function Rating({ value, onChange, icon }: { value: number | null; onChange: (v: number) => void; icon: IconKey }) {
   return (
     <div className="flex gap-1">
       {[1, 2, 3, 4, 5].map((n) => (
@@ -508,7 +510,7 @@ function Rating({ value, onChange, icon }: { value: number | null; onChange: (v:
           onClick={() => { void tapLight(); onChange(n); }}
           className={`text-xl transition-opacity ${value != null && n <= value ? 'opacity-100' : 'opacity-25'}`}
         >
-          {icon}
+          <AppIcon name={icon} weight="fill" size="1.4em" />
         </button>
       ))}
     </div>

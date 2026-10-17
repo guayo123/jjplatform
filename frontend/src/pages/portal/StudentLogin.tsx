@@ -1,3 +1,4 @@
+import { PersonSimpleThrow, Fingerprint } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
@@ -95,7 +96,7 @@ export default function StudentLogin() {
             className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-lg mb-4"
             style={{ background: 'var(--gradient-acc)' }}
           >
-            🥋
+            <PersonSimpleThrow weight="fill" />
           </div>
           <h1 className="jjp-display text-3xl font-extrabold tracking-tight text-center">
             Portal del alumno
@@ -122,7 +123,7 @@ export default function StudentLogin() {
                 className="w-full flex items-center justify-center gap-2 text-white font-semibold py-2.5 rounded-lg transition-opacity disabled:opacity-50"
                 style={{ background: 'var(--gradient-acc)' }}
               >
-                <span aria-hidden>👆</span> Ingresar con {biometry?.label}
+                <Fingerprint size="1.25em" aria-hidden /> Ingresar con {biometry?.label}
               </button>
               <div className="flex items-center gap-3 my-4" aria-hidden>
                 <span className="flex-1 h-px" style={{ background: 'var(--line)' }} />

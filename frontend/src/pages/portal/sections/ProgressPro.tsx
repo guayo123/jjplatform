@@ -1,3 +1,4 @@
+import { TrendUp, PersonSimpleThrow } from '@phosphor-icons/react';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import type { ConditioningSession, ProInsights, TrainingSession } from '../../../types';
 import { trainingApi } from '../../../api/training';
@@ -166,7 +167,7 @@ function InsightsAI({ studentId }: { studentId: number }) {
   };
 
   return (
-    <Card title="Insights IA ✨" hint={freshToday ? 'hoy' : undefined}>
+    <Card title="Insights IA" hint={freshToday ? 'hoy' : undefined}>
       {insight.text ? (
         <>
           <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{insight.text}</p>
@@ -193,7 +194,7 @@ function InsightsAI({ studentId }: { studentId: number }) {
             disabled={loading}
             className="bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
           >
-            {loading ? 'Analizando tu progreso…' : 'Generar análisis con IA ✨'}
+            {loading ? 'Analizando tu progreso…' : 'Generar análisis con IA'}
           </button>
         </div>
       )}
@@ -208,7 +209,7 @@ function ProPaywall() {
   return (
     <div className="relative">
       <div className="space-y-4 blur-[3px] select-none pointer-events-none" aria-hidden="true">
-        <Card title="Insights IA ✨">
+        <Card title="Insights IA">
           <p className="text-sm text-gray-700 leading-relaxed">
             Vienes subiendo: 9 entrenos este mes vs 6 el anterior, y tu armbar va 78% de efectividad. Tu
             punto débil son las guillotinas (te cogieron 4 veces). Drillea defensa de guillotina y suma una
@@ -234,7 +235,7 @@ function ProPaywall() {
 
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 text-center max-w-xs">
-          <div className="text-3xl mb-2">📈</div>
+          <div className="text-3xl mb-2 flex justify-center text-primary-600"><TrendUp weight="bold" /></div>
           <h3 className="font-bold text-gray-900">Progreso Pro</h3>
           <p className="text-sm text-gray-500 mt-1">
             Desbloquea la visibilidad completa de tu entrenamiento: tendencias de 12 meses, evolución de tus
@@ -253,7 +254,7 @@ function ProPaywall() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-5" onClick={() => setOpen(false)}>
           <div className="absolute inset-0 bg-black/50" />
           <div className="relative bg-white rounded-2xl p-6 max-w-xs text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="text-3xl mb-2">🥋</div>
+            <div className="text-3xl mb-2 flex justify-center text-primary-600"><PersonSimpleThrow weight="fill" /></div>
             <h3 className="font-bold text-gray-900">Activa tu Pro</h3>
             <p className="text-sm text-gray-500 mt-1">
               Habla con tu academia para activar Progreso Pro en tu cuenta.

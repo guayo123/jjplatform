@@ -1,3 +1,4 @@
+import { X, Trash, FloppyDisk, Barbell } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import type { ConditioningFocus, ConditioningSessionForm } from '../../types';
 import { tapLight } from '../../native/haptics';
@@ -6,8 +7,8 @@ import BodyDiagram from './sections/BodyDiagram';
 import { deleteTemplate, loadTemplates, saveTemplate, type RoutineTemplate } from './routineTemplates';
 
 const FOCUS_OPTIONS: Array<[ConditioningFocus, string]> = [
-  ['PIERNA', '🦵 Pierna'], ['ESPALDA', '🔙 Espalda'], ['PECHO', '🎯 Pecho'], ['HOMBRO', '🤲 Hombro'],
-  ['BRAZO', '💪 Brazo'], ['CORE', '🧱 Core'], ['CARDIO', '🏃 Cardio'], ['FULL_BODY', '🔥 Full body'],
+  ['PIERNA', 'Pierna'], ['ESPALDA', 'Espalda'], ['PECHO', 'Pecho'], ['HOMBRO', 'Hombro'],
+  ['BRAZO', 'Brazo'], ['CORE', 'Core'], ['CARDIO', 'Cardio'], ['FULL_BODY', 'Full body'],
 ];
 const DURATIONS = [30, 45, 60, 90];
 
@@ -165,7 +166,7 @@ export default function ConditioningForm({ recentExercises, onClose, onSave }: P
                     <button
                       onClick={() => handleDeleteTemplate(t.id)}
                       className="text-gray-300 hover:text-red-400 text-xs ml-1"
-                    >✕</button>
+                    ><X size="1em" weight="bold" /></button>
                   </div>
                 ))}
               </div>
@@ -212,7 +213,7 @@ export default function ConditioningForm({ recentExercises, onClose, onSave }: P
                       className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
                     />
                     {exercises.length > 1 && (
-                      <button onClick={() => removeExercise(ei)} className="text-gray-300 hover:text-red-500 px-1" aria-label="Quitar ejercicio">🗑</button>
+                      <button onClick={() => removeExercise(ei)} className="text-gray-300 hover:text-red-500 px-1" aria-label="Quitar ejercicio"><Trash size="1.1em" /></button>
                     )}
                   </div>
 
@@ -243,7 +244,7 @@ export default function ConditioningForm({ recentExercises, onClose, onSave }: P
                         <div className="flex items-center gap-2 flex-wrap">
                           {info.equipment && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-primary-50 text-primary-700 border border-primary-100">
-                              🏋️ {info.equipment}
+                              <Barbell size="1em" /> {info.equipment}
                             </span>
                           )}
                           {info.instructions && (
@@ -356,7 +357,7 @@ export default function ConditioningForm({ recentExercises, onClose, onSave }: P
               </button>
               <button onClick={() => { setSaveTemplateOpen(false); setTemplateName(''); }}
                 className="px-3 py-2 text-gray-400 text-sm">
-                ✕
+                <X size="1em" weight="bold" />
               </button>
             </div>
           )}
@@ -378,7 +379,7 @@ export default function ConditioningForm({ recentExercises, onClose, onSave }: P
               className="px-3 py-3 rounded-xl border border-gray-300 text-gray-500 hover:border-primary-300 hover:text-primary-600 transition-colors text-sm"
               title="Guardar como plantilla"
             >
-              💾
+              <FloppyDisk size="1.2em" />
             </button>
           </div>
         </div>

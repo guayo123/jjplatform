@@ -1,3 +1,4 @@
+import { Check } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import type { UpcomingClass } from '../../../types';
 import { portalApi } from '../../../api/portal';
@@ -140,7 +141,7 @@ export default function UpcomingClassesCard({ studentId }: { studentId: number }
                       : 'border-primary-300 text-primary-700 hover:bg-primary-50'
                 }`}
               >
-                {busy === key(c) ? '…' : c.mineReserved ? '✓ Reservado' : full ? 'Llena' : 'Reservar'}
+                {busy === key(c) ? '…' : c.mineReserved ? <><Check weight="bold" size="1em" className="inline -mt-0.5" /> Reservado</> : full ? 'Llena' : 'Reservar'}
               </button>
             </div>
           );

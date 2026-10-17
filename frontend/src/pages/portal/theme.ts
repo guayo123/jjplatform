@@ -52,7 +52,7 @@ export const THEME_OPTIONS: {
   {
     key: 'ember',
     label: 'Ember · Oscuro',
-    desc: 'Dojo oscuro, acento carmesí 🔥',
+    desc: 'Dojo oscuro, acento carmesí',
     swatchBg: '#12141b',
     swatchAccent: 'linear-gradient(135deg,#FF4133,#FF8A1E)',
     swatchDot: '#A78BFA',

@@ -1,3 +1,5 @@
+import { Lock, PersonSimpleThrow, Check, CalendarBlank } from '@phosphor-icons/react';
+import AppIcon from '../../../components/AppIcon';
 import { useCallback, useEffect, useState } from 'react';
 import BeltEmblem from './BeltEmblem';
 import ImageUpload from '../../../components/ImageUpload';
@@ -94,9 +96,9 @@ function SettingsSection({ studentId }: { studentId: number }) {
 
       {/* Weekly goals — one per streak (martial art + físico) */}
       <div>
-        <p className="text-sm font-semibold text-gray-700">Metas semanales 🎯</p>
-        <p className="text-xs text-gray-400 mb-3">¿Cuántos días por semana quieres entrenar de cada tipo? Cumple tu meta cada semana para mantener tu racha 🔥.</p>
-        {([['martial', '🥋 Arte marcial'], ['conditioning', '🏋️ Físico']] as const).map(([type, label]) => {
+        <p className="text-sm font-semibold text-gray-700">Metas semanales</p>
+        <p className="text-xs text-gray-400 mb-3">¿Cuántos días por semana quieres entrenar de cada tipo? Cumple tu meta cada semana para mantener tu racha.</p>
+        {([['martial', 'Arte marcial'], ['conditioning', 'Físico']] as const).map(([type, label]) => {
           // Once set, a goal can only change on Monday so nobody lowers it mid-week to dodge a fail.
           const locked = goals[type] != null && !isMonday;
           return (
@@ -117,7 +119,7 @@ function SettingsSection({ studentId }: { studentId: number }) {
                 ))}
               </div>
               {locked && (
-                <p className="text-xs text-amber-600 mt-1.5">🔒 Se cambia solo los lunes, al comenzar la semana.</p>
+                <p className="text-xs text-amber-600 mt-1.5"><Lock size="1em" className="inline -mt-0.5" /> Se cambia solo los lunes, al comenzar la semana.</p>
               )}
             </div>
           );
@@ -126,7 +128,7 @@ function SettingsSection({ studentId }: { studentId: number }) {
 
       {/* Appearance / theme picker */}
       <div className="mt-5 pt-5 border-t border-gray-100">
-        <p className="text-sm font-semibold text-gray-700">Apariencia 🎨</p>
+        <p className="text-sm font-semibold text-gray-700">Apariencia</p>
         <p className="text-xs text-gray-400 mb-3">Elige el diseño del portal. Se guarda en este dispositivo.</p>
         <div className="space-y-2">
           {THEME_OPTIONS.map((opt) => {
@@ -168,7 +170,7 @@ function SettingsSection({ studentId }: { studentId: number }) {
       {/* App icon picker — native only (changing it swaps the launcher alias and restarts the app) */}
       {isNative && (
         <div className="mt-5 pt-5 border-t border-gray-100">
-          <p className="text-sm font-semibold text-gray-700">Ícono de la app 🥋</p>
+          <p className="text-sm font-semibold text-gray-700">Ícono de la app</p>
           <p className="text-xs text-gray-400 mb-3">Elige el color del ícono. La app se cerrará para aplicarlo.</p>
           <div className="flex flex-wrap gap-3">
             {APP_ICON_OPTIONS.map((opt) => {
@@ -195,7 +197,7 @@ function SettingsSection({ studentId }: { studentId: number }) {
       <div className="mt-5 pt-5 border-t border-gray-100">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-700">Sonidos 🥋</p>
+            <p className="text-sm font-semibold text-gray-700">Sonidos</p>
             <p className="text-xs text-gray-400">Un "oss" al registrar entreno o subir de grado.</p>
           </div>
           <button
@@ -213,7 +215,7 @@ function SettingsSection({ studentId }: { studentId: number }) {
       <div className="mt-5 pt-5 border-t border-gray-100">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-700">Sonido de duelos ⚔️</p>
+            <p className="text-sm font-semibold text-gray-700">Sonido de duelos</p>
             <p className="text-xs text-gray-400">Un toque de sonido al enviar un reto a un compañero.</p>
           </div>
           <button
@@ -232,7 +234,7 @@ function SettingsSection({ studentId }: { studentId: number }) {
         <div className="mt-5 pt-5 border-t border-gray-100">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-700">Recordatorio diario 🔥</p>
+              <p className="text-sm font-semibold text-gray-700">Recordatorio diario</p>
               <p className="text-xs text-gray-400">Un aviso para mantener tu racha.</p>
             </div>
             <button
@@ -268,7 +270,7 @@ function SettingsSection({ studentId }: { studentId: number }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-5">
           <div className="absolute inset-0 bg-black/50" onClick={() => setPendingIcon(null)} />
           <div className="relative bg-white rounded-2xl p-6 max-w-xs text-center shadow-2xl">
-            <div className="text-3xl mb-2">🥋</div>
+            <div className="text-3xl mb-2 flex justify-center text-primary-600"><PersonSimpleThrow weight="fill" /></div>
             <h3 className="font-bold text-gray-900">Cambiar ícono de la app</h3>
             <p className="text-sm text-gray-500 mt-1">
               La app se cerrará para aplicar el nuevo ícono. Vuelve a abrirla y lo verás cambiado.
@@ -355,12 +357,12 @@ function AchievementsCard({ studentId }: { studentId: number }) {
               a.unlocked ? 'border-amber-200 bg-amber-50' : 'border-gray-100 bg-gray-50'
             }`}
           >
-            <div className={`text-3xl ${a.unlocked ? '' : 'grayscale opacity-40'}`}>{a.emoji}</div>
+            <div className={`text-3xl ${a.unlocked ? 'text-amber-500' : 'text-gray-400 opacity-60'}`}><AppIcon name={a.icon} weight="fill" /></div>
             <p className={`mt-1 text-xs font-semibold leading-tight ${a.unlocked ? 'text-gray-900' : 'text-gray-400'}`}>
               {a.title}
             </p>
             {a.unlocked ? (
-              <p className="mt-0.5 text-[10px] text-amber-600 font-medium">✓ Desbloqueado</p>
+              <p className="mt-0.5 text-[10px] text-amber-600 font-medium"><Check weight="bold" size="1em" className="inline -mt-0.5" /> Desbloqueado</p>
             ) : (
               <>
                 <div className="mt-1.5 h-1 rounded-full bg-gray-200 overflow-hidden">
@@ -389,13 +391,13 @@ function AchievementDetail({ a, onClose }: { a: Achievement; onClose: () => void
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl text-center jjp-pop">
         <button onClick={onClose} className="absolute right-3 top-3 text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
-        <div className={`text-5xl ${a.unlocked ? '' : 'grayscale opacity-40'}`}>{a.emoji}</div>
+        <div className={`text-5xl flex justify-center ${a.unlocked ? 'text-amber-500' : 'text-gray-400 opacity-60'}`}><AppIcon name={a.icon} weight="fill" /></div>
         <h3 className="mt-2 text-lg font-extrabold text-gray-900">{a.title}</h3>
         <p className="mt-1 text-sm text-gray-600">{a.description}</p>
 
         {a.unlocked ? (
           <p className="mt-4 inline-block rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-600">
-            ✓ Desbloqueado
+            <Check weight="bold" size="1em" className="inline -mt-0.5" /> Desbloqueado
           </p>
         ) : (
           <div className="mt-4">
@@ -494,7 +496,7 @@ export default function PerfilSection({ student, uploading, uploadProgress, onPh
             {student.nickname && <p className="text-sm text-gray-500 mt-0.5">"{student.nickname}"</p>}
             {student.academyName && <p className="text-sm text-primary-600 mt-1">{student.academyName}</p>}
             {student.joinDate && (
-              <p className="text-xs text-gray-400 mt-2">📅 Ingresó el {formatDate(student.joinDate)}</p>
+              <p className="text-xs text-gray-400 mt-2"><CalendarBlank size="1em" className="inline -mt-0.5" /> Ingresó el {formatDate(student.joinDate)}</p>
             )}
             {(student.disciplineBelts ?? []).length > 0 && (
               <div className="mt-4 space-y-2.5" data-tour="cinturon">

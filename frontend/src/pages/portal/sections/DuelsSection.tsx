@@ -1,3 +1,6 @@
+import AppIcon, { type IconKey } from '../../../components/AppIcon';
+import PlaceMedal from '../../../components/PlaceMedal';
+import { Sword, Trophy, Flag, Gavel, SmileyNervous, CalendarBlank } from '@phosphor-icons/react';
 import { textIncludes } from '../../../utils/text';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Classmate, Duel, DuelCloseReason, DuelFormat, DuelMethod, DuelRankingEntry, TrainingModality } from '../../../types';
@@ -39,18 +42,18 @@ const METHOD_LABEL: Record<DuelMethod, string> = {
 };
 const SUBMISSION_CHIPS = ['Mataleón', 'Llave de brazo', 'Triángulo', 'Kimura', 'Guillotina', 'Americana'];
 
-/** "📅 sáb 21 jun, 18:30 · 📍 Tatami 2" — omits whichever piece wasn't set. */
+/** "sáb 21 jun, 18:30 · Tatami 2" — omits whichever piece wasn't set. */
 function formatSchedule(scheduledAt: string | null, location: string | null): string | null {
   const parts: string[] = [];
   if (scheduledAt) {
     const d = new Date(scheduledAt);
     if (!Number.isNaN(d.getTime())) {
-      parts.push('📅 ' + d.toLocaleString('es-CL', {
+      parts.push(d.toLocaleString('es-CL', {
         weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
       }));
     }
   }
-  if (location) parts.push('📍 ' + location);
+  if (location) parts.push(location);
   return parts.length ? parts.join(' · ') : null;
 }
 
@@ -154,16 +157,16 @@ export default function DuelsSection({ studentId }: Props) {
       const prev = stored[d.id];
       const o = other(d, studentId);
       if (d.challengerId === studentId && prev === 'PENDING' && d.status === 'ACCEPTED') {
-        toast.success(`${o.name} aceptó tu reto 🔥`);
+        toast.success(`${o.name} aceptó tu reto`);
         void notifyNow('¡Reto aceptado! 🔥', `${o.name} aceptó tu duelo. ¡A prepararse!`);
       } else if (d.challengerId === studentId && prev === 'PENDING' && d.status === 'REJECTED') {
         toast.success(`${o.name} rechazó tu reto`);
         void notifyNow('Reto rechazado', `${o.name} rechazó tu duelo.`);
       } else if (d.opponentId === studentId && prev === undefined && d.status === 'PENDING') {
-        toast.success(`${o.name} te retó a una lucha ⚔️`);
+        toast.success(`${o.name} te retó a una lucha`);
         void notifyNow('¡Nuevo reto! ⚔️', `${o.name} te retó a una lucha.`);
       } else if (d.refereeId === studentId && prev === undefined) {
-        toast.success(`Te eligieron como árbitro ⚖️`);
+        toast.success(`Te eligieron como árbitro`);
         void notifyNow('Eres árbitro ⚖️', `${d.challengerName} vs ${d.opponentName} — tú das el veredicto.`);
       } else if (d.refereeId === studentId && prev === 'PENDING' && d.status === 'ACCEPTED') {
         void notifyNow('Duelo listo para arbitrar ⚖️', `${d.challengerName} vs ${d.opponentName} — registra el resultado al terminar.`);
@@ -280,7 +283,7 @@ export default function DuelsSection({ studentId }: Props) {
         onClick={() => { void tapLight(); setChallengeOpen(true); }}
         className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3.5 rounded-xl transition-colors shadow-sm"
       >
-        ⚔️ Retar a un compañero
+        <Sword weight="fill" size="1.1em" className="inline -mt-0.5" /> Retar a un compañero
       </button>
 
       {/* Incoming challenges */}
@@ -321,7 +324,7 @@ export default function DuelsSection({ studentId }: Props) {
                       </p>
                       <p className="text-xs text-gray-400">
                         {refereed
-                          ? `Esperando el veredicto de ${d.refereeName} ⚖️`
+                          ? `Esperando el veredicto de ${d.refereeName}`
                           : 'Aceptado · registra el resultado al terminar'}
                       </p>
                       <ScheduleLine d={d} />
@@ -336,7 +339,7 @@ export default function DuelsSection({ studentId }: Props) {
                     onClick={() => { void tapLight(); setCloseFor(d); }}
                     className="mt-3 w-full inline-flex items-center justify-center gap-1.5 text-sm font-medium text-gray-500 hover:text-red-500 px-3 py-2 rounded-lg border border-gray-200 active:bg-gray-50 transition-colors"
                   >
-                    🏳️ ¿No se hará? Cerrar duelo
+                    <Flag size="1.1em" /> ¿No se hará? Cerrar duelo
                   </button>
                 </div>
               );
@@ -347,7 +350,7 @@ export default function DuelsSection({ studentId }: Props) {
 
       {/* Duels I must judge as the impartial referee */}
       {toReferee.length > 0 && (
-        <Card title="Eres árbitro ⚖️">
+        <Card title="Eres árbitro">
           <div className="space-y-2">
             {toReferee.map((d) => (
               <div key={d.id} className="flex items-center gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50">
@@ -390,10 +393,10 @@ export default function DuelsSection({ studentId }: Props) {
       <Card title="Duelos de la academia">
         <div className="flex gap-2 mb-4">
           <FeedTab active={feedTab === 'results'} onClick={() => setFeedTab('results')}>
-            🏆 Resultados <FeedCount feed={resultsFeed} />
+            <Trophy size="1em" className="inline -mt-0.5" /> Resultados <FeedCount feed={resultsFeed} />
           </FeedTab>
           <FeedTab active={feedTab === 'unresolved'} onClick={() => setFeedTab('unresolved')}>
-            🏳️ Sin resolver <FeedCount feed={unresolvedFeed} />
+            <Flag size="1em" className="inline -mt-0.5" /> Sin resolver <FeedCount feed={unresolvedFeed} />
           </FeedTab>
         </div>
 
@@ -402,8 +405,8 @@ export default function DuelsSection({ studentId }: Props) {
           {activeFeed.items.length === 0 && !activeFeed.loading ? (
             <p className="text-center text-gray-400 text-sm py-6">
               {feedTab === 'results'
-                ? 'Aún no hay duelos resueltos. ¡Sé el primero en retar! ⚔️'
-                : 'Sin duelos pendientes por aquí. Todo lo aceptado se peleó o sigue en juego. 👌'}
+                ? 'Aún no hay duelos resueltos. ¡Sé el primero en retar!'
+                : 'Sin duelos pendientes por aquí. Todo lo aceptado se peleó o sigue en juego.'}
             </p>
           ) : (
             <FeedGroups items={activeFeed.items} onOpen={setDetailDuel} />
@@ -504,8 +507,6 @@ function ScheduleLine({ d }: { d: Duel }) {
   return s ? <p className="text-xs text-gray-500 mt-0.5">{s}</p> : null;
 }
 
-const MEDALS = ['🥇', '🥈', '🥉'];
-
 /** Top-10 academy duel ranking by record (W/L). Collapsed to 3; pins my row if I'm below. */
 function DuelRankingCard({ ranking, meId, onOpen }: { ranking: DuelRankingEntry[]; meId: number; onOpen: (studentId: number) => void }) {
   const [expanded, setExpanded] = useState(false);
@@ -518,7 +519,7 @@ function DuelRankingCard({ ranking, meId, onOpen }: { ranking: DuelRankingEntry[
   return (
     <div className="bg-white rounded-xl shadow-sm jjp-accent-bar">
       <div className="p-5 pl-6 border-b border-gray-100">
-        <h2 className="font-bold text-gray-900">Ranking de duelos 🥋</h2>
+        <h2 className="font-bold text-gray-900">Ranking de duelos</h2>
         <p className="text-xs text-gray-400 mt-0.5">
           Top 10 de tu academia · <span className="text-green-600">victorias</span> / <span className="text-red-500">derrotas</span> / <span className="text-gray-500">empates</span>
         </p>
@@ -549,7 +550,7 @@ function DuelRankingCard({ ranking, meId, onOpen }: { ranking: DuelRankingEntry[
 function RankRow({ e, rank, isMe, onOpen }: { e: DuelRankingEntry; rank: number; isMe: boolean; onOpen: (studentId: number) => void }) {
   return (
     <button onClick={() => onOpen(e.studentId)} className={`w-full text-left flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-50 transition-colors ${isMe ? 'bg-primary-50' : ''}`}>
-      <span className="w-7 text-center text-sm font-bold text-gray-500 flex-shrink-0">{MEDALS[rank - 1] ?? rank}</span>
+      <span className="w-7 text-center text-sm font-bold text-gray-500 flex-shrink-0">{rank <= 3 ? <PlaceMedal place={rank as 1 | 2 | 3} /> : rank}</span>
       {e.photoUrl ? (
         <img src={e.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
       ) : (
@@ -602,11 +603,11 @@ function isUnresolved(d: Duel): boolean {
 }
 
 /** Icon + reason text for an unresolved bout, by how it ended. */
-function unresolvedMeta(d: Duel): { icon: string; label: string } {
-  if (d.status === 'EXPIRED') return { icon: '⌛', label: 'Venció el plazo · nadie reportó' };
-  if (d.closeReason === 'SCARED') return { icon: '😅', label: 'Cerrado · le dio miedo' };
-  if (d.closeReason === 'POSTPONED') return { icon: '📅', label: 'Cerrado · se pospuso' };
-  return { icon: '🏳️', label: 'Cancelado' };
+function unresolvedMeta(d: Duel): { icon: IconKey; label: string } {
+  if (d.status === 'EXPIRED') return { icon: 'hourglass', label: 'Venció el plazo · nadie reportó' };
+  if (d.closeReason === 'SCARED') return { icon: 'nervous', label: 'Cerrado · le dio miedo' };
+  if (d.closeReason === 'POSTPONED') return { icon: 'calendar', label: 'Cerrado · se pospuso' };
+  return { icon: 'flag', label: 'Cancelado' };
 }
 
 /** Tab pill for the academy-feed switcher. */
@@ -687,7 +688,7 @@ function FeedRow({ d, onOpen }: { d: Duel; onOpen: () => void }) {
         onClick={onOpen}
         className="w-full text-left flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 active:bg-gray-100 transition-colors"
       >
-        <span className="text-base flex-shrink-0">{icon}</span>
+        <span className="text-base flex-shrink-0 text-gray-500"><AppIcon name={icon} weight="fill" /></span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-gray-700 truncate">{abbrev(d.challengerName)} vs {abbrev(d.opponentName)}</p>
           <p className="text-xs text-gray-400 truncate">{label}</p>
@@ -702,7 +703,7 @@ function FeedRow({ d, onOpen }: { d: Duel; onOpen: () => void }) {
 
   const isRejected = d.status === 'REJECTED';
   const isDraw = !isRejected && d.winnerStudentId == null;
-  const icon = isRejected ? '🚫' : isDraw ? '🤝' : '🏆';
+  const icon: IconKey = isRejected ? 'prohibit' : isDraw ? 'handshake' : 'trophy';
 
   const mainLine = isRejected
     ? `${abbrev(d.opponentName)} rechazó a ${abbrev(d.challengerName)}`
@@ -720,7 +721,7 @@ function FeedRow({ d, onOpen }: { d: Duel; onOpen: () => void }) {
       onClick={onOpen}
       className="w-full text-left flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 active:bg-gray-100 transition-colors"
     >
-      <span className="text-base flex-shrink-0">{icon}</span>
+      <span className="text-base flex-shrink-0 text-gray-500"><AppIcon name={icon} weight="fill" /></span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-900 truncate">{mainLine}</p>
         {subLine && <p className="text-xs text-gray-400 truncate">{subLine}</p>}
@@ -755,7 +756,7 @@ function DuelDetail({ d, onClose }: { d: Duel; onClose: () => void }) {
       <div className="relative w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl text-center jjp-pop">
         <button onClick={onClose} className="absolute right-3 top-3 text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
 
-        <div className="text-5xl mb-3">{unres ? unres.icon : isRejected ? '🚫' : isDraw ? '🤝' : '🏆'}</div>
+        <div className="text-5xl mb-3 flex justify-center text-gray-700"><AppIcon name={unres ? unres.icon : isRejected ? 'prohibit' : isDraw ? 'handshake' : 'trophy'} weight="fill" /></div>
 
         {unres ? (
           <>
@@ -801,7 +802,7 @@ function DuelDetail({ d, onClose }: { d: Duel; onClose: () => void }) {
         )}
 
         {d.refereeName && (
-          <p className="text-xs text-gray-400 mt-2">🧑‍⚖️ Árbitro: {d.refereeName}</p>
+          <p className="text-xs text-gray-400 mt-2"><Gavel size="1em" className="inline -mt-0.5" /> Árbitro: {d.refereeName}</p>
         )}
       </div>
     </div>
@@ -821,7 +822,7 @@ function CloseDuelModal({ duel, me, onClose, onPick }: {
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl text-center jjp-pop">
         <button onClick={onClose} className="absolute right-3 top-3 text-2xl leading-none text-gray-300 hover:text-gray-500" aria-label="Cerrar">×</button>
-        <div className="text-4xl mb-2">🏳️</div>
+        <div className="text-4xl mb-2 flex justify-center text-gray-400"><Flag weight="fill" /></div>
         <p className="text-base font-bold text-gray-900">Cerrar duelo vs {o.name}</p>
         <p className="text-sm text-gray-500 mt-1 mb-5">El duelo saldrá de "en juego" y no contará en el ranking.</p>
         <div className="space-y-2">
@@ -829,13 +830,13 @@ function CloseDuelModal({ duel, me, onClose, onPick }: {
             onClick={() => onPick('SCARED')}
             className="w-full py-3 rounded-xl text-sm font-semibold border-2 border-gray-200 text-gray-700 hover:border-primary-400 hover:bg-primary-50 transition-colors"
           >
-            😅 Me dio miedo
+            <SmileyNervous size="1.2em" className="inline -mt-0.5" /> Me dio miedo
           </button>
           <button
             onClick={() => onPick('POSTPONED')}
             className="w-full py-3 rounded-xl text-sm font-semibold border-2 border-gray-200 text-gray-700 hover:border-primary-400 hover:bg-primary-50 transition-colors"
           >
-            📅 Se pospuso
+            <CalendarBlank size="1.2em" className="inline -mt-0.5" /> Se pospuso
           </button>
         </div>
       </div>
@@ -998,7 +999,7 @@ function ChallengeModal({
             value={message}
             onChange={(e) => setMessage(e.target.value.slice(0, 200))}
             rows={2}
-            placeholder="Ej. ¡Te espero en el tatami! 🔥"
+            placeholder="Ej. ¡Te espero en el tatami!"
             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 resize-none"
           />
         </div>
