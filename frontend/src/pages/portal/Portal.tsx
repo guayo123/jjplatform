@@ -14,7 +14,7 @@ import {
   BannerThumb,
 } from './portalBanners';
 import { App } from '@capacitor/app';
-import { usePlatform } from '../../native/usePlatform';
+import { usePlatform, isInstalledPwa } from '../../native/usePlatform';
 import { registerPush } from '../../native/push';
 import { tapLight, notifySuccess } from '../../native/haptics';
 import PullToRefresh from '../../native/PullToRefresh';
@@ -40,9 +40,9 @@ export default function Portal() {
   const { email, logout } = useAuthStore();
   const { isNative } = usePlatform();
   const theme = useResolvedTheme();
-  // Layout flag: true in the real app, or in a browser when previewing with ?native=1.
+  // Layout flag: true in the real app, in the installed PWA, or in a browser when previewing with ?native=1.
   // Only drives presentation (tabs vs scroll); real native features stay gated on isNative.
-  const tabbed = isNative || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('native'));
+  const tabbed = isNative || isInstalledPwa() || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('native'));
   const [profiles, setProfiles] = useState<Student[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   // App version stamp (so QA can confirm at a glance they're on the right build).
