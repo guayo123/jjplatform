@@ -1,4 +1,5 @@
-import { Trophy, Fire, Barbell, Scales, Star, Handshake, Target, Sword, Medal, CalendarBlank, CalendarCheck, Lightning, TrendUp, TrendDown, ShieldCheck, Wrench, Flag, Hourglass, SmileyNervous, Prohibit, BoxingGlove, SealCheck, Repeat, Hash, Crown, HandFist, ArrowsClockwise, Timer, Truck, TShirt, type Icon } from '@phosphor-icons/react';
+import { Trophy, Fire, Barbell, Scales, Star, Handshake, Target, Sword, Medal, CalendarBlank, CalendarCheck, Lightning, TrendUp, TrendDown, ShieldCheck, Wrench, Flag, Hourglass, SmileyNervous, Prohibit, BoxingGlove, SealCheck, Repeat, Hash, Crown, HandFist, ArrowsClockwise, Timer, Truck, type Icon } from '@phosphor-icons/react';
+import NoGiIcon from './NoGiIcon';
 import GiIcon from './GiIcon';
 
 /**
@@ -36,7 +37,7 @@ export const ICONS = {
   swap: ArrowsClockwise,
   timer: Timer,
   truck: Truck,
-  shirt: TShirt,
+  nogi: NoGiIcon,
 } satisfies Record<string, Icon>;
 
 export type IconKey = keyof typeof ICONS;

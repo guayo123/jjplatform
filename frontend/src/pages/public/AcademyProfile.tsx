@@ -1,4 +1,5 @@
-import { HandGrabbing, Mountains, Barbell, Star, Trophy, Target, TShirt } from '@phosphor-icons/react';
+import { HandGrabbing, Mountains, Barbell, Star, Trophy, Target } from '@phosphor-icons/react';
+import NoGiIcon from '../../components/NoGiIcon';
 import GiIcon from '../../components/GiIcon';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
@@ -40,7 +41,7 @@ function classColor(name: string): string {
 }
 function planIcon(disciplineName: string | null) {
   const n = (disciplineName ?? '').toLowerCase();
-  if (/no[\s-]?gi/.test(n)) return <TShirt size="1em" />;
+  if (/no[\s-]?gi/.test(n)) return <NoGiIcon size="1em" />;
   if (n.includes('jiu') || n.includes('bjj')) return <GiIcon size="1em" />;
   if (n.includes('grap')) return <HandGrabbing size="1em" />;
   if (n.includes('escala') || n.includes('climb')) return <Mountains size="1em" />;
@@ -54,7 +55,7 @@ function classIcon(name: string) {
   const n = name.toLowerCase();
   if (n.includes('kid') || n.includes('niño') || n.includes('infant')) return <Star weight="fill" size="1em" />;
   if (n.includes('olimp')) return <Trophy weight="fill" size="1em" />;
-  if (/no[\s-]?gi/.test(n)) return <TShirt size="1em" />;
+  if (/no[\s-]?gi/.test(n)) return <NoGiIcon size="1em" />;
   if (n.includes('grap')) return <HandGrabbing size="1em" />;
   if (n.includes('lucha') || n.includes('greco') || n.includes('wrestling')) return <HandGrabbing size="1em" />;
   if (n.includes('fundament') || n.includes('básic') || n.includes('basic')) return <Target size="1em" />;

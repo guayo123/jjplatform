@@ -52,7 +52,7 @@ export function computeInsights(sessions: TrainingSession[]): Insight[] {
     const nogiPct = Math.round((nogi / (gi + nogi)) * 100);
     out.push(
       nogiPct >= 50
-        ? { icon: 'shirt', tone: 'neutral', text: `Entrenaste ${nogiPct}% No-Gi este mes.` }
+        ? { icon: 'nogi', tone: 'neutral', text: `Entrenaste ${nogiPct}% No-Gi este mes.` }
         : { icon: 'martial', tone: 'neutral', text: `Entrenaste ${100 - nogiPct}% Gi este mes.` },
     );
   }

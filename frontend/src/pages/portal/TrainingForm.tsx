@@ -1,4 +1,5 @@
-import { TShirt, Handshake, Trophy } from '@phosphor-icons/react';
+import { Handshake, Trophy } from '@phosphor-icons/react';
+import NoGiIcon from '../../components/NoGiIcon';
 import GiIcon from '../../components/GiIcon';
 import AppIcon, { type IconKey } from '../../components/AppIcon';
 import { textIncludes } from '../../utils/text';
@@ -250,7 +251,7 @@ export default function TrainingForm({ disciplines, recentSessions, classmates, 
             <Group label="Tipo de sesión">
               <div className="grid grid-cols-2 gap-2">
                 <BigToggle active={modality === 'GI'} onClick={() => { void tapLight(); setModality('GI'); }}><GiIcon size="1.1em" className="inline -mt-0.5" /> Gi</BigToggle>
-                <BigToggle active={modality === 'NOGI'} onClick={() => { void tapLight(); setModality('NOGI'); }}><TShirt size="1.1em" className="inline -mt-0.5" /> No-Gi</BigToggle>
+                <BigToggle active={modality === 'NOGI'} onClick={() => { void tapLight(); setModality('NOGI'); }}><NoGiIcon size="1.1em" className="inline -mt-0.5" /> No-Gi</BigToggle>
                 <BigToggle active={modality === 'OPEN_MAT'} onClick={() => { void tapLight(); setModality('OPEN_MAT'); }}><Handshake size="1.1em" className="inline -mt-0.5" /> Open Mat</BigToggle>
                 <BigToggle active={modality === 'COMPETITION'} onClick={() => { void tapLight(); setModality('COMPETITION'); }}><Trophy size="1.1em" className="inline -mt-0.5" /> Competición</BigToggle>
               </div>
