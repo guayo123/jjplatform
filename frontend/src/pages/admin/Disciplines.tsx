@@ -1,4 +1,5 @@
-import { ClipboardText, X, PersonSimpleThrow } from '@phosphor-icons/react';
+import { ClipboardText, X } from '@phosphor-icons/react';
+import GiIcon from '../../components/GiIcon';
 import { useEffect, useState } from 'react';
 import { academiesApi } from '../../api/academies';
 import { disciplineBeltsApi } from '../../api/disciplineBelts';
@@ -286,7 +287,7 @@ export default function Disciplines() {
       {/* Disciplines list */}
       {disciplines.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-          <PersonSimpleThrow size={44} className="mx-auto mb-3 text-gray-400" />
+          <GiIcon size={44} className="mx-auto mb-3 text-gray-400" />
           <p className="text-gray-500 font-medium">No hay disciplinas creadas aún</p>
           <p className="text-gray-400 text-sm mt-1">Crea tu primera disciplina para organizar los planes</p>
         </div>
@@ -299,7 +300,7 @@ export default function Disciplines() {
                 {/* Discipline header row */}
                 <div className="flex items-center justify-between px-5 py-4">
                   <div className="flex items-center gap-3 min-w-0">
-                    <PersonSimpleThrow size={22} className="flex-shrink-0 text-gray-500" />
+                    <GiIcon size={22} className="flex-shrink-0 text-gray-500" />
                     <div className="min-w-0">
                       <p className="font-semibold text-gray-800">{d.name}</p>
                       <div className="flex items-center gap-2 mt-0.5">

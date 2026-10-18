@@ -1,4 +1,5 @@
-import { UsersThree, Wallet, ChartBar, Warning, Trophy, ChalkboardTeacher, PersonSimpleThrow, ClipboardText, CalendarBlank, Camera, Bell, Gear, LockKey, Wrench } from '@phosphor-icons/react';
+import { UsersThree, Wallet, ChartBar, Warning, Trophy, ChalkboardTeacher, ClipboardText, CalendarBlank, Camera, Bell, Gear, LockKey, Wrench } from '@phosphor-icons/react';
+import GiIcon from '../../components/GiIcon';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { Link } from 'react-router-dom';
@@ -40,7 +41,7 @@ export default function Dashboard() {
     { title: 'En riesgo',      desc: 'Alumnos sin pagar o sin entrenar',       link: '/admin/at-risk',          icon: Warning, badge: atRiskCount },
     { title: 'Torneos',        desc: 'Crea torneos y genera brackets',         link: '/admin/tournaments',      icon: Trophy },
     { title: 'Profesores',     desc: 'Instructores de tu academia',            link: '/admin/professors',       icon: ChalkboardTeacher },
-    { title: 'Disciplinas',    desc: 'Artes marciales que ofreces',            link: '/admin/disciplines',      icon: PersonSimpleThrow },
+    { title: 'Disciplinas',    desc: 'Artes marciales que ofreces',            link: '/admin/disciplines',      icon: GiIcon },
     { title: 'Planes',         desc: 'Define los planes de membresía',         link: '/admin/plans',            icon: ClipboardText },
     { title: 'Horarios',       desc: 'Grilla semanal de clases',               link: '/admin/schedules',        icon: CalendarBlank },
     { title: 'Fotos',          desc: 'Galería de tu academia',                 link: '/admin/photos',           icon: Camera },

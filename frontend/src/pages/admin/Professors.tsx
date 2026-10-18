@@ -1,4 +1,5 @@
-import { PersonSimpleThrow, Trophy } from '@phosphor-icons/react';
+import { Trophy } from '@phosphor-icons/react';
+import GiIcon from '../../components/GiIcon';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { professorsApi } from '../../api/professors';
@@ -153,7 +154,7 @@ export default function Professors() {
 
       {professors.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-          <PersonSimpleThrow size={44} className="mx-auto mb-3 text-gray-400" />
+          <GiIcon size={44} className="mx-auto mb-3 text-gray-400" />
           <p className="text-gray-500 font-medium">No hay profesores registrados</p>
           <p className="text-gray-400 text-sm mt-1">Agrega el primer profesor de tu academia</p>
         </div>

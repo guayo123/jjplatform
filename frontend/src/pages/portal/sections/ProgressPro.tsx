@@ -1,4 +1,5 @@
-import { TrendUp, PersonSimpleThrow } from '@phosphor-icons/react';
+import { TrendUp } from '@phosphor-icons/react';
+import GiIcon from '../../../components/GiIcon';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import type { ConditioningSession, ProInsights, TrainingSession } from '../../../types';
 import { trainingApi } from '../../../api/training';
@@ -254,7 +255,7 @@ function ProPaywall() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-5" onClick={() => setOpen(false)}>
           <div className="absolute inset-0 bg-black/50" />
           <div className="relative bg-white rounded-2xl p-6 max-w-xs text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="text-3xl mb-2 flex justify-center text-primary-600"><PersonSimpleThrow weight="fill" /></div>
+            <div className="text-3xl mb-2 flex justify-center text-primary-600"><GiIcon weight="fill" /></div>
             <h3 className="font-bold text-gray-900">Activa tu Pro</h3>
             <p className="text-sm text-gray-500 mt-1">
               Habla con tu academia para activar Progreso Pro en tu cuenta.

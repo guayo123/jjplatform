@@ -1,9 +1,5 @@
-import {
-  Trophy, Fire, PersonSimpleThrow, Barbell, Scales, Star, Handshake, Target, Sword, Medal,
-  CalendarBlank, CalendarCheck, Lightning, TrendUp, TrendDown, ShieldCheck, Wrench, Flag, Hourglass,
-  SmileyNervous, Prohibit, BoxingGlove, SealCheck, Repeat, Hash, Crown, HandFist, ArrowsClockwise,
-  Timer, Truck, TShirt, type Icon,
-} from '@phosphor-icons/react';
+import { Trophy, Fire, Barbell, Scales, Star, Handshake, Target, Sword, Medal, CalendarBlank, CalendarCheck, Lightning, TrendUp, TrendDown, ShieldCheck, Wrench, Flag, Hourglass, SmileyNervous, Prohibit, BoxingGlove, SealCheck, Repeat, Hash, Crown, HandFist, ArrowsClockwise, Timer, Truck, TShirt, type Icon } from '@phosphor-icons/react';
+import GiIcon from './GiIcon';
 
 /**
  * Iconos semanticos de la app. Los datos (logros, celebraciones, insights, estados) guardan una
@@ -12,7 +8,7 @@ import {
 export const ICONS = {
   trophy: Trophy,
   fire: Fire,
-  martial: PersonSimpleThrow,
+  martial: GiIcon,
   gym: Barbell,
   scale: Scales,
   star: Star,

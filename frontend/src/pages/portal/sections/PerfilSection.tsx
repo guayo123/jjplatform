@@ -1,4 +1,5 @@
-import { Lock, PersonSimpleThrow, Check, CalendarBlank } from '@phosphor-icons/react';
+import { Lock, Check, CalendarBlank } from '@phosphor-icons/react';
+import GiIcon from '../../../components/GiIcon';
 import AppIcon from '../../../components/AppIcon';
 import { useCallback, useEffect, useState } from 'react';
 import BeltEmblem from './BeltEmblem';
@@ -270,7 +271,7 @@ function SettingsSection({ studentId }: { studentId: number }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-5">
           <div className="absolute inset-0 bg-black/50" onClick={() => setPendingIcon(null)} />
           <div className="relative bg-white rounded-2xl p-6 max-w-xs text-center shadow-2xl">
-            <div className="text-3xl mb-2 flex justify-center text-primary-600"><PersonSimpleThrow weight="fill" /></div>
+            <div className="text-3xl mb-2 flex justify-center text-primary-600"><GiIcon weight="fill" /></div>
             <h3 className="font-bold text-gray-900">Cambiar ícono de la app</h3>
             <p className="text-sm text-gray-500 mt-1">
               La app se cerrará para aplicar el nuevo ícono. Vuelve a abrirla y lo verás cambiado.

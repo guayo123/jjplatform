@@ -1,4 +1,5 @@
-import { PersonSimpleThrow, Trophy, Camera } from '@phosphor-icons/react';
+import { Trophy, Camera } from '@phosphor-icons/react';
+import GiIcon from '../../components/GiIcon';
 import { textIncludes } from '../../utils/text';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -106,7 +107,7 @@ export default function Home() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20">
-            <PersonSimpleThrow size={56} className="mx-auto mb-4 text-gray-500" />
+            <GiIcon size={56} className="mx-auto mb-4 text-gray-500" />
             <p className="text-gray-400 text-lg">
               {search ? 'No se encontraron academias con esa búsqueda.' : 'Aún no hay academias registradas. ¡Sé el primero!'}
             </p>

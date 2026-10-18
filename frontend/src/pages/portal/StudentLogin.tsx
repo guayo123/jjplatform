@@ -1,4 +1,5 @@
-import { PersonSimpleThrow, Fingerprint } from '@phosphor-icons/react';
+import { Fingerprint } from '@phosphor-icons/react';
+import GiIcon from '../../components/GiIcon';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
@@ -96,7 +97,7 @@ export default function StudentLogin() {
             className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-lg mb-4"
             style={{ background: 'var(--gradient-acc)' }}
           >
-            <PersonSimpleThrow weight="fill" />
+            <GiIcon weight="fill" />
           </div>
           <h1 className="jjp-display text-3xl font-extrabold tracking-tight text-center">
             Portal del alumno
