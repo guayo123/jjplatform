@@ -171,7 +171,7 @@ public class StudentService {
      */
     @Transactional(readOnly = true)
     public List<StudentDto> getMyStudents(Long userId) {
-        List<Student> students = studentRepository.findByUser_Id(userId);
+        List<Student> students = studentRepository.findAccessibleByUser(userId);
         if (students.isEmpty()) {
             throw new ResourceNotFoundException("No se encontró el alumno asociado a tu cuenta.");
         }
@@ -199,6 +199,14 @@ public class StudentService {
         }
         login.setEmail(email);
         userRepository.save(login);
+    }
+
+    private static String blankToNull(String v) {
+        return v == null || v.isBlank() ? null : v.trim();
+    }
+
+    private static String normalizeEmail(String v) {
+        return v == null || v.isBlank() ? null : v.trim().toLowerCase();
     }
 
     /** Adds the per-discipline belt list to a DTO and syncs the legacy belt/stripes fields from it. */
@@ -252,6 +260,9 @@ public class StudentService {
                 .medicalNotes(dto.getMedicalNotes())
                 .nickname(dto.getNickname())
                 .emergencyPhone(dto.getEmergencyPhone())
+                .guardianName(blankToNull(dto.getGuardianName()))
+                .guardianEmail(normalizeEmail(dto.getGuardianEmail()))
+                .guardianRut(blankToNull(dto.getGuardianRut()))
                 .bloodType(dto.getBloodType())
                 .healthInsuranceType(dto.getHealthInsuranceType())
                 .healthInsuranceCompany(dto.getHealthInsuranceCompany())
@@ -290,6 +301,18 @@ public class StudentService {
         student.setMedicalNotes(dto.getMedicalNotes());
         student.setNickname(dto.getNickname());
         student.setEmergencyPhone(dto.getEmergencyPhone());
+        // Guardian fields: null = not sent (older app builds) -> keep; blank = clear.
+        if (dto.getGuardianName() != null) student.setGuardianName(blankToNull(dto.getGuardianName()));
+        String newGuardianEmail = dto.getGuardianEmail() != null ? normalizeEmail(dto.getGuardianEmail()) : student.getGuardianEmail();
+        String newGuardianRut = dto.getGuardianRut() != null ? blankToNull(dto.getGuardianRut()) : student.getGuardianRut();
+        boolean guardianChanged = !java.util.Objects.equals(student.getGuardianEmail(), newGuardianEmail)
+                || !java.util.Objects.equals(student.getGuardianRut(), newGuardianRut);
+        if (guardianChanged) {
+            // A different guardian contact revokes the previous guardian's access; the new one re-links on registration.
+            student.getGuardians().clear();
+        }
+        student.setGuardianEmail(newGuardianEmail);
+        student.setGuardianRut(newGuardianRut);
         student.setBloodType(dto.getBloodType());
         student.setHealthInsuranceType(dto.getHealthInsuranceType());
         student.setHealthInsuranceCompany(dto.getHealthInsuranceCompany());
@@ -384,6 +407,9 @@ public class StudentService {
         dto.setMedicalNotes(student.getMedicalNotes());
         dto.setNickname(student.getNickname());
         dto.setEmergencyPhone(student.getEmergencyPhone());
+        dto.setGuardianName(student.getGuardianName());
+        dto.setGuardianEmail(student.getGuardianEmail());
+        dto.setGuardianRut(student.getGuardianRut());
         dto.setBloodType(student.getBloodType());
         dto.setHealthInsuranceType(student.getHealthInsuranceType());
         dto.setHealthInsuranceCompany(student.getHealthInsuranceCompany());

@@ -20,4 +20,13 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     /** Resolves the student records backing a logged-in portal user (one per academy they belong to). */
     List<Student> findByUser_Id(Long userId);
+
+    /** Records the login owns, or is a guardian (apoderado) of — what the portal lets it switch between. */
+    @Query("SELECT DISTINCT s FROM Student s LEFT JOIN s.guardians g WHERE s.user.id = :userId OR g.id = :userId ORDER BY s.id")
+    List<Student> findAccessibleByUser(@Param("userId") Long userId);
+
+    boolean existsByIdAndGuardians_Id(Long studentId, Long userId);
+
+    /** Students that name this email as their guardian (stored lower-cased); RUT is matched in-memory after normalization. */
+    List<Student> findByGuardianEmail(String guardianEmail);
 }

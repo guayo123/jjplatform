@@ -137,16 +137,19 @@ public class AuthService {
         List<Student> matches = studentRepository.findByEmailIgnoreCase(email).stream()
                 .filter(s -> normalizeRut(s.getRut()).equals(normalizedRut))
                 .toList();
-        if (normalizedRut.isEmpty() || matches.isEmpty()) {
+        List<Student> wards = findWards(email, normalizedRut);
+        if (normalizedRut.isEmpty() || (matches.isEmpty() && wards.isEmpty())) {
             throw new IllegalArgumentException(
                     "No encontramos un alumno con ese RUT y correo en la plataforma. Verifica los datos o contacta a tu academia.");
         }
 
         String tempPassword = generateTempPassword(12);
-        linkStudentsToLogin(matches, email, tempPassword);
+        linkStudentsToLogin(matches, wards, email, tempPassword);
 
+        Student first = !matches.isEmpty() ? matches.get(0) : wards.get(0);
         emailService.sendStudentWelcomeEmail(email, tempPassword,
-                matches.get(0).getName(), matches.get(0).getAcademy().getName());
+                !matches.isEmpty() ? first.getName() : guardianDisplayName(first),
+                first.getAcademy().getName());
     }
 
     /**
@@ -167,16 +170,18 @@ public class AuthService {
         List<Student> matches = studentRepository.findByEmailIgnoreCase(email).stream()
                 .filter(s -> normalizeRut(s.getRut()).equals(normalizedRut))
                 .toList();
-        if (normalizedRut.isEmpty() || matches.isEmpty()) {
+        List<Student> wards = findWards(email, normalizedRut);
+        if (normalizedRut.isEmpty() || (matches.isEmpty() && wards.isEmpty())) {
             throw new IllegalArgumentException(
                     "No encontramos un alumno con ese RUT y correo en la plataforma. Verifica los datos o contacta a tu academia.");
         }
 
         String tempPassword = generateTempPassword(12);
-        linkStudentsToLogin(matches, email, tempPassword);
+        linkStudentsToLogin(matches, wards, email, tempPassword);
 
-        Student first = matches.get(0);
-        emailService.sendPasswordResetEmail(email, tempPassword, first.getName(),
+        Student first = !matches.isEmpty() ? matches.get(0) : wards.get(0);
+        emailService.sendPasswordResetEmail(email, tempPassword,
+                !matches.isEmpty() ? first.getName() : guardianDisplayName(first),
                 first.getAcademy() != null ? first.getAcademy().getName() : null);
     }
 
@@ -193,7 +198,7 @@ public class AuthService {
      * password produced a duplicate login with no student attached, so the portal — which resolves
      * the student by the login's user id — reported "el correo no está asociado a un alumno".
      */
-    private void linkStudentsToLogin(List<Student> matches, String email, String tempPassword) {
+    private void linkStudentsToLogin(List<Student> matches, List<Student> wards, String email, String tempPassword) {
         User user = matches.stream()
                 .map(Student::getUser)
                 .filter(java.util.Objects::nonNull)
@@ -233,6 +238,29 @@ public class AuthService {
                 studentRepository.save(s);
             }
         });
+
+        // Students this person is guardian (apoderado) of: grant access without taking ownership.
+        wards.forEach(s -> {
+            boolean already = (s.getUser() != null && s.getUser().getId().equals(saved.getId()))
+                    || studentRepository.existsByIdAndGuardians_Id(s.getId(), saved.getId());
+            if (!already) {
+                s.getGuardians().add(saved);
+                studentRepository.save(s);
+            }
+        });
+    }
+
+    /** Students whose guardian contact is this email + RUT (RUT compared after normalization). */
+    private List<Student> findWards(String email, String normalizedRut) {
+        if (normalizedRut.isEmpty()) return List.of();
+        return studentRepository.findByGuardianEmail(email).stream()
+                .filter(s -> normalizeRut(s.getGuardianRut()).equals(normalizedRut))
+                .toList();
+    }
+
+    private static String guardianDisplayName(Student fallback) {
+        String n = fallback.getGuardianName();
+        return n != null && !n.isBlank() ? n : "apoderado de " + fallback.getName();
     }
 
     /**

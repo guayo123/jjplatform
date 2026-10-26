@@ -41,6 +41,10 @@ public class StudentDto {
     private String medicalNotes;
     private String nickname;
     private String emergencyPhone;
+    private String guardianName;
+    @jakarta.validation.constraints.Email(message = "Invalid email format")
+    private String guardianEmail;
+    private String guardianRut;
     private String bloodType;
     private String healthInsuranceType;
     private String healthInsuranceCompany;

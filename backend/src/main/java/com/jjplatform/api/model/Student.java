@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "students")
+@Table(name = "students", indexes = @Index(name = "idx_students_guardian_email", columnList = "guardian_email"))
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder
@@ -67,6 +67,24 @@ public class Student {
     private String nickname;
 
     private String emergencyPhone;
+
+    /**
+     * Guardian (apoderado) contact: the person who may log in to the portal to manage and pay for
+     * this student (typically a parent). Registration matches guardianEmail + guardianRut.
+     */
+    private String guardianName;
+    private String guardianEmail;
+    private String guardianRut;
+
+    /** Portal logins allowed to see/pay for this student besides {@link #user}. */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "student_guardians",
+        joinColumns = @JoinColumn(name = "student_id"),
+        inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    @Builder.Default
+    private java.util.Set<User> guardians = new java.util.HashSet<>();
 
     private String bloodType;
 

@@ -80,7 +80,7 @@ export default function StudentForm() {
 
   const [form, setForm] = useState<StudentFormType>({
     name: '', nickname: null, rut: null, email: null, phone: null,
-    emergencyPhone: null, joinDate: null, birthDate: null, age: null, weight: null,
+    emergencyPhone: null, guardianName: null, guardianEmail: null, guardianRut: null, joinDate: null, birthDate: null, age: null, weight: null,
     photoUrl: null, address: null, medicalNotes: null,
     bloodType: null, healthInsuranceType: null, healthInsuranceCompany: null,
     active: true, planIds: [],
@@ -91,7 +91,7 @@ export default function StudentForm() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [errors, setErrors] = useState<{
     name?: string; rut?: string; email?: string; phone?: string;
-    emergencyPhone?: string; joinDate?: string; age?: string;
+    emergencyPhone?: string; guardianEmail?: string; guardianRut?: string; joinDate?: string; age?: string;
     address?: string; planIds?: string;
   }>({});
   const { toast } = useToast();
@@ -106,6 +106,11 @@ export default function StudentForm() {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Correo electrónico inválido';
     if (!form.phone) e.phone = 'El teléfono es obligatorio';
     if (!form.emergencyPhone) e.emergencyPhone = 'El teléfono de emergencia es obligatorio';
+    if (form.guardianEmail || form.guardianRut) {
+      if (!form.guardianEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.guardianEmail)) e.guardianEmail = 'Correo del apoderado inválido';
+      if (!form.guardianRut) e.guardianRut = 'El RUT del apoderado es obligatorio si indicas su correo';
+      else if (!validateRut(form.guardianRut)) e.guardianRut = 'RUT inválido';
+    }
     if (!form.joinDate) e.joinDate = 'La fecha de ingreso es obligatoria';
     if (form.age === null || form.age === undefined) e.age = 'La edad es obligatoria';
     else if (form.age < 1 || form.age > 150) e.age = 'La edad debe estar entre 1 y 150';
@@ -123,6 +128,7 @@ export default function StudentForm() {
         setForm({
           name: s.name, nickname: s.nickname, rut: s.rut, email: s.email,
           phone: s.phone, emergencyPhone: s.emergencyPhone, joinDate: s.joinDate,
+          guardianName: s.guardianName ?? null, guardianEmail: s.guardianEmail ?? null, guardianRut: s.guardianRut ?? null,
           // When a birth date exists, the age is derived from it (kept current to today).
           birthDate: s.birthDate, age: (s.birthDate ? ageFromBirthDate(s.birthDate) : null) ?? s.age,
           weight: s.weight, photoUrl: s.photoUrl,
@@ -160,7 +166,10 @@ export default function StudentForm() {
     setSaving(true);
     try {
       const [result] = await Promise.allSettled([
-        isEdit && id ? updateStudent(Number(id), form) : createStudent(form),
+        isEdit && id
+          // Blank (not null) clears the guardian: the API treats a missing/null field as "unchanged".
+          ? updateStudent(Number(id), { ...form, guardianName: form.guardianName ?? '', guardianEmail: form.guardianEmail ?? '', guardianRut: form.guardianRut ?? '' })
+          : createStudent(form),
         new Promise((resolve) => setTimeout(resolve, 2000)),
       ]);
       if (result.status === 'rejected') throw result.reason;
@@ -300,6 +309,42 @@ export default function StudentForm() {
             />
           </div>
           {errors.emergencyPhone ? <p className={err}>{errors.emergencyPhone}</p> : <p className={hint}>Contacto en caso de emergencia</p>}
+        </div>
+
+        <div className="rounded-lg border border-gray-800 p-4 space-y-3">
+          <div>
+            <p className={lbl}>Apoderado (opcional)</p>
+            <p className={hint}>Si el alumno es menor, su apoderado podrá ingresar al portal con su propio correo y RUT, ver al alumno y pagar su mensualidad. Un mismo apoderado puede tener varios hijos.</p>
+          </div>
+          <FormInput
+            type="text"
+            value={form.guardianName ?? ''}
+            onChange={(e) => setForm((f) => ({ ...f, guardianName: e.target.value || null }))}
+            placeholder="Nombre del apoderado"
+          />
+          <FormInput
+            type="email"
+            value={form.guardianEmail ?? ''}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, guardianEmail: e.target.value || null }));
+              setErrors((er) => ({ ...er, guardianEmail: undefined }));
+            }}
+            placeholder="Correo del apoderado"
+            error={errors.guardianEmail}
+          />
+          {errors.guardianEmail && <p className={err}>{errors.guardianEmail}</p>}
+          <FormInput
+            type="text"
+            value={form.guardianRut ?? ''}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, guardianRut: formatRut(e.target.value) || null }));
+              setErrors((er) => ({ ...er, guardianRut: undefined }));
+            }}
+            placeholder="RUT del apoderado"
+            maxLength={12}
+            error={errors.guardianRut}
+          />
+          {errors.guardianRut && <p className={err}>{errors.guardianRut}</p>}
         </div>
 
         <div>
