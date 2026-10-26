@@ -27,7 +27,7 @@ export default function StudentRegister() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4 pt-safe">
       <div className="max-w-md w-full bg-white rounded-xl shadow-2xl p-8">
         {done ? (
           <div className="text-center space-y-4">

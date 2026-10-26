@@ -89,7 +89,7 @@ export default function StudentLogin() {
   };
 
   return (
-    <div className="portal-theme min-h-screen flex items-center justify-center px-4 py-8">
+    <div className="portal-theme min-h-screen flex items-center justify-center px-4 py-8 pt-safe">
       <div className="max-w-md w-full">
         {/* Brand mark */}
         <div className="flex flex-col items-center mb-8">
