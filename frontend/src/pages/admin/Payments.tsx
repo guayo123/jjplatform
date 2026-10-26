@@ -21,6 +21,16 @@ function computeNetExpected(p: Payment): number | null {
   return p.expectedAmount - disc;
 }
 
+const ONLINE_METHODS: Record<string, string> = { KHIPU: 'Khipu', MERCADO_PAGO: 'Mercado Pago' };
+
+/** "Mercado Pago · apoderado papa@mail.cl" for online payments; null for staff-recorded ones. */
+function onlinePaymentLabel(p: Payment): string | null {
+  const method = p.method ? ONLINE_METHODS[p.method] : undefined;
+  if (!method) return null;
+  if (!p.paidByEmail) return `Pagado en línea · ${method}`;
+  return `${method} · ${p.paidByGuardian ? `apoderado ${p.paidByEmail}` : 'el alumno'}`;
+}
+
 function parseCLPInput(s: string): number {
   const n = Number(s.replace(/\./g, '').trim());
   return isNaN(n) ? 0 : n;
@@ -672,6 +682,7 @@ export default function Payments() {
                   {discountLabel && <div><dt className="text-xs text-gray-400">Descuento</dt><dd className="text-gray-600">{discountLabel}</dd></div>}
                   <div><dt className="text-xs text-gray-400">Fecha</dt><dd className="text-gray-600">{p.paidAt?.slice(0, 10) || '—'}</dd></div>
                 </dl>
+                {onlinePaymentLabel(p) && <p className="mt-2 text-xs text-primary-600 break-words">{onlinePaymentLabel(p)}</p>}
                 {p.notes && <p className="mt-2 text-xs text-gray-500 break-words">{p.notes}</p>}
                 {canEdit && (remaining > 0 || canDelete) && (
                   <div className="mt-3 flex gap-2">
@@ -735,7 +746,10 @@ export default function Payments() {
                         ? <span className="text-orange-600 font-medium">Pendiente {formatCLP(remaining)}</span>
                         : <span className="text-green-600 font-medium inline-flex items-center gap-1"><Check weight="bold" size="1em" />Completo</span>}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{p.paidAt?.slice(0, 10)}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {p.paidAt?.slice(0, 10)}
+                      {onlinePaymentLabel(p) && <p className="text-xs text-primary-600">{onlinePaymentLabel(p)}</p>}
+                    </td>
                     <td className="px-6 py-4 text-sm text-gray-500">{p.notes || '—'}</td>
                     {canEdit && (
                       <td className="px-6 py-4">

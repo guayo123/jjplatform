@@ -328,12 +328,30 @@ button {
   will-change: transform;
 }
 
+/* Payment success: the check stamps in, then a ring ripples out once (bank-receipt feel). */
+@keyframes jjp-check-stamp {
+  0%   { transform: scale(0) rotate(-30deg); opacity: 0; }
+  60%  { transform: scale(1.18) rotate(4deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+@keyframes jjp-check-ripple {
+  0%   { transform: scale(0.8); opacity: 0.55; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+.jjp-check-stamp {
+  animation: jjp-check-stamp 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.2) 0.1s both;
+}
+.jjp-check-ripple {
+  animation: jjp-check-ripple 0.9s ease-out 0.35s both;
+}
+
 /* Accessibility: users who ask for less motion get the content without the choreography. */
 @media (prefers-reduced-motion: reduce) {
-  .jjp-confetti, .jjp-pop, .jjp-rise, .jjp-flame-glow, .jjp-flame-cold {
+  .jjp-confetti, .jjp-pop, .jjp-rise, .jjp-flame-glow, .jjp-flame-cold, .jjp-check-stamp, .jjp-check-ripple {
     animation: none !important;
   }
   .jjp-rise { opacity: 1; transform: none; }
+  .jjp-check-ripple { opacity: 0; }
 }
 
 /* Native safe-area helpers (notch / Android gesture bar). On web these resolve to 0. */

@@ -77,6 +77,44 @@ public class EmailService {
         send(toEmail, subject, html, tempPassword);
     }
 
+    /**
+     * Sends an informational email (no credentials inside). Never throws: a notification failing
+     * must not undo or block the business action that triggered it (e.g. a confirmed payment).
+     */
+    public void sendNotification(List<String> toEmails, String subject, String htmlContent) {
+        if (toEmails == null || toEmails.isEmpty()) return;
+        if (!enabled) {
+            log.warn("[EMAIL DISABLED] Would send '{}' to {}", subject, toEmails);
+            return;
+        }
+        Map<String, Object> payload = Map.of(
+                "sender", Map.of("name", fromName, "email", fromAddress),
+                "to", toEmails.stream().map(e -> Map.of("email", e)).toList(),
+                "subject", subject,
+                "htmlContent", htmlContent);
+        try {
+            brevoClient.post()
+                    .uri(SEND_PATH)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("Notification '{}' sent to {}", subject, toEmails);
+        } catch (Exception e) {
+            log.error("Failed to send notification '{}' to {}: {}", subject, toEmails, e.getMessage());
+        }
+    }
+
+    /** Admin panel login URL, for links in staff emails. */
+    public String getStaffLoginUrl() {
+        return loginUrl;
+    }
+
+    /** Student portal login URL, for links in student emails. */
+    public String getStudentLoginUrl() {
+        return studentLoginUrl;
+    }
+
     private void send(String toEmail, String subject, String htmlContent, String tempPassword) {
         if (!enabled) {
             log.warn("[EMAIL DISABLED] Brevo API key not configured. Temp password for {}: {}",

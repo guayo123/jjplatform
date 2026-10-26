@@ -98,7 +98,8 @@ public class PortalService {
         Long userId = securityHelper.getCurrentUser().getId();
         Student s = studentRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Alumno no encontrado"));
-        if (s.getUser() == null || !s.getUser().getId().equals(userId)) {
+        boolean owner = s.getUser() != null && s.getUser().getId().equals(userId);
+        if (!owner && !studentRepository.existsByIdAndGuardians_Id(studentId, userId)) {
             throw new ResourceNotFoundException("Alumno no encontrado");
         }
         return s;
@@ -128,6 +129,7 @@ public class PortalService {
 
     public List<PaymentDto> getPayments(Long studentId) {
         requireOwnedStudent(studentId);
+        paymentGatewayService.reconcilePendingKhipu(studentId);
         return paymentService.getPaymentsByStudent(studentId);
     }
 
@@ -139,13 +141,15 @@ public class PortalService {
         out.put("khipu", methods.get("khipu"));
         out.put("mercadoPago", methods.get("mercadoPago"));
         out.put("bankDetails", s.getAcademy().getBankDetails());
+        out.put("whatsapp", s.getAcademy().getWhatsapp());
         return out;
     }
 
     /** Starts a gateway checkout for the student's monthly fee; returns the URL to open. */
-    public String createCheckout(Long studentId, String method, int month, int year, boolean fromApp) {
+    public String createCheckout(Long studentId, String method, int month, int year, boolean fromApp, String origin) {
         Student s = requireOwnedStudent(studentId);
-        return paymentGatewayService.createCheckout(studentId, s.getAcademy().getId(), month, year, method, fromApp);
+        return paymentGatewayService.createCheckout(studentId, s.getAcademy().getId(), month, year, method, fromApp,
+                securityHelper.getCurrentUser().getId(), origin);
     }
 
     // --- Class reservations -------------------------------------------------

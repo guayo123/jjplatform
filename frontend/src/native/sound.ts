@@ -90,6 +90,51 @@ export function playOss(): void {
   }
 }
 
+// --- Payment success cue (same "oss" audio as duels) -----------------------------
+// The checkout happens outside the portal, so the cue plays with no user gesture on the way back.
+// primePaymentSound() unlocks it on the "Pagar" tap (muted play + rewind); inside the native app the
+// same page survives the checkout (Custom Tab on top), so it can play on return. On the web the
+// return lands in a new tab and the browser may keep it muted — then it's silent.
+let paymentAudio: HTMLAudioElement | null = null;
+
+function paymentCue(): HTMLAudioElement {
+  if (!paymentAudio) {
+    paymentAudio = new Audio('/sounds/duelo.mp3');
+    paymentAudio.preload = 'auto';
+  }
+  return paymentAudio;
+}
+
+/** Unlock the payment cue. Call on the tap that starts the checkout. */
+export function primePaymentSound(): void {
+  if (!isSoundEnabled()) return;
+  try {
+    const a = paymentCue();
+    a.muted = true;
+    a.currentTime = 0;
+    const reset = () => { a.pause(); a.currentTime = 0; a.muted = false; };
+    const p = a.play();
+    if (p && typeof p.then === 'function') p.then(reset).catch(() => { a.muted = false; });
+    else reset();
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Play the "oss" cue for a confirmed payment (silent if audio is blocked). */
+export function playPaymentSound(): void {
+  if (!isSoundEnabled()) return;
+  try {
+    const a = paymentCue();
+    a.muted = false;
+    a.currentTime = 0;
+    const p = a.play();
+    if (p && typeof p.then === 'function') p.catch(() => {});
+  } catch {
+    /* ignore */
+  }
+}
+
 // --- Duel cue (separate file + its own on/off toggle) ---------------------------
 const DUEL_KEY = 'jjp_sound_duel';
 

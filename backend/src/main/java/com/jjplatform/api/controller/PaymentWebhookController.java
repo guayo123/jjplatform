@@ -19,6 +19,7 @@ import java.util.Map;
 public class PaymentWebhookController {
 
     private final PaymentGatewayService gatewayService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     /**
      * Landing for the native app after the checkout: bounces the in-app browser to the app's custom
@@ -26,19 +27,42 @@ public class PaymentWebhookController {
      * page when the browser does not follow the redirect.
      */
     @GetMapping(value = "/pay-return", produces = "text/html;charset=UTF-8")
-    public ResponseEntity<String> payReturn() {
+    public ResponseEntity<String> payReturn(@RequestParam(required = false) String pago,
+                                            @RequestParam(required = false) String alumno) {
+        // Only digits pass through, so nothing caller-supplied ends up in the page as markup or script.
+        String target = "jjplatform://pagos";
+        if (isId(pago) && isId(alumno)) target += "?pago=" + pago + "&alumno=" + alumno;
         String html = "<!doctype html><meta name=viewport content='width=device-width,initial-scale=1'>"
                 + "<body style='font-family:sans-serif;text-align:center;padding:48px'>"
-                + "<h3>Volviendo a la app…</h3><p><a href='jjplatform://pagos'>Toca aquí si no se abre sola</a></p>"
-                + "<script>location.href='jjplatform://pagos'</script></body>";
+                + "<h3>Volviendo a la app…</h3><p><a href='" + target + "'>Toca aquí si no se abre sola</a></p>"
+                + "<script>location.href='" + target + "'</script></body>";
         return ResponseEntity.ok(html);
     }
 
-    /** Khipu calls this (POST) when a transfer changes state. */
+    private static boolean isId(String v) {
+        return v != null && v.matches("\\d{1,18}");
+    }
+
+    /**
+     * Khipu calls this (POST) when a transfer is confirmed. The v3 notification body is JSON with the
+     * Khipu {@code payment_id} — possibly an earlier attempt than the one we stored, if the student
+     * retried. The body is only a hint: the service re-queries Khipu before trusting it.
+     */
     @PostMapping("/khipu/{paymentId}")
-    public ResponseEntity<Void> khipu(@PathVariable Long paymentId) {
-        gatewayService.handleKhipuWebhook(paymentId);
+    public ResponseEntity<Void> khipu(@PathVariable Long paymentId,
+                                      @RequestBody(required = false) String body) {
+        gatewayService.handleKhipuWebhook(paymentId, khipuPaymentId(body));
         return ResponseEntity.ok().build();
+    }
+
+    private String khipuPaymentId(String body) {
+        if (body == null || body.isBlank()) return null;
+        try {
+            Object id = objectMapper.readValue(body, Map.class).get("payment_id");
+            return id != null ? String.valueOf(id) : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**

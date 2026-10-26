@@ -471,14 +471,14 @@ export async function drawConditioningCard(d: ConditioningCardData): Promise<HTM
  * (mobile browsers / WebViews); otherwise download it as a PNG. Returns what happened
  * so the UI can word its feedback. 'aborted' = the user closed the share sheet.
  */
-export async function shareCard(canvas: HTMLCanvasElement, filename = 'mi-semana-entreno.png'): Promise<'shared' | 'downloaded' | 'aborted'> {
+export async function shareCard(canvas: HTMLCanvasElement, filename = 'mi-semana-entreno.png', title = 'Mi semana de entreno'): Promise<'shared' | 'downloaded' | 'aborted'> {
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
   if (!blob) throw new Error('No se pudo generar la imagen.');
   const file = new File([blob], filename, { type: 'image/png' });
 
   if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: 'Mi semana de entreno' });
+      await navigator.share({ files: [file], title });
       return 'shared';
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return 'aborted';

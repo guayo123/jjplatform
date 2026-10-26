@@ -78,6 +78,14 @@ public class AcademyController {
         if (request.getMpAccessToken() != null) academy.setMpAccessToken(request.getMpAccessToken().isBlank() ? null : request.getMpAccessToken().trim());
         if (request.getKhipuApiKey() != null) academy.setKhipuApiKey(request.getKhipuApiKey().isBlank() ? null : request.getKhipuApiKey().trim());
         if (request.getPaymentRemindersEnabled() != null) academy.setPaymentRemindersEnabled(request.getPaymentRemindersEnabled());
+        if (request.getPaymentNotifyEnabled() != null) academy.setPaymentNotifyEnabled(request.getPaymentNotifyEnabled());
+        if (request.getPaymentNotifyEmail() != null) {
+            String e = request.getPaymentNotifyEmail().trim().toLowerCase();
+            if (!e.isEmpty() && !e.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
+                throw new IllegalArgumentException("El correo para avisos de pago no es válido.");
+            }
+            academy.setPaymentNotifyEmail(e.isEmpty() ? null : e);
+        }
 
         academy = academyRepository.save(academy);
         return ResponseEntity.ok(toMap(academy));
@@ -376,6 +384,8 @@ public class AcademyController {
         map.put("mpAccessToken", a.getMpAccessToken() != null ? a.getMpAccessToken() : "");
         map.put("khipuApiKey", a.getKhipuApiKey() != null ? a.getKhipuApiKey() : "");
         map.put("paymentRemindersEnabled", Boolean.TRUE.equals(a.getPaymentRemindersEnabled()));
+        map.put("paymentNotifyEnabled", !Boolean.FALSE.equals(a.getPaymentNotifyEnabled()));
+        map.put("paymentNotifyEmail", a.getPaymentNotifyEmail() != null ? a.getPaymentNotifyEmail() : "");
         return map;
     }
 

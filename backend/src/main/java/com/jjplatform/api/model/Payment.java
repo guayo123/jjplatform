@@ -68,7 +68,26 @@ public class Payment {
     @Column(length = 100)
     private String gatewayPaymentId;
 
+    /** When the latest online checkout attempt started; drives the "not completed" timeout. */
+    private LocalDateTime checkoutStartedAt;
+
+    /** REJECTED when the gateway reported the latest attempt as rejected/cancelled; null otherwise. */
+    @Column(length = 20)
+    private String gatewayStatus;
+
+    /** Gateway payment id we already alerted staff about as a double payment (dedupes repeated webhooks). */
+    @Column(length = 100)
+    private String duplicateAlertGatewayId;
+
+    /**
+     * Portal account that started the online checkout: the student themself or a guardian (apoderado).
+     * Null for payments recorded by staff.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "paid_by_user_id")
+    private User paidBy;
+
+    /** Set on creation; refreshed when an online checkout is confirmed (the row exists earlier as pending). */
     @CreationTimestamp
-    @Column(updatable = false)
     private LocalDateTime paidAt;
 }

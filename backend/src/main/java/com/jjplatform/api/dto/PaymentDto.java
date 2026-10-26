@@ -42,4 +42,14 @@ public class PaymentDto {
     /** MANUAL | TRANSFER | MERCADO_PAGO */
     private String method;
     private String proofUrl;
+
+    /** Account that paid online (null for staff-recorded payments) and whether it was a guardian. */
+    private String paidByEmail;
+    private Boolean paidByGuardian;
+
+    /** Pending online checkout state: IN_PROGRESS | EXPIRED | REJECTED (null when not a pending checkout). */
+    private String onlineState;
+
+    /** Gateway operation id of a confirmed online payment (Khipu / Mercado Pago), for the receipt. */
+    private String operationId;
 }

@@ -18,8 +18,6 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoProgress, setLogoProgress] = useState(0);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [botQuestion, setBotQuestion] = useState('');
   const [botResponse, setBotResponse] = useState<string | null>(null);
   const [botTesting, setBotTesting] = useState(false);
@@ -49,15 +47,15 @@ export default function Settings() {
     e.preventDefault();
     if (!form) return;
     setSaving(true);
-    setError(null);
     try {
       const updated = await academiesApi.updateSettings(form);
       setForm(updated);
       setOriginal(updated);
-      setSuccess('Datos actualizados correctamente');
-      setTimeout(() => setSuccess(null), 3000);
+      // Toast, not an inline banner: the save button sits at the bottom of a long form,
+      // so a message at the top of the page goes unseen.
+      toast.success('Cambios guardados correctamente');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al guardar');
+      toast.error(err instanceof Error ? err.message : 'Error al guardar');
     } finally {
       setSaving(false);
     }
@@ -119,17 +117,6 @@ export default function Settings() {
           ?
         </button>
       </div>
-
-      {success && (
-        <div className="bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg px-4 py-3 text-sm">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-4 py-3 text-sm">
-          {error}
-        </div>
-      )}
 
       <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-5">
         <h2 className={sectionTitle} data-tour="set-logo">Logo de la academia</h2>
@@ -282,6 +269,34 @@ export default function Settings() {
           />
           <p className={hint}>Se muestran en la app como alternativa de pago manual (opcional).</p>
         </div>
+
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.paymentNotifyEnabled !== false}
+            onChange={(e) => setForm({ ...form, paymentNotifyEnabled: e.target.checked })}
+            className="mt-0.5 h-4 w-4 rounded border-gray-600 bg-gray-800 text-primary-600 focus:ring-primary-500"
+          />
+          <span className="text-sm text-gray-300">
+            Avisarme por correo cuando un alumno pague en línea
+            <span className="block text-xs text-gray-500 mt-0.5">
+              Llega al correo de la cuenta administradora. Quien paga recibe además su comprobante.
+            </span>
+          </span>
+        </label>
+
+        {form.paymentNotifyEnabled !== false && (
+          <div>
+            <label className={lbl}>Enviar copia a (opcional)</label>
+            <FormInput
+              type="email"
+              value={form.paymentNotifyEmail ?? ''}
+              onChange={(e) => setForm({ ...form, paymentNotifyEmail: e.target.value })}
+              placeholder="encargado@tuacademia.cl"
+            />
+            <p className={hint}>Por ejemplo, el correo de un encargado o del contador.</p>
+          </div>
+        )}
 
         <h2 className={sectionTitle}>Recordatorios de pago</h2>
         <label className="flex items-start gap-3 cursor-pointer">

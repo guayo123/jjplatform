@@ -17,6 +17,7 @@ import {
 import { App } from '@capacitor/app';
 import { usePlatform, isInstalledPwa } from '../../native/usePlatform';
 import { registerPush } from '../../native/push';
+import { onCheckoutReturn, parsePayReturn, checkoutStartedInNativeView } from '../../native/checkout';
 import { tapLight, notifySuccess } from '../../native/haptics';
 import PullToRefresh from '../../native/PullToRefresh';
 import PortalTabs, { type PortalTab } from './PortalTabs';
@@ -43,7 +44,10 @@ export default function Portal() {
   const theme = useResolvedTheme();
   // Layout flag: true in the real app, in the installed PWA, or in a browser when previewing with ?native=1.
   // Only drives presentation (tabs vs scroll); real native features stay gated on isNative.
-  const tabbed = isNative || isInstalledPwa() || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('native'));
+  // A web checkout return (?pago=…) reopens the view the payment was started from.
+  const tabbed = isNative || isInstalledPwa() || (typeof window !== 'undefined' && (
+    new URLSearchParams(window.location.search).has('native')
+    || (new URLSearchParams(window.location.search).has('pago') && checkoutStartedInNativeView())));
   const [profiles, setProfiles] = useState<Student[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   // App version stamp (so QA can confirm at a glance they're on the right build).
@@ -71,6 +75,11 @@ export default function Portal() {
   // Native bottom-tab navigation (only used inside the app).
   const [tab, setTab] = useState<PortalTab>('entreno');
 
+  // Back from a payment checkout: which student's payments to open and whose receipt to show.
+  const [payFocus, setPayFocus] = useState<{ paymentId: number; studentId: number } | null>(() =>
+    typeof window !== 'undefined' ? parsePayReturn(window.location.search) : null);
+  const clearPayFocus = useCallback(() => setPayFocus(null), []);
+
   // Belt-promotion celebration: shown when the academy registers a new promotion the student hasn't seen.
   const [celebrate, setCelebrate] = useState<BeltPromotion | null>(null);
 
@@ -79,6 +88,29 @@ export default function Portal() {
   // Hold the tour until the first-time weekly-goal setup is resolved, so they don't overlap. 'unknown' until
   // the training section reports; 'pending' = goal modal open; 'resolved' = set/closed or not needed.
   const [goalOnboarding, setGoalOnboarding] = useState<'unknown' | 'pending' | 'resolved'>('unknown');
+
+  // Web: the checkout returns to /portal?pago=&alumno= → open "Mis pagos" and drop those params from the URL
+  // (keeping any others, e.g. ?native=1). App: the jjplatform://pagos deep link carries the same.
+  useEffect(() => {
+    if (payFocus) setTab('pagos');
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('pago') || params.has('alumno')) {
+      params.delete('pago');
+      params.delete('alumno');
+      if (checkoutStartedInNativeView()) params.set('native', '1');
+      const q = params.toString();
+      window.history.replaceState(null, '', window.location.pathname + (q ? `?${q}` : ''));
+    }
+  }, []);
+  useEffect(() => onCheckoutReturn((url) => {
+    const target = parsePayReturn(url);
+    setTab('pagos');
+    if (target) setPayFocus(target);
+  }), []);
+  // Select the student that was paid for (a guardian may have several), once profiles are loaded.
+  useEffect(() => {
+    if (payFocus && profiles.some((p) => p.id === payFocus.studentId)) setSelectedId(payFocus.studentId);
+  }, [payFocus, profiles]);
 
   const loadProfiles = useCallback(async () => {
     const [list, b] = await Promise.all([portalApi.me(), portalApi.getBanner().catch(() => null)]);
@@ -300,7 +332,9 @@ export default function Portal() {
   );
   const pagos = student && (
     <PagosSection payments={payments} detailLoading={detailLoading} studentId={student.id} options={paymentOptions}
-      onRefresh={refreshPayments} />
+      onRefresh={refreshPayments} studentName={student.name} academyName={student.academyName}
+      focusPaymentId={payFocus && payFocus.studentId === student.id ? payFocus.paymentId : null}
+      onFocusHandled={clearPayFocus} />
   );
   const entreno = student && (
     <div className="space-y-6">
@@ -431,7 +465,7 @@ export default function Portal() {
                       p.id === selectedId ? 'bg-primary-600 text-white' : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
-                    {p.academyName ?? 'Academia'}
+                    {profileLabel(p, profiles)}
                   </button>
                 ))}
               </div>
@@ -477,6 +511,19 @@ export default function Portal() {
  * Compact belt graphic for the header chip: the belt color + the dark tip panel with its
  * degree stripes, mirroring BeltImage (black belts use a red panel with yellow stripes).
  */
+/**
+ * Tab label for a profile. One person in several academies -> the academy (as before). Several people
+ * (a guardian's children, or the guardian plus their kids) -> the person's name, plus the academy
+ * when the profiles span more than one academy.
+ */
+function profileLabel(p: Student, all: Student[]): string {
+  const academy = p.academyName ?? 'Academia';
+  const people = new Set(all.map((o) => (o.rut ? o.rut.replace(/[^0-9kK]/g, '').toUpperCase() : `id${o.id}`))).size;
+  if (people <= 1) return academy;
+  const who = p.nickname || p.name.split(' ')[0];
+  return new Set(all.map((o) => o.academyId)).size > 1 ? `${who} · ${academy}` : who;
+}
+
 function BeltSwatch({ belt, stripes, colorHex }: { belt: string; stripes: number; colorHex?: string | null }) {
   const isBlack = !colorHex && belt === 'Negro';
   const panel = isBlack ? '#DC2626' : '#111827';

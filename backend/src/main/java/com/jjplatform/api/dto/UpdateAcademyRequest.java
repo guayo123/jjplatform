@@ -18,4 +18,6 @@ public class UpdateAcademyRequest {
     private String mpAccessToken;
     private String khipuApiKey;
     private Boolean paymentRemindersEnabled;
+    private Boolean paymentNotifyEnabled;
+    private String paymentNotifyEmail;
 }

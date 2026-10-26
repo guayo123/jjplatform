@@ -5,9 +5,11 @@ import com.jjplatform.api.exception.ResourceNotFoundException;
 import com.jjplatform.api.model.Academy;
 import com.jjplatform.api.model.Payment;
 import com.jjplatform.api.model.Student;
+import com.jjplatform.api.model.User;
 import com.jjplatform.api.repository.AcademyRepository;
 import com.jjplatform.api.repository.PaymentRepository;
 import com.jjplatform.api.repository.StudentRepository;
+import com.jjplatform.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,8 +25,27 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final StudentRepository studentRepository;
     private final AcademyRepository academyRepository;
+    private final UserRepository userRepository;
 
     private static final String PENDING = "PENDING_CONFIRMATION";
+
+    /** An online checkout not confirmed within this window is shown as "not completed". */
+    public static final java.time.Duration CHECKOUT_TIMEOUT = java.time.Duration.ofMinutes(30);
+    public static final String ONLINE_IN_PROGRESS = "IN_PROGRESS";
+    public static final String ONLINE_EXPIRED = "EXPIRED";
+    public static final String ONLINE_REJECTED = "REJECTED";
+
+    /**
+     * State of a pending online checkout for the portal: IN_PROGRESS, EXPIRED (abandoned / timed out)
+     * or REJECTED by the gateway. Null when the payment isn't a pending checkout.
+     */
+    public static String onlineState(Payment p) {
+        if (!PENDING.equals(p.getStatus())) return null;
+        if (ONLINE_REJECTED.equals(p.getGatewayStatus())) return ONLINE_REJECTED;
+        java.time.LocalDateTime started = p.getCheckoutStartedAt() != null ? p.getCheckoutStartedAt() : p.getPaidAt();
+        if (started == null || started.plus(CHECKOUT_TIMEOUT).isBefore(java.time.LocalDateTime.now())) return ONLINE_EXPIRED;
+        return ONLINE_IN_PROGRESS;
+    }
 
     /** Staff views only list confirmed money: an unfinished online checkout is not a payment yet. */
     public List<PaymentDto> getPaymentsByYear(Long academyId, int year) {
@@ -51,14 +72,9 @@ public class PaymentService {
     public PaymentDto createPayment(PaymentDto dto, Long academyId) {
         var existing = paymentRepository.findByStudentIdAndMonthAndYear(
                 dto.getStudentId(), dto.getMonth(), dto.getYear());
-        if (existing.isPresent()) {
-            if (!PENDING.equals(existing.get().getStatus())) {
-                throw new IllegalArgumentException(
-                        "Payment already exists for this student in the specified month");
-            }
-            // Staff is recording the payment by hand over an unfinished online checkout: replace it.
-            paymentRepository.delete(existing.get());
-            paymentRepository.flush();
+        if (existing.isPresent() && !PENDING.equals(existing.get().getStatus())) {
+            throw new IllegalArgumentException(
+                    "Payment already exists for this student in the specified month");
         }
 
         Student student = studentRepository.findByIdWithPlans(dto.getStudentId())
@@ -86,17 +102,23 @@ public class PaymentService {
             }
         }
 
-        Payment payment = Payment.builder()
-                .student(student)
-                .academy(academy)
-                .expectedAmount(expectedAmount.compareTo(BigDecimal.ZERO) > 0 ? expectedAmount : null)
-                .amount(dto.getAmount())
-                .discount(discount)
-                .discountType(discountType)
-                .month(dto.getMonth())
-                .year(dto.getYear())
-                .notes(dto.getNotes())
-                .build();
+        // Staff recording by hand over an unfinished online checkout: reuse that row (same id) so a late
+        // gateway confirmation still finds it and is reported as a double payment instead of being lost.
+        Payment payment = existing.orElseGet(() -> Payment.builder().student(student).academy(academy).build());
+        payment.setExpectedAmount(expectedAmount.compareTo(BigDecimal.ZERO) > 0 ? expectedAmount : null);
+        payment.setAmount(dto.getAmount());
+        payment.setDiscount(discount);
+        payment.setDiscountType(discountType);
+        payment.setMonth(dto.getMonth());
+        payment.setYear(dto.getYear());
+        payment.setNotes(dto.getNotes());
+        if (existing.isPresent()) {
+            payment.setStatus("PAID");
+            payment.setMethod(null);
+            payment.setGatewayStatus(null);
+            payment.setPaidBy(null);
+            payment.setPaidAt(java.time.LocalDateTime.now());
+        }
 
         payment = paymentRepository.save(payment);
         return toDto(payment);
@@ -148,7 +170,8 @@ public class PaymentService {
      * payment so the webhook can reconcile by the payment id. Throws when the month is already paid.
      */
     @Transactional
-    public Payment getOrCreatePendingPayment(Long studentId, Long academyId, int month, int year, String method) {
+    public Payment getOrCreatePendingPayment(Long studentId, Long academyId, int month, int year, String method, Long payerUserId) {
+        User payer = payerUserId != null ? userRepository.getReferenceById(payerUserId) : null;
         Student student = studentRepository.findByIdWithPlans(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
         if (!student.getAcademy().getId().equals(academyId)) {
@@ -160,7 +183,16 @@ public class PaymentService {
             if ("PAID".equals(existing.getStatus())) {
                 throw new IllegalArgumentException("Este mes ya está pagado.");
             }
+            // A new attempt charges the current plan prices, even if they changed since the last attempt.
+            BigDecimal current = computeExpected(student);
+            if (current.compareTo(BigDecimal.ZERO) > 0) {
+                existing.setExpectedAmount(current);
+                existing.setAmount(current);
+            }
             existing.setMethod(method);
+            existing.setPaidBy(payer);
+            existing.setCheckoutStartedAt(java.time.LocalDateTime.now());
+            existing.setGatewayStatus(null);
             return paymentRepository.save(existing);
         }
 
@@ -183,20 +215,35 @@ public class PaymentService {
                 .year(year)
                 .status("PENDING_CONFIRMATION")
                 .method(method)
+                .paidBy(payer)
+                .checkoutStartedAt(java.time.LocalDateTime.now())
                 .build();
         return paymentRepository.save(payment);
     }
 
-    /** Marks a payment PAID after a verified gateway notification. Idempotent. */
+    /**
+     * Marks a payment PAID after a verified gateway notification. Idempotent: returns true only for
+     * the call that actually confirmed it (used to send the "payment received" emails exactly once).
+     */
     @Transactional
-    public void markPaidByGateway(Long paymentId, String method, String gatewayPaymentId) {
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
-        if ("PAID".equals(payment.getStatus())) return;
-        payment.setStatus("PAID");
-        payment.setMethod(method);
-        payment.setGatewayPaymentId(gatewayPaymentId);
-        paymentRepository.save(payment);
+    public boolean markPaidByGateway(Long paymentId, String method, String gatewayPaymentId) {
+        return paymentRepository.markPaidIfPending(paymentId, method, gatewayPaymentId, java.time.LocalDateTime.now()) == 1;
+    }
+
+    /** The gateway rejected the latest attempt: shown to the student so they can retry. No-op once paid. */
+    @Transactional
+    public void markGatewayRejected(Long paymentId) {
+        paymentRepository.findById(paymentId).ifPresent(p -> {
+            if ("PAID".equals(p.getStatus())) return;
+            p.setGatewayStatus(ONLINE_REJECTED);
+            paymentRepository.save(p);
+        });
+    }
+
+    /** True only the first time staff are alerted about this gateway payment for this row. */
+    @Transactional
+    public boolean claimDuplicateAlert(Long paymentId, String gatewayPaymentId) {
+        return paymentRepository.claimDuplicateAlert(paymentId, gatewayPaymentId) == 1;
     }
 
     private BigDecimal computeNetExpected(Payment payment) {
@@ -226,6 +273,16 @@ public class PaymentService {
         dto.setStatus(payment.getStatus());
         dto.setMethod(payment.getMethod());
         dto.setProofUrl(payment.getProofUrl());
+        dto.setOnlineState(onlineState(payment));
+        if ("PAID".equals(payment.getStatus()) && payment.getMethod() != null && payment.getGatewayPaymentId() != null) {
+            dto.setOperationId(payment.getGatewayPaymentId());
+        }
+        User payer = payment.getPaidBy();
+        if (payer != null) {
+            User owner = payment.getStudent().getUser();
+            dto.setPaidByEmail(payer.getEmail());
+            dto.setPaidByGuardian(owner == null || !owner.getId().equals(payer.getId()));
+        }
 
         BigDecimal netExpected = computeNetExpected(payment);
         if (netExpected != null) {

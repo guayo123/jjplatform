@@ -85,6 +85,10 @@ export interface Student {
   email: string | null;
   phone: string | null;
   emergencyPhone: string | null;
+  /** Apoderado (e.g. a parent): may sign in to the portal to see and pay for this student. */
+  guardianName?: string | null;
+  guardianEmail?: string | null;
+  guardianRut?: string | null;
   joinDate: string | null;
   birthDate: string | null;
   age: number | null;
@@ -293,12 +297,21 @@ export interface Payment {
   status?: string | null;   // PAID | PENDING_CONFIRMATION
   method?: string | null;   // MANUAL | TRANSFER | KHIPU | MERCADO_PAGO
   proofUrl?: string | null;
+  /** Account that paid online (null when staff recorded it) and whether it was the guardian. */
+  paidByEmail?: string | null;
+  paidByGuardian?: boolean | null;
+  /** Pending online checkout: still in progress, abandoned/timed out, or rejected by the gateway. */
+  onlineState?: 'IN_PROGRESS' | 'EXPIRED' | 'REJECTED' | null;
+  /** Gateway operation id of a confirmed online payment, shown on the receipt. */
+  operationId?: string | null;
 }
 
 export interface PaymentOptions {
   khipu: boolean;
   mercadoPago: boolean;
   bankDetails: string | null;
+  /** Academy WhatsApp, to send a payment receipt to the academy. */
+  whatsapp?: string | null;
 }
 
 export interface UpcomingClass {
@@ -540,6 +553,9 @@ export interface AcademySettings {
   mpAccessToken: string;
   khipuApiKey: string;
   paymentRemindersEnabled: boolean;
+  /** Email staff when a student pays online; optional extra recipient. */
+  paymentNotifyEnabled?: boolean;
+  paymentNotifyEmail?: string;
 }
 
 // ─── Training journal (student self-logged sessions) ───

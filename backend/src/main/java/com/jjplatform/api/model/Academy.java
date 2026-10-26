@@ -62,6 +62,15 @@ public class Academy {
     @Column(length = 200)
     private String khipuApiKey;
 
+    /** When true, staff get an email each time a student pays online (Khipu / Mercado Pago). */
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private Boolean paymentNotifyEnabled = true;
+
+    /** Extra recipient for those emails (e.g. a manager or accountant), besides the academy owner. */
+    @Column(length = 200)
+    private String paymentNotifyEmail;
+
     /** When true, the scheduled job auto-sends WhatsApp reminders for overdue/inactive students. */
     @Builder.Default
     @Column(nullable = false, columnDefinition = "boolean default false")

@@ -108,11 +108,12 @@ public class PortalController {
     /** Starts a Khipu/Mercado Pago checkout for a month; returns {url} to open. */
     @PostMapping("/students/{studentId}/pay")
     public ResponseEntity<Map<String, String>> pay(@PathVariable Long studentId,
-                                                   @RequestBody Map<String, Object> body) {
+                                                   @RequestBody Map<String, Object> body,
+                                                   @RequestHeader(value = "Origin", required = false) String origin) {
         String method = String.valueOf(body.get("method"));
         int month = ((Number) body.get("month")).intValue();
         int year = ((Number) body.get("year")).intValue();
-        String url = portalService.createCheckout(studentId, method, month, year, Boolean.TRUE.equals(body.get("app")));
+        String url = portalService.createCheckout(studentId, method, month, year, Boolean.TRUE.equals(body.get("app")), origin);
         return ResponseEntity.ok(Map.of("url", url));
     }
 
