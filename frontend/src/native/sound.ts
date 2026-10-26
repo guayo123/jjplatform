@@ -91,43 +91,67 @@ export function playOss(): void {
 }
 
 // --- Payment success cue (same "oss" audio as duels) -----------------------------
-// The checkout happens outside the portal, so the cue plays with no user gesture on the way back.
-// primePaymentSound() unlocks it on the "Pagar" tap (muted play + rewind); inside the native app the
-// same page survives the checkout (Custom Tab on top), so it can play on return. On the web the
-// return lands in a new tab and the browser may keep it muted — then it's silent.
-let paymentAudio: HTMLAudioElement | null = null;
+// The cue plays with no user gesture on the way back from the checkout, so it is unlocked on the
+// "Pagar" tap. WebAudio is used because a silent one-sample buffer unlocks it without any audible
+// sound (iOS ignores muting an <audio> element). It only helps where the portal stays open behind
+// the checkout (native app, desktop tab); a fresh page after the return may stay silent.
+let cueCtx: AudioContext | null = null;
+let cueBuffer: AudioBuffer | null = null;
 
-function paymentCue(): HTMLAudioElement {
-  if (!paymentAudio) {
-    paymentAudio = new Audio('/sounds/duelo.mp3');
-    paymentAudio.preload = 'auto';
+function cueContext(): AudioContext | null {
+  try {
+    if (!cueCtx) {
+      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!Ctx) return null;
+      cueCtx = new Ctx();
+    }
+    return cueCtx;
+  } catch {
+    return null;
   }
-  return paymentAudio;
 }
 
-/** Unlock the payment cue. Call on the tap that starts the checkout. */
+/** Silently unlock audio and preload the payment cue. Call on the tap that starts the checkout. */
 export function primePaymentSound(): void {
   if (!isSoundEnabled()) return;
+  const ctx = cueContext();
+  if (!ctx) return;
   try {
-    const a = paymentCue();
-    a.muted = true;
-    a.currentTime = 0;
-    const reset = () => { a.pause(); a.currentTime = 0; a.muted = false; };
-    const p = a.play();
-    if (p && typeof p.then === 'function') p.then(reset).catch(() => { a.muted = false; });
-    else reset();
+    void ctx.resume().catch(() => {});
+    const src = ctx.createBufferSource();
+    src.buffer = ctx.createBuffer(1, 1, 22050);
+    src.connect(ctx.destination);
+    src.start(0);
+    if (!cueBuffer) {
+      fetch('/sounds/duelo.mp3')
+        .then((r) => r.arrayBuffer())
+        .then((data) => new Promise<AudioBuffer>((ok, fail) => ctx.decodeAudioData(data, ok, fail)))
+        .then((b) => { cueBuffer = b; })
+        .catch(() => {});
+    }
   } catch {
     /* ignore */
   }
 }
 
-/** Play the "oss" cue for a confirmed payment (silent if audio is blocked). */
+/** Play the "oss" cue for a confirmed payment (silent if audio is still locked). */
 export function playPaymentSound(): void {
   if (!isSoundEnabled()) return;
+  const ctx = cueCtx;
+  if (ctx && cueBuffer) {
+    try {
+      void ctx.resume().catch(() => {});
+      const src = ctx.createBufferSource();
+      src.buffer = cueBuffer;
+      src.connect(ctx.destination);
+      src.start(0);
+      return;
+    } catch {
+      /* fall through */
+    }
+  }
   try {
-    const a = paymentCue();
-    a.muted = false;
-    a.currentTime = 0;
+    const a = new Audio('/sounds/duelo.mp3');
     const p = a.play();
     if (p && typeof p.then === 'function') p.catch(() => {});
   } catch {

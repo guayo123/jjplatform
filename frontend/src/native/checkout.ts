@@ -1,6 +1,6 @@
 import { App } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
-import { getPlatformInfo } from './usePlatform';
+import { getPlatformInfo, isInstalledPwa } from './usePlatform';
 
 /**
  * Opens an external URL (a payment checkout, a WhatsApp link). In the native app it uses the
@@ -16,6 +16,41 @@ export async function openExternal(url: string): Promise<void> {
 
 /** Opens a payment checkout (see {@link openExternal}). */
 export const openCheckout = openExternal;
+
+/**
+ * True when the web checkout replaces the portal in the same window: on phones and in the installed
+ * web app. There a new window is popup-blocked after the async call (iOS) and, in an iOS home-screen
+ * app, would open in Safari without the student's session.
+ */
+export function checkoutOpensInPlace(): boolean {
+  if (getPlatformInfo().isNative || typeof window === 'undefined') return false;
+  return isInstalledPwa() || window.matchMedia('(pointer: coarse)').matches;
+}
+
+/**
+ * Opens a gateway checkout whose URL comes from an async call without being popup-blocked:
+ * native app → in-app browser; phones / installed web app → same window; desktop → a new tab
+ * opened synchronously within the tap and pointed at the URL once it arrives (closed on error).
+ */
+export async function startCheckout(getUrl: () => Promise<string>): Promise<void> {
+  if (getPlatformInfo().isNative) {
+    await Browser.open({ url: await getUrl() });
+    return;
+  }
+  if (checkoutOpensInPlace()) {
+    window.location.href = await getUrl();
+    return;
+  }
+  const tab = window.open('', '_blank');
+  try {
+    const url = await getUrl();
+    if (tab) tab.location.href = url;
+    else window.location.href = url;
+  } catch (e) {
+    tab?.close();
+    throw e;
+  }
+}
 
 /**
  * Calls back when the gateway redirects to jjplatform://pagos (end of checkout) and closes the

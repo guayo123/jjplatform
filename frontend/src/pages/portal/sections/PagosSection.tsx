@@ -4,7 +4,7 @@ import type { Payment, PaymentOptions } from '../../../types';
 import { portalApi } from '../../../api/portal';
 import { formatDate, money, SkeletonRows, MONTHS } from './shared';
 import { tapLight } from '../../../native/haptics';
-import { openCheckout, onCheckoutReturn, rememberCheckoutView } from '../../../native/checkout';
+import { startCheckout, checkoutOpensInPlace, onCheckoutReturn, rememberCheckoutView } from '../../../native/checkout';
 import { primePaymentSound } from '../../../native/sound';
 import { getPlatformInfo } from '../../../native/usePlatform';
 import PaymentReceipt from './PaymentReceipt';
@@ -78,15 +78,15 @@ export default function PagosSection({ payments, detailLoading, studentId, optio
 
   const pay = async (method: string) => {
     void tapLight();
-    // Inside the tap: unlock audio for the success cue and remember the current portal view,
-    // both used when the student comes back from the checkout.
-    primePaymentSound();
+    // Inside the tap: remember the current portal view for the return and, when the portal stays
+    // open behind the checkout (app / desktop tab), silently unlock audio for the success cue.
+    if (!checkoutOpensInPlace()) primePaymentSound();
     rememberCheckoutView();
     setStarting(method);
     setError('');
     try {
-      const { url } = await portalApi.pay(studentId, method, month, year, getPlatformInfo().isNative);
-      await openCheckout(url);
+      await startCheckout(() =>
+        portalApi.pay(studentId, method, month, year, getPlatformInfo().isNative).then((r) => r.url));
     } catch (e: unknown) {
       // The API client already rejects with an Error carrying the backend's message.
       setError(e instanceof Error && e.message ? e.message : 'No se pudo iniciar el pago. Intenta de nuevo.');
