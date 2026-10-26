@@ -49,6 +49,13 @@ public class PortalController {
     @GetMapping("/me")
     public ResponseEntity<List<StudentDto>> me() {
         Long userId = securityHelper.getCurrentUser().getId();
+        try {
+            studentService.linkNewRecords(userId);
+        } catch (RuntimeException e) {
+            // Best effort: a linking problem must never keep the student out of their portal.
+            org.slf4j.LoggerFactory.getLogger(PortalController.class)
+                    .warn("Could not link new student records for user {}: {}", userId, e.getMessage());
+        }
         return ResponseEntity.ok(studentService.getMyStudents(userId));
     }
 

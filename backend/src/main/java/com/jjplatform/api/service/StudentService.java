@@ -181,6 +181,52 @@ public class StudentService {
     }
 
     /**
+     * Links records an academy created for someone who already has a portal account, so a person who
+     * joins a second academy (or a guardian whose academy adds another child) sees it without
+     * re-registering: a record with the account's email and the RUT of a record it already owns, and a
+     * record naming the account as guardian with the guardian RUT of a ward it already has. Same email +
+     * RUT trust boundary as registration; never takes a record linked to another account and never
+     * changes the password. Runs on each portal load (/portal/me).
+     */
+    @Transactional
+    public void linkNewRecords(Long userId) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null || user.getRole() != User.Role.STUDENT || user.getEmail() == null) return;
+        String email = user.getEmail().trim().toLowerCase();
+        List<Student> mine = studentRepository.findAccessibleByUser(userId);
+
+        java.util.Set<String> ownRuts = mine.stream()
+                .filter(s -> s.getUser() != null && s.getUser().getId().equals(userId))
+                .map(s -> normalizeRut(s.getRut()))
+                .filter(r -> !r.isEmpty())
+                .collect(Collectors.toSet());
+        if (!ownRuts.isEmpty()) {
+            for (Student s : studentRepository.findByEmailIgnoreCase(email)) {
+                if (s.getUser() == null && ownRuts.contains(normalizeRut(s.getRut()))) {
+                    s.setUser(user);
+                    studentRepository.save(s);
+                }
+            }
+        }
+
+        java.util.Set<String> guardianRuts = mine.stream()
+                .filter(s -> email.equalsIgnoreCase(s.getGuardianEmail()))
+                .map(s -> normalizeRut(s.getGuardianRut()))
+                .filter(r -> !r.isEmpty())
+                .collect(Collectors.toSet());
+        if (!guardianRuts.isEmpty()) {
+            for (Student s : studentRepository.findByGuardianEmail(email)) {
+                boolean owned = s.getUser() != null && s.getUser().getId().equals(userId);
+                if (!owned && guardianRuts.contains(normalizeRut(s.getGuardianRut()))
+                        && !studentRepository.existsByIdAndGuardians_Id(s.getId(), userId)) {
+                    s.getGuardians().add(user);
+                    studentRepository.save(s);
+                }
+            }
+        }
+    }
+
+    /**
      * When staff edits a student's email, update the linked login's email too so the portal lookup
      * (by user id) and the reset/registration flow (by email) stay consistent. No-op if the student
      * has no login yet or the email didn't change. Blocks if the email already belongs to another login.
