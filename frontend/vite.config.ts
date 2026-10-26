@@ -9,6 +9,9 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8081',
         changeOrigin: true,
+        // frontend/api/*.ts are Vercel functions whose helpers the SPA imports (e.g. _seo.ts):
+        // in dev those are source modules Vite must serve itself, not backend calls.
+        bypass: (req) => (/^\/api\/[^?]*\.ts(\?|$)/.test(req.url ?? '') ? req.url : undefined),
       },
     },
   },
