@@ -146,6 +146,13 @@ export function exportStudentsPDF(
 
 // ── Payments ─────────────────────────────────────────────────────────────────
 
+const PAYMENT_METHODS: Record<string, string> = { TRANSFER: 'Transferencia', KHIPU: 'Khipu', MERCADO_PAGO: 'Mercado Pago' };
+
+/** How the payment arrived. Staff-recorded payments have no method (cash or anything outside the app). */
+function paymentMethodLabel(p: Payment): string {
+  return (p.method && PAYMENT_METHODS[p.method]) || 'Efectivo / manual';
+}
+
 function paymentsToRows(payments: Payment[]) {
   return payments.map((p) => {
     const remaining = p.remaining ?? 0;
@@ -157,6 +164,7 @@ function paymentsToRows(payments: Payment[]) {
       Esperado: p.expectedAmount != null ? formatClp(p.expectedAmount) : '—',
       Descuento: discountLabel,
       Pagado: formatClp(Number(p.amount)),
+      Medio: paymentMethodLabel(p),
       Pendiente: remaining > 0 ? formatClp(remaining) : '—',
       Estado: remaining > 0 ? 'Pendiente' : 'Completo',
       Mes: MONTH_NAMES[(p.month ?? 1) - 1],
@@ -184,13 +192,17 @@ export function exportPaymentsPDF(payments: Payment[], month: number, year: numb
   const paid = payments.filter((p) => (p.remaining ?? 0) === 0).length;
   const pending = payments.length - paid;
   doc.text(`Total: ${payments.length} | Completos: ${paid} | Pendientes: ${pending}`, 14, 22);
+  // Money received per method, to reconcile with the bank account and the cash box.
+  const byMethod = new Map<string, number>();
+  for (const p of payments) byMethod.set(paymentMethodLabel(p), (byMethod.get(paymentMethodLabel(p)) ?? 0) + Number(p.amount));
+  doc.text(`Recaudado: ${[...byMethod].map(([m, total]) => `${m} ${formatClp(total)}`).join(' | ')}`, 14, 27);
 
   autoTable(doc, {
-    startY: 27,
+    startY: 32,
     styles: { fontSize: 8, cellPadding: 2 },
     headStyles: { fillColor: [30, 30, 30], textColor: 255, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [245, 245, 245] },
-    head: [['Alumno', 'Esperado', 'Descuento', 'Pagado', 'Pendiente', 'Estado', 'Fecha pago', 'Notas']],
+    head: [['Alumno', 'Esperado', 'Descuento', 'Pagado', 'Medio', 'Pendiente', 'Estado', 'Fecha pago', 'Notas']],
     body: payments.map((p) => {
       const remaining = p.remaining ?? 0;
       const discountLabel = p.discount && Number(p.discount) > 0
@@ -201,6 +213,7 @@ export function exportPaymentsPDF(payments: Payment[], month: number, year: numb
         p.expectedAmount != null ? formatClp(p.expectedAmount) : '—',
         discountLabel,
         formatClp(Number(p.amount)),
+        paymentMethodLabel(p),
         remaining > 0 ? formatClp(remaining) : '—',
         remaining > 0 ? 'Pendiente' : 'Completo',
         p.paidAt?.slice(0, 10) ?? '—',
