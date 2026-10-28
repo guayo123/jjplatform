@@ -1,6 +1,9 @@
 import client from './client';
 import type { Student, StudentDiscipline, BeltPromotion, Payment, TechniqueCurriculum, PaymentOptions, UpcomingClass, Birthday, CompetitionResult, CompetitionResultForm, StudentCard } from '../types';
 
+/** One profile's fee in the "pay all" card; planTotal/discountReason only when a standing discount applies. */
+export interface FamilyDueRow { studentId: number; name: string; amount: number; planTotal?: number; discountReason?: string | null }
+
 export const portalApi = {
   /** The logged-in student's profile(s) — one per academy they belong to. */
   me: () => client.get<Student[]>('/portal/me').then((r) => r.data),
@@ -38,7 +41,7 @@ export const portalApi = {
 
   /** The month's unpaid fees of every profile this login can pay in the same academy. */
   familyDue: (studentId: number, month: number, year: number) =>
-    client.get<{ studentId: number; name: string; amount: number }[]>(
+    client.get<FamilyDueRow[]>(
       `/portal/students/${studentId}/family-due`, { params: { month, year } }).then((r) => r.data),
 
   /** One checkout paying the month of several profiles at once. */

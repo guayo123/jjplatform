@@ -238,6 +238,15 @@ public class PaymentService {
      */
     @Transactional(readOnly = true)
     public BigDecimal onlineAmountDue(Long studentId, int month, int year) {
+        OnlineDue due = onlineDue(studentId, month, year);
+        return due != null ? due.amount() : null;
+    }
+
+    /** {@link #onlineAmountDue} plus the plan total before the standing discount and its reason (to show it). */
+    public record OnlineDue(BigDecimal amount, BigDecimal planTotal, String discountReason) {}
+
+    @Transactional(readOnly = true)
+    public OnlineDue onlineDue(Long studentId, int month, int year) {
         // Paid, or a transfer receipt already waiting for review: nothing more to pay now.
         boolean settled = paymentRepository.findByStudentIdAndMonthAndYear(studentId, month, year)
                 .map(p -> "PAID".equals(p.getStatus()) || TRANSFER_IN_REVIEW.equals(onlineState(p))).orElse(false);
@@ -251,7 +260,8 @@ public class PaymentService {
         probe.setDiscount(student.getMonthlyDiscount() != null ? student.getMonthlyDiscount() : BigDecimal.ZERO);
         probe.setDiscountType("PERCENT".equals(student.getMonthlyDiscountType()) ? "PERCENT" : "AMOUNT");
         BigDecimal net = computeNetExpected(probe);
-        return net != null && net.compareTo(BigDecimal.ZERO) > 0 ? net : null;
+        if (net == null || net.compareTo(BigDecimal.ZERO) <= 0) return null;
+        return new OnlineDue(net, expected, net.compareTo(expected) < 0 ? student.getMonthlyDiscountReason() : null);
     }
 
     /**

@@ -158,7 +158,7 @@ public class PortalService {
 
     /**
      * The month's unpaid fees of every profile this login can pay for in the same academy as
-     * {@code studentId} (itself and the children it is guardian of): [{studentId, name, amount}].
+     * {@code studentId} (itself and the children it is guardian of): [{studentId, name, amount, planTotal?, discountReason?}].
      * The portal offers "pay all" when there are two or more.
      */
     public List<Map<String, Object>> getFamilyDue(Long studentId, int month, int year) {
@@ -167,12 +167,17 @@ public class PortalService {
         List<Map<String, Object>> out = new java.util.ArrayList<>();
         for (Student p : studentRepository.findAccessibleByUser(securityHelper.getCurrentUser().getId())) {
             if (!p.getAcademy().getId().equals(academyId) || !Boolean.TRUE.equals(p.getActive())) continue;
-            java.math.BigDecimal due = paymentService.onlineAmountDue(p.getId(), month, year);
+            PaymentService.OnlineDue due = paymentService.onlineDue(p.getId(), month, year);
             if (due == null) continue;
             Map<String, Object> row = new HashMap<>();
             row.put("studentId", p.getId());
             row.put("name", p.getName());
-            row.put("amount", due);
+            row.put("amount", due.amount());
+            // Shown as "Descuento familiar: −$15.000 (antes $35.000)"; absent without a standing discount.
+            if (due.amount().compareTo(due.planTotal()) < 0) {
+                row.put("planTotal", due.planTotal());
+                row.put("discountReason", due.discountReason());
+            }
             out.add(row);
         }
         return out;

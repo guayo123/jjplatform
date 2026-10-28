@@ -311,6 +311,18 @@ class FamilyPaymentIntegrationTest {
         assertThat(due(hijo2)).containsExactly(entry(hijo2, 35000)); // one row → the portal shows no "pagar todo"
     }
 
+    // ── La tarjeta "pagar todo" muestra el descuento de cada uno (precio antes y motivo) ──
+    @Test
+    void payAllRowsShowTheStandingDiscount() {
+        Map<Long, Map<String, Object>> rows = new HashMap<>();
+        run(() -> portal.getFamilyDue(papa, MONTH, YEAR)).forEach(r -> rows.put((Long) r.get("studentId"), r));
+
+        assertThat(((BigDecimal) rows.get(hijo1).get("planTotal")).intValue()).isEqualTo(35000);
+        assertThat(rows.get(hijo1).get("discountReason")).isEqualTo("Descuento familiar");
+        assertThat(rows.get(hijo2)).doesNotContainKeys("planTotal", "discountReason");
+        assertThat(rows.get(papa)).doesNotContainKeys("planTotal", "discountReason");
+    }
+
     // ── Un papá que entrena y al que después le agregan una hija como apoderado ──
     @Test
     void childAddedLaterIsLinkedToTheParentWhoTrainsAndShowsInPayAll() {

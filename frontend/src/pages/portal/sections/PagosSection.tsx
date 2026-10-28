@@ -1,7 +1,7 @@
 import { Check } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import type { Payment, PaymentOptions } from '../../../types';
-import { portalApi } from '../../../api/portal';
+import { portalApi, type FamilyDueRow } from '../../../api/portal';
 import { formatDate, money, SkeletonRows, MONTHS } from './shared';
 import { tapLight } from '../../../native/haptics';
 import { startCheckout, checkoutOpensInPlace, onCheckoutReturn, rememberCheckoutView } from '../../../native/checkout';
@@ -97,7 +97,7 @@ export default function PagosSection({ payments, detailLoading, studentId, optio
 
   // "Pagar todo": the month's unpaid fees of every profile this login pays for (e.g. a guardian and
   // their children). Re-read whenever the payments change, so a paid profile drops out of the list.
-  const [familyDue, setFamilyDue] = useState<{ studentId: number; name: string; amount: number }[]>([]);
+  const [familyDue, setFamilyDue] = useState<FamilyDueRow[]>([]);
   useEffect(() => {
     if (!canPay) return;
     let alive = true;
@@ -161,9 +161,16 @@ export default function PagosSection({ payments, detailLoading, studentId, optio
           </div>
           <div className="space-y-1 text-sm">
             {familyDue.map((r) => (
-              <div key={r.studentId} className="flex justify-between gap-3 text-gray-600">
-                <span className="truncate">{r.name}</span>
-                <span>{money(Number(r.amount))}</span>
+              <div key={r.studentId} className="text-gray-600">
+                <div className="flex justify-between gap-3">
+                  <span className="truncate">{r.name}</span>
+                  <span>{money(Number(r.amount))}</span>
+                </div>
+                {r.planTotal != null && (
+                  <p className="text-xs text-green-600">
+                    {r.discountReason ?? 'Descuento'}: −{money(Number(r.planTotal) - Number(r.amount))} (antes {money(Number(r.planTotal))})
+                  </p>
+                )}
               </div>
             ))}
             <div className="flex justify-between gap-3 pt-1 border-t border-gray-200 font-bold text-gray-900">
