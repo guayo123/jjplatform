@@ -181,12 +181,14 @@ public class StudentService {
     }
 
     /**
-     * Links records an academy created for someone who already has a portal account, so a person who
-     * joins a second academy (or a guardian whose academy adds another child) sees it without
-     * re-registering: a record with the account's email and the RUT of a record it already owns, and a
-     * record naming the account as guardian with the guardian RUT of a ward it already has. Same email +
-     * RUT trust boundary as registration; never takes a record linked to another account and never
-     * changes the password. Runs on each portal load (/portal/me).
+     * Links records an academy created for someone who already has a portal account, so they show up
+     * without re-registering. Same email + RUT trust boundary as registration: the account must have
+     * already proved a RUT, either as the RUT of a record it owns or as the guardian RUT of a ward it has.
+     * With a proved RUT it links (1) an unlinked record with the account's email and that RUT — the
+     * person's own record in another academy, or a guardian who starts training — and (2) a record naming
+     * the account's email and that RUT as guardian — another child, or the first child of a parent who
+     * trains. Never takes a record linked to another account and never changes the password. Runs on each
+     * portal load (/portal/me).
      */
     @Transactional
     public void linkNewRecords(Long userId) {
@@ -195,33 +197,26 @@ public class StudentService {
         String email = user.getEmail().trim().toLowerCase();
         List<Student> mine = studentRepository.findAccessibleByUser(userId);
 
-        java.util.Set<String> ownRuts = mine.stream()
-                .filter(s -> s.getUser() != null && s.getUser().getId().equals(userId))
-                .map(s -> normalizeRut(s.getRut()))
-                .filter(r -> !r.isEmpty())
-                .collect(Collectors.toSet());
-        if (!ownRuts.isEmpty()) {
-            for (Student s : studentRepository.findByEmailIgnoreCase(email)) {
-                if (s.getUser() == null && ownRuts.contains(normalizeRut(s.getRut()))) {
-                    s.setUser(user);
-                    studentRepository.save(s);
-                }
+        java.util.Set<String> provenRuts = new java.util.HashSet<>();
+        for (Student s : mine) {
+            if (s.getUser() != null && s.getUser().getId().equals(userId)) provenRuts.add(normalizeRut(s.getRut()));
+            if (email.equalsIgnoreCase(s.getGuardianEmail())) provenRuts.add(normalizeRut(s.getGuardianRut()));
+        }
+        provenRuts.remove("");
+        if (provenRuts.isEmpty()) return;
+
+        for (Student s : studentRepository.findByEmailIgnoreCase(email)) {
+            if (s.getUser() == null && provenRuts.contains(normalizeRut(s.getRut()))) {
+                s.setUser(user);
+                studentRepository.save(s);
             }
         }
-
-        java.util.Set<String> guardianRuts = mine.stream()
-                .filter(s -> email.equalsIgnoreCase(s.getGuardianEmail()))
-                .map(s -> normalizeRut(s.getGuardianRut()))
-                .filter(r -> !r.isEmpty())
-                .collect(Collectors.toSet());
-        if (!guardianRuts.isEmpty()) {
-            for (Student s : studentRepository.findByGuardianEmail(email)) {
-                boolean owned = s.getUser() != null && s.getUser().getId().equals(userId);
-                if (!owned && guardianRuts.contains(normalizeRut(s.getGuardianRut()))
-                        && !studentRepository.existsByIdAndGuardians_Id(s.getId(), userId)) {
-                    s.getGuardians().add(user);
-                    studentRepository.save(s);
-                }
+        for (Student s : studentRepository.findByGuardianEmail(email)) {
+            boolean owned = s.getUser() != null && s.getUser().getId().equals(userId);
+            if (!owned && provenRuts.contains(normalizeRut(s.getGuardianRut()))
+                    && !studentRepository.existsByIdAndGuardians_Id(s.getId(), userId)) {
+                s.getGuardians().add(user);
+                studentRepository.save(s);
             }
         }
     }
@@ -374,8 +369,9 @@ public class StudentService {
         if (dto.getGuardianName() != null) student.setGuardianName(blankToNull(dto.getGuardianName()));
         String newGuardianEmail = dto.getGuardianEmail() != null ? normalizeEmail(dto.getGuardianEmail()) : student.getGuardianEmail();
         String newGuardianRut = dto.getGuardianRut() != null ? blankToNull(dto.getGuardianRut()) : student.getGuardianRut();
-        boolean guardianChanged = !java.util.Objects.equals(student.getGuardianEmail(), newGuardianEmail)
-                || !java.util.Objects.equals(student.getGuardianRut(), newGuardianRut);
+        // Compared normalized: re-typing the same RUT with dots/dash (or the email in capitals) is not a new guardian.
+        boolean guardianChanged = !java.util.Objects.equals(normalizeEmail(student.getGuardianEmail()), normalizeEmail(newGuardianEmail))
+                || !normalizeRut(student.getGuardianRut()).equals(normalizeRut(newGuardianRut));
         if (guardianChanged) {
             // A different guardian contact revokes the previous guardian's access; the new one re-links on registration.
             student.getGuardians().clear();

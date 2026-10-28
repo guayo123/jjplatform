@@ -63,6 +63,7 @@ class FamilyPaymentIntegrationTest {
     static final int MONTH = 10, YEAR = 2026;
 
     @Autowired PortalService portal;
+    @Autowired StudentService studentService;
     @Autowired PaymentGatewayService gateway;
     @Autowired PaymentRepository paymentRepository;
     @Autowired StudentRepository studentRepository;
@@ -308,6 +309,30 @@ class FamilyPaymentIntegrationTest {
         tx.executeWithoutResult(s -> studentRepository.findById(hijo2).orElseThrow().getGuardians().add(mama));
         loginAs(mama);
         assertThat(due(hijo2)).containsExactly(entry(hijo2, 35000)); // one row → the portal shows no "pagar todo"
+    }
+
+    // ── Un papá que entrena y al que después le agregan una hija como apoderado ──
+    @Test
+    void childAddedLaterIsLinkedToTheParentWhoTrainsAndShowsInPayAll() {
+        int n = seq.incrementAndGet();
+        Academy a = studentRepository.findById(papa).orElseThrow().getAcademy();
+        Plan adult = planRepository.findByAcademyIdOrderByDisplayOrderAscIdAsc(a.getId()).get(0);
+        String email = "diego" + n + "@test.cl";
+        User diego = userRepository.save(User.builder().email(email).password("x").role(User.Role.STUDENT).build());
+        Long own = studentRepository.save(Student.builder().academy(a).name("Diego").email(email).rut("17.319.483-8")
+                .user(diego).active(true).plans(new ArrayList<>(List.of(adult))).build()).getId();
+        // Staff add the daughter naming him as guardian (RUT typed without dots).
+        Long hija = studentRepository.save(Student.builder().academy(a).name("Hija").active(true)
+                .guardianEmail(email).guardianRut("173194838").plans(new ArrayList<>(List.of(adult))).build()).getId();
+        // Same email but someone else's RUT: must not be linked.
+        Long ajena = studentRepository.save(Student.builder().academy(a).name("Ajena").active(true)
+                .guardianEmail(email).guardianRut("11.111.111-1").plans(new ArrayList<>(List.of(adult))).build()).getId();
+
+        studentService.linkNewRecords(diego.getId()); // what opening the portal does
+        loginAs(diego);
+
+        assertThat(due(own)).containsExactly(entry(own, 50000), entry(hija, 50000));
+        assertThat(studentRepository.existsByIdAndGuardians_Id(ajena, diego.getId())).isFalse();
     }
 
     // ── helpers ──
