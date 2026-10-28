@@ -1,6 +1,6 @@
 import { useConfirm } from '../../components/ConfirmContext';
 import { Check } from '@phosphor-icons/react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { paymentsApi } from '../../api/payments';
 import { academiesApi } from '../../api/academies';
 import { useStudentStore } from '../../stores/studentStore';
@@ -8,9 +8,10 @@ import { useAuthStore } from '../../stores/authStore';
 import { formatCLP } from '../../utils/format';
 import { exportPaymentsExcel, exportPaymentsPDF } from '../../utils/export';
 import { useGuidedTour } from '../../utils/useGuidedTour';
-import type { Payment, PaymentForm, Plan } from '../../types';
+import type { Payment, PaymentForm, Plan, TransferReview } from '../../types';
 import FormInput from '../../components/FormInput';
 import FormSelect from '../../components/FormSelect';
+import TransferReviews from './TransferReviews';
 
 const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
@@ -21,13 +22,13 @@ function computeNetExpected(p: Payment): number | null {
   return p.expectedAmount - disc;
 }
 
-const ONLINE_METHODS: Record<string, string> = { KHIPU: 'Khipu', MERCADO_PAGO: 'Mercado Pago' };
+const ONLINE_METHODS: Record<string, string> = { KHIPU: 'Khipu', MERCADO_PAGO: 'Mercado Pago', TRANSFER: 'Transferencia' };
 
-/** "Mercado Pago · apoderado papa@mail.cl" for online payments; null for staff-recorded ones. */
+/** "Mercado Pago · apoderado papa@mail.cl" for online / transfer payments; null for staff-recorded ones. */
 function onlinePaymentLabel(p: Payment): string | null {
   const method = p.method ? ONLINE_METHODS[p.method] : undefined;
   if (!method) return null;
-  if (!p.paidByEmail) return `Pagado en línea · ${method}`;
+  if (!p.paidByEmail) return p.method === 'TRANSFER' ? method : `Pagado en línea · ${method}`;
   return `${method} · ${p.paidByGuardian ? `apoderado ${p.paidByEmail}` : 'el alumno'}`;
 }
 
@@ -54,6 +55,9 @@ export default function Payments() {
   const [view, setView] = useState<'month' | 'plan'>('month');
   const [plans, setPlans] = useState<Plan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
+  /** Receipts waiting for review (any month); the selected month's students show "En revisión". */
+  const [reviews, setReviews] = useState<TransferReview[]>([]);
+  const onReviewsLoaded = useCallback((r: TransferReview[]) => setReviews(r), []);
 
   // CLP display state for inputs
   const [amountInput, setAmountInput] = useState('0');
@@ -106,9 +110,14 @@ export default function Payments() {
   const handleStudentChange = (studentId: number) => {
     const student = students.find(s => s.id === studentId);
     const total = student?.enrolledPlans?.reduce((sum, p) => sum + (p.price ?? 0), 0) ?? 0;
-    setForm(f => ({ ...f, studentId, amount: total, discount: 0, discountType: 'AMOUNT' }));
-    setAmountInput(toCLPDisplay(total));
-    setDiscountInput('');
+    // Pre-fill the student's standing discount (editable for this month).
+    const disc = Number(student?.monthlyDiscount ?? 0);
+    const type = student?.monthlyDiscountType === 'PERCENT' ? 'PERCENT' : 'AMOUNT';
+    const net = disc <= 0 ? total : type === 'PERCENT' ? Math.round(total * (1 - disc / 100)) : Math.max(0, total - disc);
+    setForm(f => ({ ...f, studentId, amount: net, discount: disc, discountType: type,
+      notes: disc > 0 && student?.monthlyDiscountReason ? student.monthlyDiscountReason : f.notes }));
+    setAmountInput(toCLPDisplay(net));
+    setDiscountInput(disc > 0 ? (type === 'PERCENT' ? String(disc) : toCLPDisplay(disc)) : '');
   };
 
   const handleDiscountBlur = () => {
@@ -158,6 +167,8 @@ export default function Payments() {
   };
 
   const paidStudentIds = new Set(payments.map(p => p.studentId));
+  const inReviewIds = new Set(reviews.flatMap((r) => r.items)
+    .filter((it) => it.month === month && it.year === year).map((it) => it.studentId));
   const unpaidStudents = students.filter(s => !paidStudentIds.has(s.id));
 
   // Vista por plan
@@ -199,9 +210,9 @@ export default function Payments() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold">Pagos</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <button
             onClick={startTour}
             title="Ayuda"
@@ -221,7 +232,7 @@ export default function Payments() {
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6m0 0l-3 3m3-3l3 3M3 7h18M5 7V5a2 2 0 012-2h10a2 2 0 012 2v2" />
                 </svg>
-                Excel
+                <span className="hidden sm:inline">Excel</span>
               </button>
               <button
                 onClick={() => exportPaymentsPDF(payments, month, year)}
@@ -231,7 +242,7 @@ export default function Payments() {
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6m0 0l-3 3m3-3l3 3M3 7h18M5 7V5a2 2 0 012-2h10a2 2 0 012 2v2" />
                 </svg>
-                PDF
+                <span className="hidden sm:inline">PDF</span>
               </button>
             </>
           )}
@@ -239,13 +250,15 @@ export default function Payments() {
             <button
               data-tour="registrar-pago"
               onClick={() => setShowForm(!showForm)}
-              className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
             >
               + Registrar pago
             </button>
           )}
         </div>
       </div>
+
+      {canEdit && <TransferReviews onChanged={loadPayments} onLoaded={onReviewsLoaded} />}
 
       {/* View toggle + Month/Year selector */}
       <div className="flex flex-wrap items-center gap-3 mb-6" data-tour="vista-pagos">
@@ -322,7 +335,7 @@ export default function Payments() {
                   </span>
                   <span className="flex items-center gap-1.5 text-red-500">
                     <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
-                    Pendiente: {planStudents.filter(s => !payments.find(x => x.studentId === s.id)).length}
+                    Pendiente: {planStudents.filter(s => !payments.find(x => x.studentId === s.id) && !inReviewIds.has(s.id)).length}
                   </span>
                 </div>
               </div>
@@ -341,6 +354,7 @@ export default function Payments() {
                     let dotColor = 'bg-red-500';
                     if (isPaid) { statusColor = 'border-green-200 bg-green-50'; dotColor = 'bg-green-500'; }
                     else if (isPartial) { statusColor = 'border-orange-200 bg-orange-50'; dotColor = 'bg-orange-400'; }
+                    else if (inReviewIds.has(student.id)) { statusColor = 'border-blue-200 bg-blue-50'; dotColor = 'bg-blue-500'; }
 
                     return (
                       <div key={student.id} className={`flex items-center gap-3 p-3 rounded-lg border ${statusColor}`}>
@@ -362,6 +376,8 @@ export default function Payments() {
                                 </button>
                               )}
                             </>
+                          ) : inReviewIds.has(student.id) ? (
+                            <span className="text-xs font-medium text-blue-600">En revisión</span>
                           ) : (
                             <span className="text-xs font-medium text-red-600">Pendiente</span>
                           )}
@@ -392,7 +408,7 @@ export default function Payments() {
             >
               <option value={0}>Seleccionar...</option>
               {unpaidStudents.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+                <option key={s.id} value={s.id}>{s.name}{inReviewIds.has(s.id) ? ' (comprobante en revisión)' : ''}</option>
               ))}
             </FormSelect>
           </div>
@@ -620,6 +636,7 @@ export default function Payments() {
             let dotColor = 'bg-red-500';
             if (isPaid) { statusColor = 'border-green-200 bg-green-50'; dotColor = 'bg-green-500'; }
             else if (isPartial) { statusColor = 'border-orange-200 bg-orange-50'; dotColor = 'bg-orange-400'; }
+            else if (inReviewIds.has(student.id)) { statusColor = 'border-blue-200 bg-blue-50'; dotColor = 'bg-blue-500'; }
 
             return (
               <div key={student.id} className={`flex items-center gap-3 p-3 rounded-lg border ${statusColor}`}>
@@ -645,6 +662,8 @@ export default function Payments() {
                         </button>
                       )}
                     </>
+                  ) : inReviewIds.has(student.id) ? (
+                    <span className="text-xs font-medium text-blue-600">En revisión</span>
                   ) : (
                     <span className="text-xs font-medium text-red-600">Pendiente</span>
                   )}
@@ -683,6 +702,7 @@ export default function Payments() {
                   <div><dt className="text-xs text-gray-400">Fecha</dt><dd className="text-gray-600">{p.paidAt?.slice(0, 10) || '—'}</dd></div>
                 </dl>
                 {onlinePaymentLabel(p) && <p className="mt-2 text-xs text-primary-600 break-words">{onlinePaymentLabel(p)}</p>}
+                {p.proofUrl && <a href={p.proofUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-primary-600 underline">Ver comprobante</a>}
                 {p.notes && <p className="mt-2 text-xs text-gray-500 break-words">{p.notes}</p>}
                 {canEdit && (remaining > 0 || canDelete) && (
                   <div className="mt-3 flex gap-2">
@@ -749,6 +769,7 @@ export default function Payments() {
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {p.paidAt?.slice(0, 10)}
                       {onlinePaymentLabel(p) && <p className="text-xs text-primary-600">{onlinePaymentLabel(p)}</p>}
+                      {p.proofUrl && <a href={p.proofUrl} target="_blank" rel="noreferrer" className="text-xs text-primary-600 underline">Ver comprobante</a>}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">{p.notes || '—'}</td>
                     {canEdit && (

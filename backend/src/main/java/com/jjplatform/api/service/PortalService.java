@@ -66,6 +66,7 @@ public class PortalService {
     private final TechniqueService techniqueService;
     private final CoachService coachService;
     private final PaymentGatewayService paymentGatewayService;
+    private final TransferService transferService;
     private final ClassReservationService classReservationService;
     private final PushService pushService;
     private final WeightEntryRepository weightEntryRepository;
@@ -140,7 +141,10 @@ public class PortalService {
         Map<String, Object> out = new HashMap<>();
         out.put("khipu", methods.get("khipu"));
         out.put("mercadoPago", methods.get("mercadoPago"));
-        out.put("bankDetails", s.getAcademy().getBankDetails());
+        String bank = s.getAcademy().getBankDetails();
+        out.put("bankDetails", bank);
+        // Transfer with receipt upload is offered whenever the academy published its bank details.
+        out.put("transfer", bank != null && !bank.isBlank());
         out.put("whatsapp", s.getAcademy().getWhatsapp());
         return out;
     }
@@ -150,6 +154,61 @@ public class PortalService {
         Student s = requireOwnedStudent(studentId);
         return paymentGatewayService.createCheckout(studentId, s.getAcademy().getId(), month, year, method, fromApp,
                 securityHelper.getCurrentUser().getId(), origin);
+    }
+
+    /**
+     * The month's unpaid fees of every profile this login can pay for in the same academy as
+     * {@code studentId} (itself and the children it is guardian of): [{studentId, name, amount}].
+     * The portal offers "pay all" when there are two or more.
+     */
+    public List<Map<String, Object>> getFamilyDue(Long studentId, int month, int year) {
+        Student s = requireOwnedStudent(studentId);
+        Long academyId = s.getAcademy().getId();
+        List<Map<String, Object>> out = new java.util.ArrayList<>();
+        for (Student p : studentRepository.findAccessibleByUser(securityHelper.getCurrentUser().getId())) {
+            if (!p.getAcademy().getId().equals(academyId) || !Boolean.TRUE.equals(p.getActive())) continue;
+            java.math.BigDecimal due = paymentService.onlineAmountDue(p.getId(), month, year);
+            if (due == null) continue;
+            Map<String, Object> row = new HashMap<>();
+            row.put("studentId", p.getId());
+            row.put("name", p.getName());
+            row.put("amount", due);
+            out.add(row);
+        }
+        return out;
+    }
+
+    /** One checkout for the month of several owned profiles of the same academy ("pagar todo"). */
+    public String createFamilyCheckout(Long studentId, List<Long> studentIds, String method, int month, int year,
+                                       boolean fromApp, String origin) {
+        Student s = requireOwnedStudent(studentId);
+        Long academyId = s.getAcademy().getId();
+        List<Long> ids = new java.util.ArrayList<>(new java.util.LinkedHashSet<>(studentIds));
+        for (Long id : ids) {
+            if (!requireOwnedStudent(id).getAcademy().getId().equals(academyId)) {
+                throw new IllegalArgumentException("Solo se pueden pagar juntas mensualidades de la misma academia.");
+            }
+        }
+        return paymentGatewayService.createGroupCheckout(ids, academyId, month, year, method, fromApp,
+                securityHelper.getCurrentUser().getId(), origin);
+    }
+
+    /**
+     * The student / guardian uploads the receipt of a bank transfer for the month of {@code studentId},
+     * or of several owned profiles of the same academy when {@code studentIds} is given (one transfer for all).
+     */
+    public void submitTransfer(Long studentId, List<Long> studentIds, int month, int year, MultipartFile file) throws IOException {
+        Student s = requireOwnedStudent(studentId);
+        Long academyId = s.getAcademy().getId();
+        List<Long> ids = studentIds == null || studentIds.isEmpty()
+                ? List.of(studentId)
+                : new java.util.ArrayList<>(new java.util.LinkedHashSet<>(studentIds));
+        for (Long id : ids) {
+            if (!requireOwnedStudent(id).getAcademy().getId().equals(academyId)) {
+                throw new IllegalArgumentException("Solo se pueden pagar juntas mensualidades de la misma academia.");
+            }
+        }
+        transferService.submit(ids, academyId, month, year, file, securityHelper.getCurrentUser().getId());
     }
 
     // --- Class reservations -------------------------------------------------

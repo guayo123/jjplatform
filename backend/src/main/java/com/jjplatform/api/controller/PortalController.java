@@ -124,6 +124,41 @@ public class PortalController {
         return ResponseEntity.ok(Map.of("url", url));
     }
 
+    /** Unpaid fees of the month for every profile this login can pay in the same academy. */
+    @GetMapping("/students/{studentId}/family-due")
+    public ResponseEntity<List<Map<String, Object>>> familyDue(@PathVariable Long studentId,
+                                                               @RequestParam int month, @RequestParam int year) {
+        return ResponseEntity.ok(portalService.getFamilyDue(studentId, month, year));
+    }
+
+    /** One checkout for several profiles' month ("pagar todo"). Body: {method, month, year, app, studentIds}. */
+    @PostMapping("/students/{studentId}/pay-all")
+    public ResponseEntity<Map<String, String>> payAll(@PathVariable Long studentId,
+                                                      @RequestBody Map<String, Object> body,
+                                                      @RequestHeader(value = "Origin", required = false) String origin) {
+        String method = String.valueOf(body.get("method"));
+        int month = ((Number) body.get("month")).intValue();
+        int year = ((Number) body.get("year")).intValue();
+        List<Long> ids = body.get("studentIds") instanceof List<?> l
+                ? l.stream().map(o -> ((Number) o).longValue()).toList() : List.of();
+        String url = portalService.createFamilyCheckout(studentId, ids, method, month, year,
+                Boolean.TRUE.equals(body.get("app")), origin);
+        return ResponseEntity.ok(Map.of("url", url));
+    }
+
+    /**
+     * Uploads a bank-transfer receipt for a month (multipart: file, month, year and optionally
+     * studentIds, comma-separated, to cover several profiles with one transfer). Staff review it.
+     */
+    @PostMapping("/students/{studentId}/transfer")
+    public ResponseEntity<Void> submitTransfer(@PathVariable Long studentId,
+                                               @RequestParam("file") MultipartFile file,
+                                               @RequestParam int month, @RequestParam int year,
+                                               @RequestParam(required = false) List<Long> studentIds) throws IOException {
+        portalService.submitTransfer(studentId, studentIds, month, year, file);
+        return ResponseEntity.noContent().build();
+    }
+
     // --- Class reservations ------------------------------------------------
 
     /** Upcoming classes (next 7 days) with capacity + the student's reservation state. */

@@ -333,6 +333,7 @@ export default function Portal() {
   const pagos = student && (
     <PagosSection payments={payments} detailLoading={detailLoading} studentId={student.id} options={paymentOptions}
       onRefresh={refreshPayments} studentName={student.name} academyName={student.academyName}
+      amountDue={monthlyAmountDue(student)}
       focusPaymentId={payFocus && payFocus.studentId === student.id ? payFocus.paymentId : null}
       onFocusHandled={clearPayFocus} />
   );
@@ -511,6 +512,16 @@ export default function Portal() {
  * Compact belt graphic for the header chip: the belt color + the dark tip panel with its
  * degree stripes, mirroring BeltImage (black belts use a red panel with yellow stripes).
  */
+/** The month's fee after the standing discount: { total, discount, net, reason } (null without priced plans). */
+function monthlyAmountDue(s: Student): { total: number; discount: number; net: number; reason: string | null } | null {
+  const total = (s.enrolledPlans ?? []).reduce((sum, p) => sum + (p.price ?? 0), 0);
+  if (total <= 0) return null;
+  const disc = Number(s.monthlyDiscount ?? 0);
+  const net = disc <= 0 ? total
+    : s.monthlyDiscountType === 'PERCENT' ? Math.round(total * (1 - disc / 100)) : Math.max(0, total - disc);
+  return { total, discount: total - net, net, reason: s.monthlyDiscountReason ?? null };
+}
+
 /**
  * Tab label for a profile. One person in several academies -> the academy (as before). Several people
  * (a guardian's children, or the guardian plus their kids) -> the person's name, plus the academy

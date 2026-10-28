@@ -247,6 +247,28 @@ public class StudentService {
         userRepository.save(login);
     }
 
+    /**
+     * Sets the standing monthly discount from the DTO. A null amount means "not sent" (older app
+     * builds) and keeps the current value; 0 clears it.
+     */
+    private static void applyMonthlyDiscount(Student student, StudentDto dto) {
+        java.math.BigDecimal amount = dto.getMonthlyDiscount();
+        if (amount == null) return;
+        if (amount.signum() <= 0) {
+            student.setMonthlyDiscount(null);
+            student.setMonthlyDiscountType(null);
+            student.setMonthlyDiscountReason(null);
+            return;
+        }
+        String type = "PERCENT".equals(dto.getMonthlyDiscountType()) ? "PERCENT" : "AMOUNT";
+        if ("PERCENT".equals(type) && amount.compareTo(java.math.BigDecimal.valueOf(100)) > 0) {
+            throw new IllegalArgumentException("El descuento no puede superar el 100%.");
+        }
+        student.setMonthlyDiscount(amount);
+        student.setMonthlyDiscountType(type);
+        student.setMonthlyDiscountReason(blankToNull(dto.getMonthlyDiscountReason()));
+    }
+
     private static String blankToNull(String v) {
         return v == null || v.isBlank() ? null : v.trim();
     }
@@ -320,6 +342,7 @@ public class StudentService {
             student.setPlans(plans);
         }
 
+        applyMonthlyDiscount(student, dto);
         student = studentRepository.save(student);
         return toDto(student);
     }
@@ -359,6 +382,7 @@ public class StudentService {
         }
         student.setGuardianEmail(newGuardianEmail);
         student.setGuardianRut(newGuardianRut);
+        applyMonthlyDiscount(student, dto);
         student.setBloodType(dto.getBloodType());
         student.setHealthInsuranceType(dto.getHealthInsuranceType());
         student.setHealthInsuranceCompany(dto.getHealthInsuranceCompany());
@@ -417,6 +441,35 @@ public class StudentService {
         }
     }
 
+    /**
+     * Name and email to pre-fill a guardian (apoderado) by RUT, so staff don't retype an email that then
+     * fails to link. Looks only inside this academy: first a student with that RUT (the parent also
+     * trains here), then another student that already names that guardian (a sibling). Empty if unknown.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Optional<java.util.Map<String, String>> lookupGuardian(String rut, Long academyId) {
+        String normalized = normalizeRut(rut);
+        if (normalized.length() < 2) return java.util.Optional.empty();
+        List<Student> students = studentRepository.findByAcademyIdOrderByNameAsc(academyId);
+        java.util.Optional<java.util.Map<String, String>> own = students.stream()
+                .filter(s -> normalizeRut(s.getRut()).equals(normalized) && s.getEmail() != null && !s.getEmail().isBlank())
+                .findFirst()
+                .map(s -> guardianInfo(s.getName(), s.getEmail(), "STUDENT"));
+        if (own.isPresent()) return own;
+        return students.stream()
+                .filter(s -> normalizeRut(s.getGuardianRut()).equals(normalized) && s.getGuardianEmail() != null)
+                .findFirst()
+                .map(s -> guardianInfo(s.getGuardianName(), s.getGuardianEmail(), "GUARDIAN"));
+    }
+
+    private static java.util.Map<String, String> guardianInfo(String name, String email, String source) {
+        java.util.Map<String, String> m = new java.util.HashMap<>();
+        m.put("name", name != null ? name : "");
+        m.put("email", email.trim().toLowerCase());
+        m.put("source", source);
+        return m;
+    }
+
     private static String normalizeRut(String rut) {
         if (rut == null) return "";
         return rut.replaceAll("[^0-9kK]", "").toUpperCase();
@@ -456,6 +509,9 @@ public class StudentService {
         dto.setGuardianName(student.getGuardianName());
         dto.setGuardianEmail(student.getGuardianEmail());
         dto.setGuardianRut(student.getGuardianRut());
+        dto.setMonthlyDiscount(student.getMonthlyDiscount());
+        dto.setMonthlyDiscountType(student.getMonthlyDiscountType());
+        dto.setMonthlyDiscountReason(student.getMonthlyDiscountReason());
         dto.setBloodType(student.getBloodType());
         dto.setHealthInsuranceType(student.getHealthInsuranceType());
         dto.setHealthInsuranceCompany(student.getHealthInsuranceCompany());

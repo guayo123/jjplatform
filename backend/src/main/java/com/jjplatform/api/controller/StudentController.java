@@ -24,6 +24,15 @@ public class StudentController {
         return ResponseEntity.ok(studentService.getStudentsByAcademy(academyId));
     }
 
+    /** Pre-fill a guardian's name/email from a RUT already known in this academy (204 if not found). */
+    @GetMapping("/guardian-lookup")
+    public ResponseEntity<java.util.Map<String, String>> guardianLookup(@RequestParam String rut) {
+        Long academyId = securityHelper.getCurrentAcademyId();
+        return studentService.lookupGuardian(rut, academyId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<StudentDto> get(@PathVariable Long id) {
         Long academyId = securityHelper.getCurrentAcademyId();

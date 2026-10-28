@@ -76,6 +76,21 @@ public class Student {
     private String guardianEmail;
     private String guardianRut;
 
+    /**
+     * Standing monthly discount agreed with the academy (family discount, scholarship…): applied to
+     * every online checkout and pre-filled when staff record a payment. Amount in CLP or percent.
+     */
+    @Column(precision = 10, scale = 2)
+    private java.math.BigDecimal monthlyDiscount;
+
+    /** AMOUNT | PERCENT. */
+    @Column(length = 10)
+    private String monthlyDiscountType;
+
+    /** Shown to staff and on the receipt, e.g. "Descuento familiar". */
+    @Column(length = 120)
+    private String monthlyDiscountReason;
+
     /** Portal logins allowed to see/pay for this student besides {@link #user}. */
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(

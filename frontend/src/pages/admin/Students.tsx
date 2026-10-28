@@ -204,6 +204,9 @@ export default function Students() {
       guardianName: student.guardianName,
       guardianEmail: student.guardianEmail,
       guardianRut: student.guardianRut,
+      monthlyDiscount: student.monthlyDiscount,
+      monthlyDiscountType: student.monthlyDiscountType,
+      monthlyDiscountReason: student.monthlyDiscountReason,
       joinDate: student.joinDate,
       birthDate: student.birthDate,
       age: student.age,
@@ -221,9 +224,9 @@ export default function Students() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold">Alumnos</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <button
             onClick={runTour}
             title="Ayuda"
@@ -244,7 +247,7 @@ export default function Students() {
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6m0 0l-3 3m3-3l3 3M3 7h18M5 7V5a2 2 0 012-2h10a2 2 0 012 2v2" />
                 </svg>
-                {exporting ? '...' : 'Excel'}
+                <span className="hidden sm:inline">{exporting ? '...' : 'Excel'}</span>
               </button>
               <button
                 data-tour="pdf"
@@ -256,12 +259,12 @@ export default function Students() {
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6m0 0l-3 3m3-3l3 3M3 7h18M5 7V5a2 2 0 012-2h10a2 2 0 012 2v2" />
                 </svg>
-                {exporting ? '...' : 'PDF'}
+                <span className="hidden sm:inline">{exporting ? '...' : 'PDF'}</span>
               </button>
             </>
           )}
           {canEdit && (
-            <span data-tour="nuevo">
+            <span data-tour="nuevo" className="whitespace-nowrap">
               <Button onClick={() => navigate('/admin/students/new')}>
                 + Nuevo alumno
               </Button>

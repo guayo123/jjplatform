@@ -80,7 +80,8 @@ export default function StudentForm() {
 
   const [form, setForm] = useState<StudentFormType>({
     name: '', nickname: null, rut: null, email: null, phone: null,
-    emergencyPhone: null, guardianName: null, guardianEmail: null, guardianRut: null, joinDate: null, birthDate: null, age: null, weight: null,
+    emergencyPhone: null, guardianName: null, guardianEmail: null, guardianRut: null,
+    monthlyDiscount: null, monthlyDiscountType: 'AMOUNT', monthlyDiscountReason: null, joinDate: null, birthDate: null, age: null, weight: null,
     photoUrl: null, address: null, medicalNotes: null,
     bloodType: null, healthInsuranceType: null, healthInsuranceCompany: null,
     active: true, planIds: [],
@@ -91,10 +92,27 @@ export default function StudentForm() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [errors, setErrors] = useState<{
     name?: string; rut?: string; email?: string; phone?: string;
-    emergencyPhone?: string; guardianEmail?: string; guardianRut?: string; joinDate?: string; age?: string;
+    emergencyPhone?: string; guardianEmail?: string; guardianRut?: string; monthlyDiscount?: string; joinDate?: string; age?: string;
     address?: string; planIds?: string;
   }>({});
   const { toast } = useToast();
+  const [guardianFound, setGuardianFound] = useState<string | null>(null);
+
+  /** Pre-fill the guardian's name and email when the RUT is already known in the academy. */
+  const lookupGuardian = async (rut: string) => {
+    try {
+      const found = await studentsApi.guardianLookup(rut);
+      if (!found) return;
+      // Ignore a late answer if the RUT was edited meanwhile.
+      setForm((f) => (f.guardianRut !== rut ? f : {
+        ...f, guardianName: found.name || f.guardianName, guardianEmail: found.email,
+      }));
+      setErrors((er) => ({ ...er, guardianEmail: undefined }));
+      setGuardianFound(`Encontrado: ${found.name || found.email} (${found.source === 'STUDENT' ? 'alumno de la academia' : 'apoderado de otro alumno'}). Se completaron sus datos.`);
+    } catch {
+      // Lookup is a convenience: the form still works by typing the data.
+    }
+  };
 
   const validate = () => {
     const e: typeof errors = {};
@@ -106,6 +124,7 @@ export default function StudentForm() {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Correo electrónico inválido';
     if (!form.phone) e.phone = 'El teléfono es obligatorio';
     if (!form.emergencyPhone) e.emergencyPhone = 'El teléfono de emergencia es obligatorio';
+    if (form.monthlyDiscountType === 'PERCENT' && (form.monthlyDiscount ?? 0) > 100) e.monthlyDiscount = 'El descuento no puede superar el 100%';
     if (form.guardianEmail || form.guardianRut) {
       if (!form.guardianEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.guardianEmail)) e.guardianEmail = 'Correo del apoderado inválido';
       if (!form.guardianRut) e.guardianRut = 'El RUT del apoderado es obligatorio si indicas su correo';
@@ -129,6 +148,8 @@ export default function StudentForm() {
           name: s.name, nickname: s.nickname, rut: s.rut, email: s.email,
           phone: s.phone, emergencyPhone: s.emergencyPhone, joinDate: s.joinDate,
           guardianName: s.guardianName ?? null, guardianEmail: s.guardianEmail ?? null, guardianRut: s.guardianRut ?? null,
+          monthlyDiscount: s.monthlyDiscount ?? null, monthlyDiscountType: s.monthlyDiscountType ?? 'AMOUNT',
+          monthlyDiscountReason: s.monthlyDiscountReason ?? null,
           // When a birth date exists, the age is derived from it (kept current to today).
           birthDate: s.birthDate, age: (s.birthDate ? ageFromBirthDate(s.birthDate) : null) ?? s.age,
           weight: s.weight, photoUrl: s.photoUrl,
@@ -168,7 +189,11 @@ export default function StudentForm() {
       const [result] = await Promise.allSettled([
         isEdit && id
           // Blank (not null) clears the guardian: the API treats a missing/null field as "unchanged".
-          ? updateStudent(Number(id), { ...form, guardianName: form.guardianName ?? '', guardianEmail: form.guardianEmail ?? '', guardianRut: form.guardianRut ?? '' })
+          ? updateStudent(Number(id), {
+              ...form, guardianName: form.guardianName ?? '', guardianEmail: form.guardianEmail ?? '', guardianRut: form.guardianRut ?? '',
+              // 0 clears the discount (null means "unchanged" for the API).
+              monthlyDiscount: form.monthlyDiscount ?? 0,
+            })
           : createStudent(form),
         new Promise((resolve) => setTimeout(resolve, 2000)),
       ]);
@@ -318,6 +343,23 @@ export default function StudentForm() {
           </div>
           <FormInput
             type="text"
+            value={form.guardianRut ?? ''}
+            onChange={(e) => {
+              const rut = formatRut(e.target.value);
+              setForm((f) => ({ ...f, guardianRut: rut || null }));
+              setErrors((er) => ({ ...er, guardianRut: undefined }));
+              setGuardianFound(null);
+              if (validateRut(rut)) void lookupGuardian(rut);
+            }}
+            placeholder="RUT del apoderado"
+            maxLength={12}
+            error={errors.guardianRut}
+          />
+          {errors.guardianRut ? <p className={err}>{errors.guardianRut}</p>
+            : guardianFound ? <p className="mt-1 text-xs text-green-400">{guardianFound}</p>
+            : <p className={hint}>Escribe el RUT: si ya está en la academia, se completan el nombre y el correo.</p>}
+          <FormInput
+            type="text"
             value={form.guardianName ?? ''}
             onChange={(e) => setForm((f) => ({ ...f, guardianName: e.target.value || null }))}
             placeholder="Nombre del apoderado"
@@ -333,18 +375,50 @@ export default function StudentForm() {
             error={errors.guardianEmail}
           />
           {errors.guardianEmail && <p className={err}>{errors.guardianEmail}</p>}
+        </div>
+
+        <div className="rounded-lg border border-gray-800 p-4 space-y-3">
+          <div>
+            <p className={lbl}>Descuento mensual (opcional)</p>
+            <p className={hint}>Se aplica solo en cada pago desde la app y viene cargado al registrar un pago a mano. Ej.: descuento familiar o beca.</p>
+          </div>
+          <div className="flex gap-2">
+            <div className="flex rounded-lg border border-gray-700 overflow-hidden flex-shrink-0">
+              {(['AMOUNT', 'PERCENT'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, monthlyDiscountType: t }))}
+                  className={`px-3 text-sm font-semibold ${form.monthlyDiscountType === t ? 'bg-primary-600 text-white' : 'text-gray-400 hover:bg-gray-800'}`}
+                >
+                  {t === 'AMOUNT' ? '$' : '%'}
+                </button>
+              ))}
+            </div>
+            <FormInput
+              type="text"
+              inputMode="numeric"
+              // Pesos shown with thousands dots (15.000); percent as a plain number.
+              value={form.monthlyDiscount == null ? ''
+                : form.monthlyDiscountType === 'PERCENT' ? String(form.monthlyDiscount)
+                : Math.round(form.monthlyDiscount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, '');
+                setForm((f) => ({ ...f, monthlyDiscount: digits ? Number(digits) : null }));
+                setErrors((er) => ({ ...er, monthlyDiscount: undefined }));
+              }}
+              placeholder={form.monthlyDiscountType === 'PERCENT' ? 'ej: 20' : 'ej: 15.000'}
+              error={errors.monthlyDiscount}
+            />
+          </div>
+          {errors.monthlyDiscount && <p className={err}>{errors.monthlyDiscount}</p>}
           <FormInput
             type="text"
-            value={form.guardianRut ?? ''}
-            onChange={(e) => {
-              setForm((f) => ({ ...f, guardianRut: formatRut(e.target.value) || null }));
-              setErrors((er) => ({ ...er, guardianRut: undefined }));
-            }}
-            placeholder="RUT del apoderado"
-            maxLength={12}
-            error={errors.guardianRut}
+            value={form.monthlyDiscountReason ?? ''}
+            onChange={(e) => setForm((f) => ({ ...f, monthlyDiscountReason: e.target.value || null }))}
+            placeholder="Motivo (se muestra al alumno), ej: Descuento familiar"
+            maxLength={120}
           />
-          {errors.guardianRut && <p className={err}>{errors.guardianRut}</p>}
         </div>
 
         <div>

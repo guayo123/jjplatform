@@ -35,13 +35,20 @@ public class PaymentService {
     public static final String ONLINE_EXPIRED = "EXPIRED";
     public static final String ONLINE_REJECTED = "REJECTED";
 
+    /** Bank transfer declared by the student with a receipt; staff approve or reject it by hand. */
+    public static final String TRANSFER = "TRANSFER";
+    /** A transfer receipt waiting for staff review (it never times out like an online checkout). */
+    public static final String TRANSFER_IN_REVIEW = "IN_REVIEW";
+
     /**
-     * State of a pending online checkout for the portal: IN_PROGRESS, EXPIRED (abandoned / timed out)
-     * or REJECTED by the gateway. Null when the payment isn't a pending checkout.
+     * State of a pending payment for the portal: IN_PROGRESS, EXPIRED (abandoned / timed out) or
+     * REJECTED for an online checkout; IN_REVIEW or REJECTED for a transfer receipt. Null when the
+     * payment isn't pending.
      */
     public static String onlineState(Payment p) {
         if (!PENDING.equals(p.getStatus())) return null;
         if (ONLINE_REJECTED.equals(p.getGatewayStatus())) return ONLINE_REJECTED;
+        if (TRANSFER.equals(p.getMethod())) return TRANSFER_IN_REVIEW;
         java.time.LocalDateTime started = p.getCheckoutStartedAt() != null ? p.getCheckoutStartedAt() : p.getPaidAt();
         if (started == null || started.plus(CHECKOUT_TIMEOUT).isBefore(java.time.LocalDateTime.now())) return ONLINE_EXPIRED;
         return ONLINE_IN_PROGRESS;
@@ -183,16 +190,23 @@ public class PaymentService {
             if ("PAID".equals(existing.getStatus())) {
                 throw new IllegalArgumentException("Este mes ya está pagado.");
             }
-            // A new attempt charges the current plan prices, even if they changed since the last attempt.
+            // An online checkout must not overwrite a receipt the staff haven't reviewed yet.
+            if (TRANSFER_IN_REVIEW.equals(onlineState(existing)) && !TRANSFER.equals(method)) {
+                throw new IllegalArgumentException(
+                        "Ya enviaste un comprobante de transferencia por este mes. La academia lo está revisando.");
+            }
+            // A new attempt charges the current plan prices and standing discount, even if they changed.
             BigDecimal current = computeExpected(student);
             if (current.compareTo(BigDecimal.ZERO) > 0) {
-                existing.setExpectedAmount(current);
-                existing.setAmount(current);
+                applyStandingDiscount(existing, student, current);
             }
             existing.setMethod(method);
             existing.setPaidBy(payer);
             existing.setCheckoutStartedAt(java.time.LocalDateTime.now());
             existing.setGatewayStatus(null);
+            existing.setReviewNote(null);
+            // A new attempt starts on its own; a "pay all" checkout sets its group afterwards.
+            existing.setCheckoutGroup(null);
             return paymentRepository.save(existing);
         }
 
@@ -207,10 +221,6 @@ public class PaymentService {
         Payment payment = Payment.builder()
                 .student(student)
                 .academy(academy)
-                .expectedAmount(expected)
-                .amount(expected)
-                .discount(BigDecimal.ZERO)
-                .discountType("AMOUNT")
                 .month(month)
                 .year(year)
                 .status("PENDING_CONFIRMATION")
@@ -218,7 +228,30 @@ public class PaymentService {
                 .paidBy(payer)
                 .checkoutStartedAt(java.time.LocalDateTime.now())
                 .build();
+        applyStandingDiscount(payment, student, expected);
         return paymentRepository.save(payment);
+    }
+
+    /**
+     * What the student owes online for the month (plans minus standing discount), or null when the
+     * month is already paid or there is nothing to charge. Read-only: used to offer "pay all".
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal onlineAmountDue(Long studentId, int month, int year) {
+        // Paid, or a transfer receipt already waiting for review: nothing more to pay now.
+        boolean settled = paymentRepository.findByStudentIdAndMonthAndYear(studentId, month, year)
+                .map(p -> "PAID".equals(p.getStatus()) || TRANSFER_IN_REVIEW.equals(onlineState(p))).orElse(false);
+        if (settled) return null;
+        Student student = studentRepository.findByIdWithPlans(studentId).orElse(null);
+        if (student == null) return null;
+        BigDecimal expected = computeExpected(student);
+        if (expected.compareTo(BigDecimal.ZERO) <= 0) return null;
+        Payment probe = new Payment();
+        probe.setExpectedAmount(expected);
+        probe.setDiscount(student.getMonthlyDiscount() != null ? student.getMonthlyDiscount() : BigDecimal.ZERO);
+        probe.setDiscountType("PERCENT".equals(student.getMonthlyDiscountType()) ? "PERCENT" : "AMOUNT");
+        BigDecimal net = computeNetExpected(probe);
+        return net != null && net.compareTo(BigDecimal.ZERO) > 0 ? net : null;
     }
 
     /**
@@ -228,6 +261,24 @@ public class PaymentService {
     @Transactional
     public boolean markPaidByGateway(Long paymentId, String method, String gatewayPaymentId) {
         return paymentRepository.markPaidIfPending(paymentId, method, gatewayPaymentId, java.time.LocalDateTime.now()) == 1;
+    }
+
+    /**
+     * Sets the expected amount, the student's standing discount and the net amount to charge online.
+     * Refuses when the discount leaves nothing to pay (e.g. a full scholarship).
+     */
+    private void applyStandingDiscount(Payment payment, Student student, BigDecimal expected) {
+        BigDecimal discount = student.getMonthlyDiscount() != null ? student.getMonthlyDiscount() : BigDecimal.ZERO;
+        String type = "PERCENT".equals(student.getMonthlyDiscountType()) ? "PERCENT" : "AMOUNT";
+        payment.setExpectedAmount(expected);
+        payment.setDiscount(discount);
+        payment.setDiscountType(type);
+        BigDecimal net = computeNetExpected(payment);
+        if (net == null || net.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Tu mensualidad no tiene monto a pagar. Consulta con tu academia.");
+        }
+        payment.setAmount(net);
+        payment.setNotes(discount.signum() > 0 ? student.getMonthlyDiscountReason() : null);
     }
 
     /** The gateway rejected the latest attempt: shown to the student so they can retry. No-op once paid. */
@@ -273,9 +324,11 @@ public class PaymentService {
         dto.setStatus(payment.getStatus());
         dto.setMethod(payment.getMethod());
         dto.setProofUrl(payment.getProofUrl());
+        dto.setReviewNote(payment.getReviewNote());
         dto.setOnlineState(onlineState(payment));
         if ("PAID".equals(payment.getStatus()) && payment.getMethod() != null && payment.getGatewayPaymentId() != null) {
             dto.setOperationId(payment.getGatewayPaymentId());
+            if (payment.getCheckoutGroup() != null) setGroup(dto, payment);
         }
         User payer = payment.getPaidBy();
         if (payer != null) {
@@ -291,5 +344,32 @@ public class PaymentService {
         }
 
         return dto;
+    }
+
+    /**
+     * The months settled by the same gateway payment ("pagar todo"), for a single receipt of the
+     * whole transfer. A month of the group paid some other way doesn't share the operation id: left out.
+     */
+    private void setGroup(PaymentDto dto, Payment payment) {
+        List<Payment> members = paymentRepository.findByCheckoutGroupOrderByIdAsc(payment.getCheckoutGroup()).stream()
+                .filter(m -> "PAID".equals(m.getStatus()) && payment.getGatewayPaymentId().equals(m.getGatewayPaymentId()))
+                .toList();
+        if (members.size() < 2) return;
+        List<PaymentDto.GroupItem> items = new java.util.ArrayList<>();
+        BigDecimal total = BigDecimal.ZERO;
+        for (Payment m : members) {
+            PaymentDto.GroupItem item = new PaymentDto.GroupItem();
+            item.setStudentId(m.getStudent().getId());
+            item.setStudentName(m.getStudent().getName());
+            item.setAmount(m.getAmount());
+            if (m.getExpectedAmount() != null && m.getExpectedAmount().compareTo(m.getAmount()) > 0) {
+                item.setDiscountValue(m.getExpectedAmount().subtract(m.getAmount()));
+                item.setDiscountReason(m.getNotes());
+            }
+            items.add(item);
+            total = total.add(m.getAmount());
+        }
+        dto.setGroupItems(items);
+        dto.setGroupTotal(total);
     }
 }

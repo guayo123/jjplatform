@@ -48,15 +48,15 @@ public class Payment {
     private String notes;
 
     /**
-     * PAID = confirmed (manual entry, approved transfer or paid via Mercado Pago).
-     * PENDING_CONFIRMATION = student declared a transfer, awaiting staff approval.
+     * PAID = confirmed (manual entry, approved transfer or paid via Khipu / Mercado Pago).
+     * PENDING_CONFIRMATION = an online checkout in progress, or a transfer receipt awaiting staff review.
      * Column default 'PAID' so every pre-existing row stays paid when the column is added.
      */
     @Builder.Default
     @Column(nullable = false, length = 30, columnDefinition = "varchar(30) default 'PAID'")
     private String status = "PAID";
 
-    /** How the payment was made: MANUAL (staff), TRANSFER, MERCADO_PAGO. */
+    /** How the payment was made: null (recorded by staff), TRANSFER, KHIPU, MERCADO_PAGO. */
     @Column(length = 30)
     private String method;
 
@@ -71,9 +71,24 @@ public class Payment {
     /** When the latest online checkout attempt started; drives the "not completed" timeout. */
     private LocalDateTime checkoutStartedAt;
 
-    /** REJECTED when the gateway reported the latest attempt as rejected/cancelled; null otherwise. */
+    /**
+     * REJECTED when the gateway reported the latest attempt as rejected/cancelled, or staff rejected
+     * the transfer receipt; null otherwise.
+     */
     @Column(length = 20)
     private String gatewayStatus;
+
+    /** Why staff rejected the transfer receipt (shown to the student); null otherwise. */
+    @Column(length = 300)
+    private String reviewNote;
+
+    /**
+     * Set when one checkout pays several months at once (a guardian paying for all their children):
+     * every row of that checkout shares this value, which is also the gateway's transaction reference.
+     * Null for a single-student checkout.
+     */
+    @Column(length = 40)
+    private String checkoutGroup;
 
     /** Gateway payment id we already alerted staff about as a double payment (dedupes repeated webhooks). */
     @Column(length = 100)

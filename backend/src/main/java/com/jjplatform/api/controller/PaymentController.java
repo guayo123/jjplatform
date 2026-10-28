@@ -3,6 +3,8 @@ package com.jjplatform.api.controller;
 import com.jjplatform.api.dto.PaymentDto;
 import com.jjplatform.api.service.PaymentService;
 import com.jjplatform.api.service.SecurityHelper;
+import com.jjplatform.api.service.TransferService;
+import com.jjplatform.api.dto.TransferReviewDto;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +21,7 @@ import java.util.Map;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final TransferService transferService;
     private final SecurityHelper securityHelper;
 
     @GetMapping("/yearly")
@@ -38,6 +41,31 @@ public class PaymentController {
     @GetMapping("/student/{studentId}")
     public ResponseEntity<List<PaymentDto>> getByStudent(@PathVariable Long studentId) {
         return ResponseEntity.ok(paymentService.getPaymentsByStudent(studentId));
+    }
+
+    /** Transfer receipts sent from the portal that are waiting for staff review. */
+    @GetMapping("/transfers/pending")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO', 'PROFESOR')")
+    public ResponseEntity<List<TransferReviewDto>> pendingTransfers() {
+        return ResponseEntity.ok(transferService.pendingReviews(securityHelper.getCurrentAcademyId()));
+    }
+
+    /** The transfer arrived: marks every month of the receipt paid. Body (optional): {"amount": 30000} for a single month. */
+    @PostMapping("/{id}/transfer/approve")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO', 'PROFESOR')")
+    public ResponseEntity<Void> approveTransfer(@PathVariable Long id,
+                                                @RequestBody(required = false) Map<String, BigDecimal> body) {
+        transferService.approve(id, securityHelper.getCurrentAcademyId(), body != null ? body.get("amount") : null);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** The transfer can't be validated. Body: {"reason": "..."} shown to the student. */
+    @PostMapping("/{id}/transfer/reject")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO', 'PROFESOR')")
+    public ResponseEntity<Void> rejectTransfer(@PathVariable Long id,
+                                               @RequestBody(required = false) Map<String, String> body) {
+        transferService.reject(id, securityHelper.getCurrentAcademyId(), body != null ? body.get("reason") : null);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping

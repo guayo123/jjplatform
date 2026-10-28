@@ -45,6 +45,11 @@ public class StudentDto {
     @jakarta.validation.constraints.Email(message = "Invalid email format")
     private String guardianEmail;
     private String guardianRut;
+
+    /** Standing monthly discount (amount in CLP or percent) and its reason. */
+    private java.math.BigDecimal monthlyDiscount;
+    private String monthlyDiscountType;
+    private String monthlyDiscountReason;
     private String bloodType;
     private String healthInsuranceType;
     private String healthInsuranceCompany;

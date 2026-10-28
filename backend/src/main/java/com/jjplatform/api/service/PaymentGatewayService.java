@@ -79,45 +79,115 @@ public class PaymentGatewayService {
      */
     public String createCheckout(Long studentId, Long academyId, int month, int year, String method, boolean fromApp,
                                  Long payerUserId, String origin) {
+        return startCheckout(List.of(studentId), academyId, month, year, method, fromApp, payerUserId, origin);
+    }
+
+    /**
+     * One checkout for several students of the same academy (a guardian paying all their children's
+     * months at once). Months already paid are skipped; the rows share a {@link Payment#getCheckoutGroup()}
+     * and are all marked PAID when the single gateway payment is confirmed.
+     */
+    public String createGroupCheckout(List<Long> studentIds, Long academyId, int month, int year, String method,
+                                      boolean fromApp, Long payerUserId, String origin) {
+        if (studentIds.isEmpty()) throw new IllegalArgumentException("No hay mensualidades para pagar.");
+        return startCheckout(studentIds, academyId, month, year, method, fromApp, payerUserId, origin);
+    }
+
+    private String startCheckout(List<Long> studentIds, Long academyId, int month, int year, String method,
+                                 boolean fromApp, Long payerUserId, String origin) {
         Academy academy = academyRepository.findById(academyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Academy not found"));
-        // Validate before touching the payment row, so a bad request never leaves a pending month behind.
+        // Validate before touching the payment rows, so a bad request never leaves a pending month behind.
         switch (method) {
             case KHIPU -> requireCredential(academy.getKhipuApiKey(), "Khipu no está configurado en tu academia.");
             case MERCADO_PAGO -> requireCredential(academy.getMpAccessToken(), "Mercado Pago no está configurado en tu academia.");
             default -> throw new IllegalArgumentException("Método de pago no soportado: " + method);
         }
+        boolean several = studentIds.size() > 1;
 
-        // A retry over an open Khipu attempt: confirm it if it was paid after all (then the line below
-        // refuses with "already paid"), otherwise cancel it so the old link can't be paid on top of the new one.
-        paymentRepository.findByStudentIdAndMonthAndYear(studentId, month, year)
-                .filter(p -> PaymentService.onlineState(p) != null && KHIPU.equals(p.getMethod()) && p.getGatewayPaymentId() != null)
-                .ifPresent(p -> retireKhipuAttempt(academy, p));
+        // A retry over an open Khipu attempt: confirm it if it was paid after all (then the month is
+        // refused or skipped as already paid), otherwise cancel it so the old link can't be paid on top
+        // of the new one. Siblings of a "pay all" share one Khipu payment: retire it once.
+        Set<String> retired = new java.util.HashSet<>();
+        for (Long studentId : studentIds) {
+            paymentRepository.findByStudentIdAndMonthAndYear(studentId, month, year)
+                    .filter(p -> PaymentService.onlineState(p) != null && KHIPU.equals(p.getMethod()) && p.getGatewayPaymentId() != null)
+                    .filter(p -> retired.add(p.getGatewayPaymentId()))
+                    .ifPresent(p -> retireKhipuAttempt(academy, p));
+        }
 
-        Payment payment = paymentService.getOrCreatePendingPayment(studentId, academyId, month, year, method, payerUserId);
-        boolean freshRow = payment.getGatewayPaymentId() == null;
-        int amount = payment.getAmount().intValueExact();
-        String subject = "Mensualidad " + month + "/" + year + " - " + academy.getName();
+        List<Payment> rows = new java.util.ArrayList<>();
+        List<Long> freshRows = new java.util.ArrayList<>();
+        try {
+            for (Long studentId : studentIds) {
+                if (several && paymentRepository.findByStudentIdAndMonthAndYear(studentId, month, year)
+                        .map(p -> "PAID".equals(p.getStatus())).orElse(false)) continue;
+                Payment row = paymentService.getOrCreatePendingPayment(studentId, academyId, month, year, method, payerUserId);
+                if (row.getGatewayPaymentId() == null) freshRows.add(row.getId());
+                rows.add(row);
+            }
+        } catch (RuntimeException e) {
+            freshRows.forEach(paymentRepository::deleteById);
+            throw e;
+        }
+        if (rows.isEmpty()) throw new IllegalArgumentException("Estas mensualidades ya están pagadas.");
+
+        // The gateway reference: our payment id, or a shared group id when one checkout pays several months.
+        String reference;
+        if (rows.size() > 1) {
+            reference = "grp-" + java.util.UUID.randomUUID();
+            rows.forEach(r -> r.setCheckoutGroup(reference));
+            paymentRepository.saveAll(rows);
+        } else {
+            reference = String.valueOf(rows.get(0).getId());
+        }
+        Payment lead = rows.get(0);
+        int amount = rows.stream().map(Payment::getAmount).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add).intValueExact();
+        String subject = (rows.size() > 1 ? "Mensualidades " + month + "/" + year + " (" + rows.size() + " alumnos)"
+                : "Mensualidad " + month + "/" + year) + " - " + academy.getName();
 
         // The native app returns through a redirect to its custom scheme; the web goes back to the portal.
         // Both carry the payment + student so the portal opens that student's payments and the receipt.
-        String query = "?pago=" + payment.getId() + "&alumno=" + studentId;
+        String query = "?pago=" + lead.getId() + "&alumno=" + lead.getStudent().getId();
         String returnUrl = (fromApp ? baseUrl + "/api/public/webhooks/pay-return" : webPortalUrl(origin)) + query;
         try {
             return KHIPU.equals(method)
-                    ? createKhipu(academy, payment, amount, subject, returnUrl)
-                    : createMercadoPago(academy, payment, amount, subject, returnUrl);
+                    ? createKhipu(academy, rows, reference, amount, subject, returnUrl)
+                    : createMercadoPago(academy, rows, reference, amount, subject, returnUrl);
         } catch (RestClientException | IllegalStateException e) {
-            log.warn("Could not start {} checkout for payment {}: {}", method, payment.getId(), e.getMessage());
-            if (freshRow) paymentRepository.deleteById(payment.getId());
+            log.warn("Could not start {} checkout for payment {}: {}", method, reference, e.getMessage());
+            freshRows.forEach(paymentRepository::deleteById);
             String name = KHIPU.equals(method) ? "Khipu" : "Mercado Pago";
             throw new IllegalStateException("No pudimos conectar con " + name + ". Intenta de nuevo en unos minutos o usa otro medio de pago.");
         }
     }
 
+    /** Stores the gateway payment id on every row of the checkout. */
+    private void setGatewayId(List<Payment> rows, Object gatewayId) {
+        if (gatewayId == null) return;
+        rows.forEach(r -> r.setGatewayPaymentId(String.valueOf(gatewayId)));
+        paymentRepository.saveAll(rows);
+    }
+
+    /** The row plus its siblings when it was paid in a "pay all" checkout. */
+    private List<Payment> checkoutMembers(Payment payment) {
+        if (payment.getCheckoutGroup() == null) return List.of(payment);
+        List<Payment> members = paymentRepository.findByCheckoutGroupOrderByIdAsc(payment.getCheckoutGroup());
+        return members.isEmpty() ? List.of(payment) : members;
+    }
+
+    /** Our reference sent to the gateway (transaction_id / external_reference). */
+    private static String reference(Payment payment) {
+        return payment.getCheckoutGroup() != null ? payment.getCheckoutGroup() : String.valueOf(payment.getId());
+    }
+
+    private static java.math.BigDecimal total(List<Payment> rows) {
+        return rows.stream().map(Payment::getAmount).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+    }
+
     // ── Khipu ────────────────────────────────────────────────────────────────
 
-    private String createKhipu(Academy academy, Payment payment, int amount, String subject, String returnUrl) {
+    private String createKhipu(Academy academy, List<Payment> rows, String reference, int amount, String subject, String returnUrl) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("x-api-key", academy.getKhipuApiKey());
@@ -126,7 +196,7 @@ public class PaymentGatewayService {
                 "amount", amount,
                 "currency", "CLP",
                 "subject", subject,
-                "transaction_id", String.valueOf(payment.getId()),
+                "transaction_id", reference,
                 "return_url", returnUrl,
                 "cancel_url", returnUrl,
                 // Short-lived link (Khipu's default is 24 h): an abandoned checkout stops being payable
@@ -135,7 +205,7 @@ public class PaymentGatewayService {
         // Khipu rejects a non-public notify_url. On a local backend we skip it: the portal's
         // reconciliation (reconcilePendingKhipu) still confirms the payment when the student returns.
         if (isPublicBaseUrl()) {
-            body.put("notify_url", baseUrl + "/api/public/webhooks/khipu/" + payment.getId());
+            body.put("notify_url", baseUrl + "/api/public/webhooks/khipu/" + rows.get(0).getId());
             body.put("notify_api_version", "3.0");
         }
 
@@ -144,11 +214,7 @@ public class PaymentGatewayService {
         if (resp == null || resp.get("payment_url") == null) {
             throw new IllegalStateException("Khipu no devolvió una URL de pago.");
         }
-        Object khipuId = resp.get("payment_id");
-        if (khipuId != null) {
-            payment.setGatewayPaymentId(String.valueOf(khipuId));
-            paymentRepository.save(payment);
-        }
+        setGatewayId(rows, resp.get("payment_id"));
         return String.valueOf(resp.get("payment_url"));
     }
 
@@ -163,7 +229,8 @@ public class PaymentGatewayService {
 
         String khipuId = khipuPaymentId != null && !khipuPaymentId.isBlank() ? khipuPaymentId : payment.getGatewayPaymentId();
         if (khipuId == null) return;
-        if (alreadyRecorded(payment, KHIPU, khipuId)) return;
+        List<Payment> members = checkoutMembers(payment);
+        if (members.stream().allMatch(m -> alreadyRecorded(m, KHIPU, khipuId))) return;
 
         Academy academy = payment.getAcademy();
         if (academy.getKhipuApiKey() == null) return;
@@ -175,19 +242,35 @@ public class PaymentGatewayService {
                     KHIPU_BASE + "/payments/" + khipuId,
                     HttpMethod.GET, new HttpEntity<>(headers), Map.class);
             Map<?, ?> p = resp.getBody();
-            if (p == null || !"done".equalsIgnoreCase(String.valueOf(p.get("status")))) return;
-            if (!String.valueOf(paymentId).equals(String.valueOf(p.get("transaction_id")))) {
+            if (p == null || !"done".equalsIgnoreCase(String.valueOf(p.get("status")))) {
+                log.debug("Khipu payment {} (our {}) not done yet: status={} detail={}", khipuId, paymentId,
+                        p != null ? p.get("status") : null, p != null ? p.get("status_detail") : null);
+                return;
+            }
+            if (!reference(payment).equals(String.valueOf(p.get("transaction_id")))) {
                 log.warn("Khipu payment {} does not belong to our payment {}", khipuId, paymentId);
                 return;
             }
-            if (!coversAmount(payment, p.get("amount"))) {
-                log.warn("Khipu payment {} confirmed with an amount below the expected {}", paymentId, payment.getAmount());
+            if (!coversAmount(total(members), p.get("amount"))) {
+                log.warn("Khipu payment {} confirmed with an amount below the expected {}", paymentId, total(members));
                 return;
             }
-            confirm(payment, KHIPU, khipuId, p.get("amount"));
+            confirmAll(members, KHIPU, khipuId, p.get("amount"));
         } catch (Exception e) {
             log.warn("Khipu verification failed for payment {}: {}", paymentId, e.getMessage());
         }
+    }
+
+    /**
+     * Before a transfer receipt replaces an unfinished Khipu checkout of the same month: confirms the
+     * checkout if it was paid after all, otherwise cancels its link so it can't also be paid.
+     */
+    public void retireOpenKhipu(Payment pending, Long academyId) {
+        if (!KHIPU.equals(pending.getMethod()) || pending.getGatewayPaymentId() == null
+                || PaymentService.onlineState(pending) == null) return;
+        academyRepository.findById(academyId)
+                .filter(a -> a.getKhipuApiKey() != null && !a.getKhipuApiKey().isBlank())
+                .ifPresent(a -> retireKhipuAttempt(a, pending));
     }
 
     /**
@@ -224,7 +307,7 @@ public class PaymentGatewayService {
 
     // ── Mercado Pago ───────────────────────────────────────────────────────────
 
-    private String createMercadoPago(Academy academy, Payment payment, int amount, String subject, String returnUrl) {
+    private String createMercadoPago(Academy academy, List<Payment> rows, String reference, int amount, String subject, String returnUrl) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(academy.getMpAccessToken());
@@ -235,12 +318,12 @@ public class PaymentGatewayService {
                         "quantity", 1,
                         "unit_price", amount,
                         "currency_id", "CLP")),
-                "external_reference", String.valueOf(payment.getId()),
+                "external_reference", reference,
                 "back_urls", Map.of("success", returnUrl, "failure", returnUrl, "pending", returnUrl),
                 "auto_return", "approved"));
         // Same as Khipu: a local backend can't receive notifications, so don't send an unreachable URL.
         if (isPublicBaseUrl()) {
-            body.put("notification_url", baseUrl + "/api/public/webhooks/mp/" + payment.getId());
+            body.put("notification_url", baseUrl + "/api/public/webhooks/mp/" + rows.get(0).getId());
         }
 
         Map<?, ?> resp = restTemplate.postForObject(
@@ -248,10 +331,7 @@ public class PaymentGatewayService {
         if (resp == null || resp.get("init_point") == null) {
             throw new IllegalStateException("Mercado Pago no devolvió una URL de pago.");
         }
-        if (resp.get("id") != null) {
-            payment.setGatewayPaymentId(String.valueOf(resp.get("id")));
-            paymentRepository.save(payment);
-        }
+        setGatewayId(rows, resp.get("id"));
         return String.valueOf(resp.get("init_point"));
     }
 
@@ -264,7 +344,8 @@ public class PaymentGatewayService {
         if (mpPaymentId == null || mpPaymentId.isBlank()) return;
         Payment payment = paymentRepository.findById(paymentId).orElse(null);
         if (payment == null) { log.warn("MP webhook for unknown payment {}", paymentId); return; }
-        if (alreadyRecorded(payment, MERCADO_PAGO, mpPaymentId)) return;
+        List<Payment> members = checkoutMembers(payment);
+        if (members.stream().allMatch(m -> alreadyRecorded(m, MERCADO_PAGO, mpPaymentId))) return;
 
         Academy academy = payment.getAcademy();
         if (academy.getMpAccessToken() == null) return;
@@ -277,19 +358,19 @@ public class PaymentGatewayService {
                     HttpMethod.GET, new HttpEntity<>(headers), Map.class);
             Map<?, ?> p = resp.getBody();
             if (p == null) return;
-            if (!String.valueOf(payment.getId()).equals(String.valueOf(p.get("external_reference")))) return;
+            if (!reference(payment).equals(String.valueOf(p.get("external_reference")))) return;
 
             String status = String.valueOf(p.get("status")).toLowerCase();
             if (MP_FAILED.contains(status)) {
-                paymentService.markGatewayRejected(paymentId);
+                members.forEach(m -> paymentService.markGatewayRejected(m.getId()));
                 return;
             }
             if (!"approved".equals(status)) return;
-            if (!coversAmount(payment, p.get("transaction_amount"))) {
-                log.warn("MP payment {} approved with an amount below the expected {}", paymentId, payment.getAmount());
+            if (!coversAmount(total(members), p.get("transaction_amount"))) {
+                log.warn("MP payment {} approved with an amount below the expected {}", paymentId, total(members));
                 return;
             }
-            confirm(payment, MERCADO_PAGO, mpPaymentId, p.get("transaction_amount"));
+            confirmAll(members, MERCADO_PAGO, mpPaymentId, p.get("transaction_amount"));
         } catch (Exception e) {
             log.warn("Mercado Pago verification failed for payment {}: {}", paymentId, e.getMessage());
         }
@@ -304,22 +385,27 @@ public class PaymentGatewayService {
     }
 
     /**
-     * Records a verified gateway payment. If the month was still pending it becomes PAID and the
-     * usual emails go out; if it was already paid by other means, the money arrived twice → alert staff.
+     * Records a verified gateway payment for every month it covers. Months still pending become PAID
+     * and get ONE set of emails for the whole payment; a month already paid by other means means the
+     * money arrived twice → alert staff.
      */
-    private void confirm(Payment payment, String method, String gatewayId, Object gatewayAmount) {
-        if (paymentService.markPaidByGateway(payment.getId(), method, gatewayId)) {
-            paymentNotificationService.notifyPaid(payment.getId());
-        } else if (paymentService.claimDuplicateAlert(payment.getId(), gatewayId)) {
-            paymentNotificationService.notifyDuplicate(payment.getId(), method, gatewayId, gatewayAmount);
+    private void confirmAll(List<Payment> members, String method, String gatewayId, Object gatewayAmount) {
+        List<Long> paid = new java.util.ArrayList<>();
+        for (Payment m : members) {
+            if (paymentService.markPaidByGateway(m.getId(), method, gatewayId)) {
+                paid.add(m.getId());
+            } else if (paymentService.claimDuplicateAlert(m.getId(), gatewayId)) {
+                paymentNotificationService.notifyDuplicate(m.getId(), method, gatewayId, gatewayAmount);
+            }
         }
+        if (!paid.isEmpty()) paymentNotificationService.notifyPaid(paid);
     }
 
     /** True when the gateway reports at least the amount we charged (a missing value is not trusted). */
-    private boolean coversAmount(Payment payment, Object gatewayAmount) {
+    private boolean coversAmount(java.math.BigDecimal expected, Object gatewayAmount) {
         if (gatewayAmount == null) return false;
         try {
-            return new java.math.BigDecimal(String.valueOf(gatewayAmount)).compareTo(payment.getAmount()) >= 0;
+            return new java.math.BigDecimal(String.valueOf(gatewayAmount)).compareTo(expected) >= 0;
         } catch (NumberFormatException e) {
             return false;
         }

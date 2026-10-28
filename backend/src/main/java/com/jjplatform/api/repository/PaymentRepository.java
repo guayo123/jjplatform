@@ -17,7 +17,16 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findByStudentIdOrderByYearDescMonthDesc(Long studentId);
     boolean existsByStudentIdAndMonthAndYear(Long studentId, Integer month, Integer year);
     Optional<Payment> findByStudentIdAndMonthAndYear(Long studentId, Integer month, Integer year);
+
+    /** Rows paid together in one checkout (see {@link Payment#getCheckoutGroup()}). */
+    List<Payment> findByCheckoutGroupOrderByIdAsc(String checkoutGroup);
     List<Payment> findByAcademyIdAndStatusOrderByYearDescMonthDesc(Long academyId, String status);
+
+    /** Transfer receipts of an academy by status, oldest first (the staff review queue). */
+    List<Payment> findByAcademyIdAndStatusAndMethodOrderByCheckoutStartedAtAsc(Long academyId, String status, String method);
+
+    /** Whether a stored transfer receipt is still referenced (a receipt can be shared by a group). */
+    boolean existsByProofUrl(String proofUrl);
 
     /**
      * Flips a payment to PAID only if it isn't already. Returns 1 for the caller that made the

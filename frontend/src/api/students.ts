@@ -18,6 +18,12 @@ export const studentsApi = {
     client.delete(`/students/${id}`),
 
   /** Grant (months>0, extends from today/current expiry) or revoke (months<=0) the student's Pro. */
+  /** Name/email of a guardian already known in the academy by RUT (null if not found). */
+  guardianLookup: (rut: string) =>
+    client
+      .get<{ name: string; email: string; source: 'STUDENT' | 'GUARDIAN' } | ''>('/students/guardian-lookup', { params: { rut } })
+      .then((r) => (r.status === 204 || !r.data ? null : r.data)),
+
   setPremium: (id: number, months: number) =>
     client.put<Student>(`/students/${id}/premium`, { months }).then((r) => r.data),
 };

@@ -36,6 +36,31 @@ export const portalApi = {
   pay: (studentId: number, method: string, month: number, year: number, app = false) =>
     client.post<{ url: string }>(`/portal/students/${studentId}/pay`, { method, month, year, app }).then((r) => r.data),
 
+  /** The month's unpaid fees of every profile this login can pay in the same academy. */
+  familyDue: (studentId: number, month: number, year: number) =>
+    client.get<{ studentId: number; name: string; amount: number }[]>(
+      `/portal/students/${studentId}/family-due`, { params: { month, year } }).then((r) => r.data),
+
+  /** One checkout paying the month of several profiles at once. */
+  payAll: (studentId: number, studentIds: number[], method: string, month: number, year: number, app = false) =>
+    client.post<{ url: string }>(`/portal/students/${studentId}/pay-all`, { method, month, year, app, studentIds }).then((r) => r.data),
+
+  /** Uploads a bank-transfer receipt for the month (of several profiles when studentIds is given). */
+  submitTransfer: (studentId: number, file: Blob, month: number, year: number, studentIds?: number[],
+                   onProgress?: (pct: number) => void) => {
+    const formData = new FormData();
+    formData.append('file', file, 'comprobante.jpg');
+    formData.append('month', String(month));
+    formData.append('year', String(year));
+    if (studentIds?.length) formData.append('studentIds', studentIds.join(','));
+    return client.post(`/portal/students/${studentId}/transfer`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (e) => {
+        if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100));
+      },
+    });
+  },
+
   upcomingClasses: (studentId: number) =>
     client.get<UpcomingClass[]>(`/portal/students/${studentId}/classes`).then((r) => r.data),
 

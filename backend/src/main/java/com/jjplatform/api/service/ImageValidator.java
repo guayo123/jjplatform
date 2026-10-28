@@ -27,7 +27,9 @@ public class ImageValidator {
         /** Student / professor profile photo. Min 500px so it stays sharp in avatars on hi-DPI screens. */
         PROFILE(2L * 1024 * 1024, 500, 3000, 500, 3000, "foto de perfil"),
         /** Public gallery photo. */
-        GALLERY(5L * 1024 * 1024, 600, 4000, 400, 4000, "foto de galería");
+        GALLERY(5L * 1024 * 1024, 600, 4000, 400, 4000, "foto de galería"),
+        /** Bank-transfer receipt: usually a phone screenshot (tall and narrow), so the bounds are loose. */
+        RECEIPT(5L * 1024 * 1024, 200, 6000, 200, 8000, "comprobante");
 
         public final long maxBytes;
         public final int minWidth;

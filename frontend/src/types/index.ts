@@ -89,6 +89,10 @@ export interface Student {
   guardianName?: string | null;
   guardianEmail?: string | null;
   guardianRut?: string | null;
+  /** Standing monthly discount (CLP amount or percent) applied to online payments, and its reason. */
+  monthlyDiscount?: number | null;
+  monthlyDiscountType?: 'AMOUNT' | 'PERCENT' | null;
+  monthlyDiscountReason?: string | null;
   joinDate: string | null;
   birthDate: string | null;
   age: number | null;
@@ -295,21 +299,50 @@ export interface Payment {
   notes: string | null;
   paidAt: string | null;
   status?: string | null;   // PAID | PENDING_CONFIRMATION
-  method?: string | null;   // MANUAL | TRANSFER | KHIPU | MERCADO_PAGO
+  method?: string | null;   // null (staff) | TRANSFER | KHIPU | MERCADO_PAGO
   proofUrl?: string | null;
   /** Account that paid online (null when staff recorded it) and whether it was the guardian. */
   paidByEmail?: string | null;
   paidByGuardian?: boolean | null;
-  /** Pending online checkout: still in progress, abandoned/timed out, or rejected by the gateway. */
-  onlineState?: 'IN_PROGRESS' | 'EXPIRED' | 'REJECTED' | null;
+  /**
+   * Pending payment: an online checkout still in progress, abandoned/timed out or rejected by the
+   * gateway; or a transfer receipt in review / rejected by the academy.
+   */
+  onlineState?: 'IN_PROGRESS' | 'EXPIRED' | 'REJECTED' | 'IN_REVIEW' | null;
+  /** Why the academy rejected the transfer receipt. */
+  reviewNote?: string | null;
   /** Gateway operation id of a confirmed online payment, shown on the receipt. */
   operationId?: string | null;
+  /** Months paid together in one checkout ("pagar todo") and the total transferred; null otherwise. */
+  groupItems?: PaymentGroupItem[] | null;
+  groupTotal?: number | null;
+}
+
+/** A transfer receipt waiting for staff review (one or several months paid with one transfer). */
+export interface TransferReview {
+  paymentId: number;
+  items: { paymentId: number; studentId: number; studentName: string; month: number; year: number; amount: number }[];
+  total: number;
+  proofUrl: string | null;
+  payerEmail: string | null;
+  payerGuardian: boolean | null;
+  submittedAt: string | null;
+}
+
+export interface PaymentGroupItem {
+  studentId: number;
+  studentName: string;
+  amount: number;
+  discountValue?: number | null;
+  discountReason?: string | null;
 }
 
 export interface PaymentOptions {
   khipu: boolean;
   mercadoPago: boolean;
   bankDetails: string | null;
+  /** Transfer with receipt upload is offered (older backends don't send it: falls back to bankDetails). */
+  transfer?: boolean;
   /** Academy WhatsApp, to send a payment receipt to the academy. */
   whatsapp?: string | null;
 }

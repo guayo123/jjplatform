@@ -1,5 +1,5 @@
 import client from './client';
-import type { Payment, PaymentForm } from '../types';
+import type { Payment, PaymentForm, TransferReview } from '../types';
 
 export const paymentsApi = {
   getByMonth: (month: number, year: number) =>
@@ -16,6 +16,17 @@ export const paymentsApi = {
 
   abono: (id: number, abono: number) =>
     client.put<Payment>(`/payments/${id}/abono`, { abono }).then((r) => r.data),
+
+  /** Transfer receipts sent from the portal, waiting for review. */
+  pendingTransfers: () =>
+    client.get<TransferReview[]>('/payments/transfers/pending').then((r) => r.data),
+
+  /** Marks every month of the receipt paid; `amount` (single month only) records less money received. */
+  approveTransfer: (paymentId: number, amount?: number) =>
+    client.post(`/payments/${paymentId}/transfer/approve`, amount != null ? { amount } : {}),
+
+  rejectTransfer: (paymentId: number, reason: string) =>
+    client.post(`/payments/${paymentId}/transfer/reject`, { reason }),
 
   delete: (id: number) =>
     client.delete(`/payments/${id}`),

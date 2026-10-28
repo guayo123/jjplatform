@@ -39,7 +39,7 @@ public class PaymentDto {
 
     /** PAID | PENDING_CONFIRMATION */
     private String status;
-    /** MANUAL | TRANSFER | MERCADO_PAGO */
+    /** null (recorded by staff) | TRANSFER | KHIPU | MERCADO_PAGO */
     private String method;
     private String proofUrl;
 
@@ -47,9 +47,33 @@ public class PaymentDto {
     private String paidByEmail;
     private Boolean paidByGuardian;
 
-    /** Pending online checkout state: IN_PROGRESS | EXPIRED | REJECTED (null when not a pending checkout). */
+    /**
+     * Pending state: IN_PROGRESS | EXPIRED | REJECTED for an online checkout, IN_REVIEW | REJECTED for
+     * a transfer receipt (null when the payment isn't pending).
+     */
     private String onlineState;
+
+    /** Why staff rejected the transfer receipt (null unless rejected). */
+    private String reviewNote;
 
     /** Gateway operation id of a confirmed online payment (Khipu / Mercado Pago), for the receipt. */
     private String operationId;
+
+    /**
+     * When this month was paid together with others in one checkout (a guardian's "pagar todo"):
+     * every month of that payment and the total charged, so the receipt shows the whole transfer.
+     * Null for a payment of a single month.
+     */
+    private java.util.List<GroupItem> groupItems;
+    private BigDecimal groupTotal;
+
+    @Data
+    public static class GroupItem {
+        private Long studentId;
+        private String studentName;
+        private BigDecimal amount;
+        /** Amount taken off by the student's discount (null when none) and its reason. */
+        private BigDecimal discountValue;
+        private String discountReason;
+    }
 }

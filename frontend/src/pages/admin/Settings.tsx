@@ -267,7 +267,7 @@ export default function Settings() {
             onChange={(e) => setForm({ ...form, bankDetails: e.target.value })}
             placeholder={'Banco, tipo de cuenta, número, RUT, nombre, correo…'}
           />
-          <p className={hint}>Se muestran en la app como alternativa de pago manual (opcional).</p>
+          <p className={hint}>Si los completas, los alumnos pueden pagar por transferencia desde la app y subir el comprobante. Tú lo apruebas en Pagos → Transferencias por revisar.</p>
         </div>
 
         <label className="flex items-start gap-3 cursor-pointer">
@@ -278,7 +278,7 @@ export default function Settings() {
             className="mt-0.5 h-4 w-4 rounded border-gray-600 bg-gray-800 text-primary-600 focus:ring-primary-500"
           />
           <span className="text-sm text-gray-300">
-            Avisarme por correo cuando un alumno pague en línea
+            Avisarme por correo cuando un alumno pague en línea o envíe un comprobante de transferencia
             <span className="block text-xs text-gray-500 mt-0.5">
               Llega al correo de la cuenta administradora. Quien paga recibe además su comprobante.
             </span>

@@ -49,9 +49,27 @@ export default function PaymentReceipt({ payment, studentName, academyName, acad
     void notifySuccess();
   }, [celebrate]);
 
+  // Paid together with other months ("pagar todo"): one receipt for the whole transfer.
+  const group = payment.groupItems && payment.groupItems.length > 1 ? payment.groupItems : null;
+  const total = group ? Number(payment.groupTotal ?? payment.amount) : payment.amount;
+
+  const discount = Number(payment.discount ?? 0);
+  const discountValue = discount > 0 && payment.expectedAmount
+    ? (payment.discountType === 'PERCENT' ? Math.round(payment.expectedAmount * discount / 100) : discount)
+    : 0;
+  // One line per student of a joint payment (with the discount it carried, if any).
+  const itemRows: Array<[string, string]> = group
+    ? group.flatMap((it): Array<[string, string]> => [
+        [it.studentName, money(it.amount)],
+        ...(Number(it.discountValue ?? 0) > 0
+          ? [[`  ${it.discountReason || 'Descuento'}`, `−${money(Number(it.discountValue))}`] as [string, string]]
+          : []),
+      ])
+    : [];
   const rows: Array<[string, string]> = [
-    ['Alumno', studentName],
+    ...(group ? [] : [['Alumno', studentName] as [string, string]]),
     ['Mensualidad', period],
+    ...(!group && discountValue > 0 ? [[payment.notes || 'Descuento', `−${money(discountValue)}`] as [string, string]] : []),
     ['Medio de pago', method],
     ['Fecha', dateTime(payment.paidAt)],
   ];
@@ -59,7 +77,8 @@ export default function PaymentReceipt({ payment, studentName, academyName, acad
 
   const text = [
     `Comprobante de pago${academy ? ` · ${academy}` : ''}`,
-    `Monto: ${money(payment.amount)}`,
+    `Monto: ${money(total)}`,
+    ...itemRows.map(([k, v]) => `${k.trim()}: ${v}`),
     ...rows.map(([k, v]) => `${k}: ${v}`),
     ...(payment.operationId ? [`N° operación: ${payment.operationId}`] : []),
   ].join('\n');
@@ -75,8 +94,8 @@ export default function PaymentReceipt({ payment, studentName, academyName, acad
       const canvas = drawReceiptCard({
         title: celebrate ? '¡Pago exitoso!' : 'Comprobante de pago',
         academyName: academy ?? null,
-        amount: money(payment.amount),
-        rows,
+        amount: money(total),
+        rows: [...itemRows, ...rows],
         operationId: payment.operationId ?? null,
       });
       const res = await shareCard(canvas, `comprobante-${payment.year}-${String(payment.month).padStart(2, '0')}.png`, 'Comprobante de pago');
@@ -116,7 +135,8 @@ export default function PaymentReceipt({ payment, studentName, academyName, acad
           {/* Amount */}
           <div className="px-6 pt-5 text-center">
             <p className="text-xs uppercase tracking-wider text-gray-400">Monto pagado</p>
-            <p className="text-3xl font-extrabold text-gray-900">{money(payment.amount)}</p>
+            <p className="text-3xl font-extrabold text-gray-900">{money(total)}</p>
+            {group && <p className="text-xs text-gray-500 mt-0.5">Pago conjunto de {group.length} mensualidades</p>}
           </div>
 
           {/* Perforation */}
@@ -125,6 +145,26 @@ export default function PaymentReceipt({ payment, studentName, academyName, acad
             <span className="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-gray-900/70" />
             <span className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-gray-900/70" />
           </div>
+
+          {/* Joint payment: what each student's month got (the one of this profile highlighted) */}
+          {group && (
+            <div className="mx-6 mb-3 rounded-lg border border-gray-100 px-3 py-2 space-y-1 text-sm">
+              {group.map((it) => (
+                <div key={it.studentId}>
+                  <div className={`flex justify-between gap-4 ${it.studentId === payment.studentId ? 'font-bold text-gray-900' : 'text-gray-600'}`}>
+                    <span className="truncate">{it.studentName}</span>
+                    <span>{money(it.amount)}</span>
+                  </div>
+                  {Number(it.discountValue ?? 0) > 0 && (
+                    <div className="flex justify-between gap-4 text-xs text-green-600">
+                      <span className="truncate pl-3">{it.discountReason || 'Descuento'}</span>
+                      <span>−{money(Number(it.discountValue))}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Details */}
           <dl className="space-y-2 px-6 text-sm">
