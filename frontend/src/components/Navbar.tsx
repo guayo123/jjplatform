@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { PRIMARY_LINKS, GESTION_LINKS, ADMIN_ONLY_LINKS } from './adminNav';
+import { usePendingTransfersBadge } from './usePendingTransfersBadge';
 
 export default function Navbar() {
   const { academyName, role, logout } = useAuthStore();
@@ -10,6 +11,7 @@ export default function Navbar() {
   const isAdmin = role === 'ADMIN';
   const isSuperAdmin = role === 'SUPER_ADMIN';
   const [menuOpen, setMenuOpen] = useState(false);
+  const pendingTransfers = usePendingTransfersBadge();
   const [gestionOpen, setGestionOpen] = useState(false);
   const gestionRef = useRef<HTMLDivElement>(null);
 
@@ -62,7 +64,10 @@ export default function Navbar() {
             ) : (
               <>
                 {PRIMARY_LINKS.map(l => (
-                  <DesktopLink key={l.to} to={l.to} active={location.pathname === l.to}>{l.label}</DesktopLink>
+                  <DesktopLink key={l.to} to={l.to} active={location.pathname === l.to}>
+                    {l.label}
+                    {l.to === '/admin/payments' && <CountBadge count={pendingTransfers} />}
+                  </DesktopLink>
                 ))}
 
                 {/* Gestión dropdown */}
@@ -147,6 +152,7 @@ export default function Navbar() {
             {allLinks.map(l => (
               <MobileLink key={l.to} to={l.to} active={location.pathname === l.to} onClick={() => setMenuOpen(false)}>
                 {l.label}
+                {l.to === '/admin/payments' && <CountBadge count={pendingTransfers} />}
               </MobileLink>
             ))}
             <div className="pt-3 mt-3 border-t border-primary-700 flex items-center justify-between">
@@ -162,6 +168,19 @@ export default function Navbar() {
         </div>
       )}
     </nav>
+  );
+}
+
+/** Small red counter next to a nav label (e.g. transfer receipts waiting for review). */
+function CountBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      title={`${count} transferencia${count === 1 ? '' : 's'} por revisar`}
+      className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold leading-5 text-white"
+    >
+      {count}
+    </span>
   );
 }
 

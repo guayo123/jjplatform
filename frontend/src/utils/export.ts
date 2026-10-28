@@ -149,7 +149,7 @@ export function exportStudentsPDF(
 const PAYMENT_METHODS: Record<string, string> = { TRANSFER: 'Transferencia', KHIPU: 'Khipu', MERCADO_PAGO: 'Mercado Pago' };
 
 /** How the payment arrived. Staff-recorded payments have no method (cash or anything outside the app). */
-function paymentMethodLabel(p: Payment): string {
+export function paymentMethodLabel(p: Payment): string {
   return (p.method && PAYMENT_METHODS[p.method]) || 'Efectivo / manual';
 }
 

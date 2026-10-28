@@ -4,6 +4,7 @@ import { paymentsApi } from '../../api/payments';
 import { formatCLP } from '../../utils/format';
 import type { TransferReview } from '../../types';
 import FormInput from '../../components/FormInput';
+import { useTransferReviewStore } from '../../stores/transferReviewStore';
 
 const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -51,7 +52,7 @@ export default function TransferReviews({ onChanged, onLoaded }: Props) {
 
   const load = useCallback(() => {
     paymentsApi.pendingTransfers()
-      .then((r) => { setReviews(r); onLoaded?.(r); })
+      .then((r) => { setReviews(r); onLoaded?.(r); useTransferReviewStore.getState().setCount(r.length); })
       .catch(() => setReviews([]));
   }, [onLoaded]);
   useEffect(() => { load(); }, [load]);
@@ -94,7 +95,7 @@ export default function TransferReviews({ onChanged, onLoaded }: Props) {
   if (reviews.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-5 mb-6 border-l-4 border-blue-500">
+    <div id="transferencias-por-revisar" className="bg-white rounded-xl shadow-sm p-5 mb-6 border-l-4 border-blue-500 scroll-mt-4">
       <h2 className="font-semibold flex items-center gap-2">
         <Bank size="1.1em" className="text-blue-600" />
         Transferencias por revisar

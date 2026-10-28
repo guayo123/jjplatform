@@ -1,12 +1,12 @@
 import { useConfirm } from '../../components/ConfirmContext';
 import { Check } from '@phosphor-icons/react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { paymentsApi } from '../../api/payments';
 import { academiesApi } from '../../api/academies';
 import { useStudentStore } from '../../stores/studentStore';
 import { useAuthStore } from '../../stores/authStore';
 import { formatCLP } from '../../utils/format';
-import { exportPaymentsExcel, exportPaymentsPDF } from '../../utils/export';
+import { exportPaymentsExcel, exportPaymentsPDF, paymentMethodLabel } from '../../utils/export';
 import { useGuidedTour } from '../../utils/useGuidedTour';
 import type { Payment, PaymentForm, Plan, TransferReview } from '../../types';
 import FormInput from '../../components/FormInput';
@@ -30,6 +30,14 @@ function onlinePaymentLabel(p: Payment): string | null {
   if (!method) return null;
   if (!p.paidByEmail) return p.method === 'TRANSFER' ? method : `Pagado en línea · ${method}`;
   return `${method} · ${p.paidByGuardian ? `apoderado ${p.paidByEmail}` : 'el alumno'}`;
+}
+
+type MonthStatus = 'paid' | 'partial' | 'review' | 'pending';
+type StatusFilter = 'all' | 'pending' | 'review' | 'paid';
+
+/** Removes accents and case so "jose" finds "José". */
+function fold(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 }
 
 function parseCLPInput(s: string): number {
@@ -58,6 +66,10 @@ export default function Payments() {
   /** Receipts waiting for review (any month); the selected month's students show "En revisión". */
   const [reviews, setReviews] = useState<TransferReview[]>([]);
   const onReviewsLoaded = useCallback((r: TransferReview[]) => setReviews(r), []);
+  /** Month status list: filter (from the summary tiles) and name search. */
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [search, setSearch] = useState('');
+  const formRef = useRef<HTMLFormElement>(null);
 
   // CLP display state for inputs
   const [amountInput, setAmountInput] = useState('0');
@@ -170,6 +182,32 @@ export default function Payments() {
   const inReviewIds = new Set(reviews.flatMap((r) => r.items)
     .filter((it) => it.month === month && it.year === year).map((it) => it.studentId));
   const unpaidStudents = students.filter(s => !paidStudentIds.has(s.id));
+
+  // ── Month overview: who paid, who owes, who sent a receipt ──
+  // Inactive students only count if they paid this month (otherwise they'd show as "Pendiente" forever).
+  const monthStudents = students.filter((s) => s.active || paidStudentIds.has(s.id));
+  const statusOf = (studentId: number): MonthStatus => {
+    const p = payments.find((x) => x.studentId === studentId);
+    if (p) return (p.remaining ?? 0) > 0 ? 'partial' : 'paid';
+    return inReviewIds.has(studentId) ? 'review' : 'pending';
+  };
+  const counts = { paid: 0, partial: 0, review: 0, pending: 0 };
+  monthStudents.forEach((s) => { counts[statusOf(s.id)]++; });
+  const collected = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const owed = payments.reduce((sum, p) => sum + Math.max(0, p.remaining ?? 0), 0);
+  const byMethod = new Map<string, number>();
+  payments.forEach((p) => byMethod.set(paymentMethodLabel(p), (byMethod.get(paymentMethodLabel(p)) ?? 0) + Number(p.amount)));
+  const matchesFilter = (st: MonthStatus) =>
+    statusFilter === 'all' || (statusFilter === 'pending' ? st === 'pending' || st === 'partial' : st === statusFilter);
+  const query = fold(search.trim());
+  const shownStudents = monthStudents.filter((s) => matchesFilter(statusOf(s.id)) && (!query || fold(s.name).includes(query)));
+
+  /** Opens "Registrar pago" already filled in for this student (tapping a pending student). */
+  const registerFor = (studentId: number) => {
+    setShowForm(true);
+    handleStudentChange(studentId);
+    window.setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
 
   // Vista por plan
   const selectedPlan = plans.find((p) => p.id === selectedPlanId) ?? null;
@@ -396,7 +434,7 @@ export default function Payments() {
 
       {/* Payment form */}
       {canEdit && showForm && (
-        <form onSubmit={handleCreate} className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6 space-y-5">
+        <form ref={formRef} onSubmit={handleCreate} className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6 space-y-5">
           <h2 className="font-bold text-white">Nuevo pago — {MONTH_NAMES[month - 1]} {year}</h2>
 
           <div>
@@ -619,11 +657,68 @@ export default function Payments() {
         </div>
       )}
 
+      {/* Month summary: money in, and who is where. Tiles double as filters for the list below. */}
+      <div className="bg-white rounded-xl shadow-sm p-5 mb-4">
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Recaudado {MONTH_NAMES[month - 1]} {year}</p>
+            <p className="text-2xl font-bold text-gray-900">{formatCLP(collected)}</p>
+          </div>
+          {owed > 0 && (
+            <p className="text-sm text-orange-600">Saldos por cobrar: <span className="font-semibold">{formatCLP(owed)}</span></p>
+          )}
+        </div>
+        {byMethod.size > 0 && (
+          <p className="mt-1 text-xs text-gray-500">
+            {[...byMethod].map(([m, total]) => `${m} ${formatCLP(total)}`).join(' · ')}
+          </p>
+        )}
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {([
+            ['all', 'Todos', monthStudents.length, 'text-gray-900', 'border-gray-400 bg-gray-50'],
+            ['paid', 'Pagados', counts.paid, 'text-green-700', 'border-green-400 bg-green-50'],
+            ['pending', 'Pendientes', counts.pending + counts.partial, 'text-red-600', 'border-red-400 bg-red-50'],
+            ['review', 'En revisión', counts.review, 'text-blue-700', 'border-blue-400 bg-blue-50'],
+          ] as [StatusFilter, string, number, string, string][]).map(([key, label, n, text, activeCls]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setStatusFilter(key)}
+              aria-pressed={statusFilter === key}
+              className={`rounded-lg border px-3 py-2 text-left transition-colors ${statusFilter === key ? activeCls : 'border-gray-200 hover:bg-gray-50'}`}
+            >
+              <span className={`block text-xl font-bold ${text}`}>{n}</span>
+              <span className="block text-xs text-gray-500">
+                {label}{key === 'pending' && counts.partial > 0 ? ` (${counts.partial} con saldo)` : ''}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Payment status overview */}
       <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-        <h2 className="font-semibold mb-4">Estado — {MONTH_NAMES[month - 1]} {year}</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h2 className="font-semibold">Estado — {MONTH_NAMES[month - 1]} {year}</h2>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar alumno…"
+            aria-label="Buscar alumno"
+            className="w-full sm:w-64 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+          />
+        </div>
+        {canEdit && (statusFilter === 'all' || statusFilter === 'pending') && counts.pending > 0 && (
+          <p className="-mt-2 mb-3 text-xs text-gray-500">Toca a un alumno pendiente para registrarle el pago.</p>
+        )}
+        {shownStudents.length === 0 && (
+          <p className="py-6 text-center text-sm text-gray-400">
+            {query ? 'Ningún alumno coincide con la búsqueda.' : 'No hay alumnos en este estado.'}
+          </p>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {students.map((student) => {
+          {shownStudents.map((student) => {
             const payment = payments.find(p => p.studentId === student.id);
             const netExpected = payment ? computeNetExpected(payment) : null;
             const gross = payment?.expectedAmount ?? null;
@@ -638,8 +733,19 @@ export default function Payments() {
             else if (isPartial) { statusColor = 'border-orange-200 bg-orange-50'; dotColor = 'bg-orange-400'; }
             else if (inReviewIds.has(student.id)) { statusColor = 'border-blue-200 bg-blue-50'; dotColor = 'bg-blue-500'; }
 
+            const inReview = !payment && inReviewIds.has(student.id);
+            // Pending: tap to record the payment. In review: tap to jump to the receipt at the top.
+            const action = !canEdit || payment ? undefined
+              : inReview ? () => document.getElementById('transferencias-por-revisar')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              : () => registerFor(student.id);
+            const Card = action ? 'button' : 'div';
+
             return (
-              <div key={student.id} className={`flex items-center gap-3 p-3 rounded-lg border ${statusColor}`}>
+              <Card
+                key={student.id}
+                {...(action ? { type: 'button' as const, onClick: action } : {})}
+                className={`flex items-center gap-3 p-3 rounded-lg border text-left ${statusColor} ${action ? 'w-full transition-shadow hover:shadow-md active:opacity-80' : ''}`}
+              >
                 <div className={`w-3 h-3 rounded-full flex-shrink-0 ${dotColor}`} />
                 <span className="text-sm font-medium truncate">{student.name}</span>
                 <div className="ml-auto text-right flex-shrink-0">
@@ -665,10 +771,10 @@ export default function Payments() {
                   ) : inReviewIds.has(student.id) ? (
                     <span className="text-xs font-medium text-blue-600">En revisión</span>
                   ) : (
-                    <span className="text-xs font-medium text-red-600">Pendiente</span>
+                    <span className="text-xs font-medium text-red-600">{canEdit ? 'Registrar pago' : 'Pendiente'}</span>
                   )}
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>

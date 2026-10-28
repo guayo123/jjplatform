@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { CalendarBlank, DotsThreeOutline, House, SignOut, UsersThree, Wallet, X } from '@phosphor-icons/react';
 import { useAuthStore } from '../stores/authStore';
 import { ADMIN_ONLY_LINKS, GESTION_LINKS, NAV_ICONS, PRIMARY_LINKS } from './adminNav';
+import { usePendingTransfersBadge } from './usePendingTransfersBadge';
 
 const TABS = [
   { to: '/admin', label: 'Inicio', icon: House, exact: true },
@@ -20,6 +21,7 @@ export default function AdminBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const pendingTransfers = usePendingTransfersBadge();
 
   useEffect(() => { setOpen(false); }, [location.pathname]);
 
@@ -91,7 +93,17 @@ export default function AdminBottomNav() {
                   aria-current={active ? 'page' : undefined}
                   className={`flex h-16 flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${active ? 'text-primary-700' : 'text-gray-500'}`}
                 >
-                  <Ico size={24} weight={active ? 'fill' : 'regular'} />
+                  <span className="relative">
+                    <Ico size={24} weight={active ? 'fill' : 'regular'} />
+                    {to === '/admin/payments' && pendingTransfers > 0 && (
+                      <span
+                        aria-label={`${pendingTransfers} transferencias por revisar`}
+                        className="absolute -top-1.5 -right-2.5 min-w-[1.1rem] rounded-full bg-red-500 px-1 text-center text-[10px] font-bold leading-[1.1rem] text-white"
+                      >
+                        {pendingTransfers}
+                      </span>
+                    )}
+                  </span>
                   {label}
                 </Link>
               </li>
