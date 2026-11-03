@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface AcademyRepository extends JpaRepository<Academy, Long> {
     Optional<Academy> findByUserId(Long userId);
+    Optional<Academy> findByCheckinCode(String checkinCode);
 }

@@ -19,4 +19,7 @@ public class AtRiskStudentDto {
     private Integer daysSinceLastSession; // null if never trained
     private boolean inactive;
     private boolean overduePayment;
+    private Integer daysSinceLastAttendance; // null if never checked in at the dojo
+    /** Hasn't come to the dojo in a while (only once the academy has used QR attendance for a while). */
+    private boolean absent;
 }

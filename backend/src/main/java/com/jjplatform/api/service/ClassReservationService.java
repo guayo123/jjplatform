@@ -31,7 +31,7 @@ import java.util.Map;
 public class ClassReservationService {
 
     /** Spanish day names stored on ClassSchedule.dayOfWeek → java DayOfWeek. */
-    private static final Map<String, DayOfWeek> DAY_MAP = Map.of(
+    static final Map<String, DayOfWeek> DAY_MAP = Map.of(
             "Lunes", DayOfWeek.MONDAY,
             "Martes", DayOfWeek.TUESDAY,
             "Miércoles", DayOfWeek.WEDNESDAY,

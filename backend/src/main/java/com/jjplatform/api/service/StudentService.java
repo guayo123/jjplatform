@@ -176,7 +176,11 @@ public class StudentService {
             throw new ResourceNotFoundException("No se encontró el alumno asociado a tu cuenta.");
         }
         return students.stream()
-                .map(s -> enrichWithDisciplineBelts(toDto(s), s.getId()))
+                .map(s -> {
+                    StudentDto dto = enrichWithDisciplineBelts(toDto(s), s.getId());
+                    dto.setOwnRecord(s.getUser() != null && s.getUser().getId().equals(userId));
+                    return dto;
+                })
                 .toList();
     }
 

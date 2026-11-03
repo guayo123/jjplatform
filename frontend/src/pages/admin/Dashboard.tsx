@@ -1,4 +1,4 @@
-import { UsersThree, Wallet, ChartBar, Warning, Trophy, ChalkboardTeacher, ClipboardText, CalendarBlank, Camera, Bell, Gear, LockKey, Wrench } from '@phosphor-icons/react';
+import { QrCode, UsersThree, Wallet, ChartBar, Warning, Trophy, ChalkboardTeacher, ClipboardText, CalendarBlank, Camera, Bell, Gear, LockKey, Wrench } from '@phosphor-icons/react';
 import GiIcon from '../../components/GiIcon';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
@@ -36,6 +36,7 @@ export default function Dashboard() {
 
   const cards = [
     { title: 'Alumnos',        desc: 'Gestiona tu lista de estudiantes',      link: '/admin/students',         icon: UsersThree },
+    { title: 'Asistencia',     desc: 'QR de asistencia y quién vino a cada clase', link: '/admin/attendance', icon: QrCode },
     { title: 'Pagos',          desc: 'Control de pagos mensuales',             link: '/admin/payments',         icon: Wallet },
     { title: 'Reporte',        desc: 'Resumen de ingresos y pagos',            link: '/admin/payments/report',  icon: ChartBar },
     { title: 'En riesgo',      desc: 'Alumnos sin pagar o sin entrenar',       link: '/admin/at-risk',          icon: Warning, badge: atRiskCount },

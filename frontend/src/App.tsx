@@ -22,6 +22,7 @@ const Students       = lazy(() => import('./pages/admin/Students'));
 const StudentForm    = lazy(() => import('./pages/admin/StudentForm'));
 const StudentDetail  = lazy(() => import('./pages/admin/StudentDetail'));
 const Payments       = lazy(() => import('./pages/admin/Payments'));
+const AttendancePage = lazy(() => import('./pages/admin/Attendance'));
 const PaymentsReport = lazy(() => import('./pages/admin/PaymentsReport'));
 const Tournaments    = lazy(() => import('./pages/admin/Tournaments'));
 const TournamentDetail = lazy(() => import('./pages/admin/TournamentDetail'));
@@ -39,6 +40,7 @@ const ProfessorForm  = lazy(() => import('./pages/admin/ProfessorForm'));
 const Notifications  = lazy(() => import('./pages/admin/Notifications'));
 const SuperAcademies = lazy(() => import('./pages/super/Academies'));
 const Portal          = lazy(() => import('./pages/portal/Portal'));
+const Checkin         = lazy(() => import('./pages/portal/Checkin'));
 const PortalChangePassword = lazy(() => import('./pages/admin/ChangePassword'));
 
 /**
@@ -78,6 +80,7 @@ export default function App() {
       {/* Student portal — STUDENT role only */}
       <Route element={<StudentRoute />}>
         <Route path="/portal" element={<Suspense><Portal /></Suspense>} />
+        <Route path="/asistencia/:code" element={<Suspense><Checkin /></Suspense>} />
         <Route path="/portal/cambiar-clave" element={<Suspense><PortalChangePassword /></Suspense>} />
       </Route>
 
@@ -89,6 +92,7 @@ export default function App() {
           <Route path="/admin/students/new" element={<Suspense><StudentForm /></Suspense>} />
           <Route path="/admin/students/:id/edit" element={<Suspense><StudentForm /></Suspense>} />
           <Route path="/admin/students/:id" element={<Suspense><StudentDetail /></Suspense>} />
+          <Route path="/admin/attendance" element={<Suspense><AttendancePage /></Suspense>} />
           <Route path="/admin/payments" element={<Suspense><Payments /></Suspense>} />
           <Route path="/admin/payments/report" element={<Suspense><PaymentsReport /></Suspense>} />
           <Route path="/admin/tournaments" element={<Suspense><Tournaments /></Suspense>} />

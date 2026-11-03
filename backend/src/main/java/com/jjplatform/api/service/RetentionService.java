@@ -6,6 +6,7 @@ import com.jjplatform.api.model.Academy;
 import com.jjplatform.api.model.Student;
 import com.jjplatform.api.model.TrainingSession;
 import com.jjplatform.api.repository.AcademyRepository;
+import com.jjplatform.api.repository.AttendanceRepository;
 import com.jjplatform.api.repository.PaymentRepository;
 import com.jjplatform.api.repository.StudentRepository;
 import com.jjplatform.api.repository.TrainingSessionRepository;
@@ -18,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Churn-risk detection: flags students who stopped training or haven't paid the current month,
@@ -33,23 +36,36 @@ public class RetentionService {
     private static final int INACTIVE_DAYS = 21;
     /** Don't auto-remind before this day of the month (grace period after the fee falls due). */
     private static final int REMINDER_GRACE_DAY = 5;
+    /** A student is "absent" after this many days without checking in at the dojo. */
+    private static final int ABSENT_DAYS = 14;
 
     private final StudentRepository studentRepository;
     private final TrainingSessionRepository trainingSessionRepository;
     private final PaymentRepository paymentRepository;
     private final AcademyRepository academyRepository;
+    private final AttendanceRepository attendanceRepository;
     private final WhatsAppService whatsAppService;
 
     @Transactional(readOnly = true)
     public List<AtRiskStudentDto> getAtRisk(Long academyId) {
         LocalDate today = LocalDate.now();
+        // Only judge dojo attendance once the academy has been using QR check-in for a while; otherwise
+        // every student would show as "absent" the week it starts.
+        boolean tracksAttendance = attendanceRepository.existsByAcademyIdAndDateLessThanEqual(academyId, today.minusDays(ABSENT_DAYS));
+        Map<Long, LocalDate> lastAttendance = tracksAttendance
+                ? attendanceRepository.lastAttendancePerStudent(academyId).stream()
+                        .collect(Collectors.toMap(r -> (Long) r[0], r -> (LocalDate) r[1]))
+                : Map.of();
         return studentRepository.findByAcademyIdAndActiveTrue(academyId).stream()
-                .map(s -> evaluate(s, today))
-                .filter(d -> d.isInactive() || d.isOverduePayment())
+                .map(s -> evaluate(s, today, tracksAttendance, lastAttendance.get(s.getId())))
+                .filter(d -> d.isInactive() || d.isOverduePayment() || d.isAbsent())
                 .toList();
     }
 
-    private AtRiskStudentDto evaluate(Student s, LocalDate today) {
+    private AtRiskStudentDto evaluate(Student s, LocalDate today, boolean tracksAttendance, LocalDate lastCheckin) {
+        Integer daysAway = lastCheckin == null ? null : (int) ChronoUnit.DAYS.between(lastCheckin, today);
+        boolean absent = tracksAttendance && (daysAway == null || daysAway >= ABSENT_DAYS)
+                && (s.getJoinDate() == null || ChronoUnit.DAYS.between(s.getJoinDate(), today) >= ABSENT_DAYS);
         List<TrainingSession> sessions = trainingSessionRepository
                 .findByStudentIdOrderByDateDescCreatedAtDesc(s.getId());
         LocalDate last = sessions.isEmpty() ? null : sessions.get(0).getDate();
@@ -64,6 +80,8 @@ public class RetentionService {
                 .daysSinceLastSession(days)
                 .inactive(inactive)
                 .overduePayment(isOverdue(s.getId(), today))
+                .daysSinceLastAttendance(daysAway)
+                .absent(absent)
                 .build();
     }
 

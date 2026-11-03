@@ -49,7 +49,7 @@ export default function AtRiskPanel() {
     <div className="bg-white rounded-xl shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-gray-100">
         <h3 className="font-semibold text-gray-900">Alumnos en riesgo</h3>
-        <p className="text-xs text-gray-400 mt-0.5">{students.length} alumno{students.length !== 1 ? 's' : ''} sin pagar este mes o sin entrenar hace tiempo</p>
+        <p className="text-xs text-gray-400 mt-0.5">{students.length} alumno{students.length !== 1 ? 's' : ''} sin pagar este mes, sin entrenar o sin venir al dojo hace tiempo</p>
       </div>
       <div className="divide-y divide-gray-50">
         {students.map((s) => (
@@ -59,6 +59,11 @@ export default function AtRiskPanel() {
               <div className="flex flex-wrap gap-1.5 mt-1">
                 {s.overduePayment && (
                   <span className="text-[11px] font-medium text-red-600 bg-red-50 px-1.5 py-0.5 rounded">Sin pago este mes</span>
+                )}
+                {s.absent && (
+                  <span className="text-[11px] font-medium text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded">
+                    {s.daysSinceLastAttendance == null ? 'No ha venido al dojo' : `Sin venir hace ${s.daysSinceLastAttendance} días`}
+                  </span>
                 )}
                 {s.inactive && (
                   <span className="text-[11px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">

@@ -45,6 +45,8 @@ public class StudentDto {
     @jakarta.validation.constraints.Email(message = "Invalid email format")
     private String guardianEmail;
     private String guardianRut;
+    /** Portal only: true when the logged-in account owns this record, false when it is a ward (apoderado). */
+    private Boolean ownRecord;
 
     /** Standing monthly discount (amount in CLP or percent) and its reason. */
     private java.math.BigDecimal monthlyDiscount;

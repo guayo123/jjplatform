@@ -1,10 +1,11 @@
-import { UsersThree, Wallet, ChartBar, Trophy, ChalkboardTeacher, ClipboardText, CalendarBlank, Camera, Warning, Bell, Gear, LockKey, Wrench, House, type Icon } from '@phosphor-icons/react';
+import { QrCode, UsersThree, Wallet, ChartBar, Trophy, ChalkboardTeacher, ClipboardText, CalendarBlank, Camera, Warning, Bell, Gear, LockKey, Wrench, House, type Icon } from '@phosphor-icons/react';
 import GiIcon from './GiIcon';
 
 export interface NavLink { to: string; label: string }
 
 export const PRIMARY_LINKS: NavLink[] = [
   { to: '/admin/students',        label: 'Alumnos' },
+  { to: '/admin/attendance',      label: 'Asistencia' },
   { to: '/admin/payments',        label: 'Pagos' },
   { to: '/admin/payments/report', label: 'Reporte' },
   { to: '/admin/tournaments',     label: 'Torneos' },
@@ -30,6 +31,7 @@ export const ADMIN_ONLY_LINKS: NavLink[] = [
 export const NAV_ICONS: Record<string, Icon> = {
   '/admin': House,
   '/admin/students': UsersThree,
+  '/admin/attendance': QrCode,
   '/admin/payments': Wallet,
   '/admin/payments/report': ChartBar,
   '/admin/tournaments': Trophy,

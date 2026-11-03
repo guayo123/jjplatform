@@ -43,7 +43,23 @@ public class SchemaPatches {
             dropConstraint("duels", "duels_status_check");
             // Backs the keyset-paginated academy feed: filter by (academy, status) + walk updated_at desc.
             createIndex("idx_duels_academy_status_updated", "duels", "academy_id, status, updated_at");
+            // One attendance per student/class/day, and one free session per student/day. Partial indexes
+            // because a plain UNIQUE treats a NULL schedule_id as distinct every time.
+            createPartialUniqueIndex("uq_attendances_class", "attendances",
+                    "student_id, schedule_id, attended_on", "schedule_id IS NOT NULL");
+            createPartialUniqueIndex("uq_attendances_free", "attendances",
+                    "student_id, attended_on", "schedule_id IS NULL");
         };
+    }
+
+    /** Create a partial unique index if it doesn't exist yet (Postgres). Idempotent and non-fatal. */
+    private void createPartialUniqueIndex(String name, String table, String columns, String where) {
+        try {
+            jdbc.execute("CREATE UNIQUE INDEX IF NOT EXISTS " + name + " ON " + table + " (" + columns + ") WHERE " + where);
+            log.info("SchemaPatches: ensured unique index {} on {} ({})", name, table, columns);
+        } catch (Exception e) {
+            log.warn("SchemaPatches: could not create unique index {} on {}: {}", name, table, e.getMessage());
+        }
     }
 
     private void dropConstraint(String table, String constraint) {

@@ -89,6 +89,8 @@ export interface Student {
   guardianName?: string | null;
   guardianEmail?: string | null;
   guardianRut?: string | null;
+  /** Portal only: false when the logged-in account is this record's guardian (apoderado), not its owner. */
+  ownRecord?: boolean | null;
   /** Standing monthly discount (CLP amount or percent) applied to online payments, and its reason. */
   monthlyDiscount?: number | null;
   monthlyDiscountType?: 'AMOUNT' | 'PERCENT' | null;
@@ -319,6 +321,23 @@ export interface Payment {
 }
 
 /** A transfer receipt waiting for staff review (one or several months paid with one transfer). */
+/** A student's family and what each record owes for a month (admin "Registrar pago"). */
+export interface FamilyDue {
+  guardianName: string | null;
+  members: Array<{
+    studentId: number;
+    name: string;
+    status: 'PAID' | 'PARTIAL' | 'PENDING' | 'IN_REVIEW' | 'NO_FEE';
+    planTotal: number | null;
+    net: number | null;
+    paid: number;
+    due: number;
+    discountReason: string | null;
+    paymentId: number | null;
+  }>;
+  totalDue: number;
+}
+
 export interface TransferReview {
   paymentId: number;
   items: { paymentId: number; studentId: number; studentName: string; month: number; year: number; amount: number }[];
@@ -370,6 +389,10 @@ export interface AtRiskStudent {
   daysSinceLastSession: number | null;
   inactive: boolean;
   overduePayment: boolean;
+  /** Days since the last QR check-in (null = never). Optional: older backends don't send it. */
+  daysSinceLastAttendance?: number | null;
+  /** Stopped coming to the dojo (only once the academy has used QR attendance for a while). */
+  absent?: boolean;
 }
 
 export interface PaymentForm {
@@ -805,4 +828,51 @@ export interface TrainingSummary {
   monthSessions: number;
   monthMinutes: number;
   monthRounds: number;
+}
+
+/** One attendance record. scheduleId null = free session (no class running at check-in time). */
+export interface Attendance {
+  id: number;
+  studentId: number;
+  studentName: string;
+  photoUrl: string | null;
+  belt: string | null;
+  scheduleId: number | null;
+  className: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  date: string;
+  checkedInAt: string;
+  source: 'QR' | 'MANUAL';
+  /** Only in check-in results: false when it was already marked. */
+  created?: boolean | null;
+}
+
+export interface CheckinInfo {
+  academyId: number;
+  academyName: string;
+  academyLogoUrl: string | null;
+  classes: { scheduleId: number; className: string; startTime: string; endTime: string; professorName: string | null }[];
+  profiles: { studentId: number; name: string; photoUrl: string | null; self: boolean; checkedIn: number[] }[];
+}
+
+export interface AttendanceDay {
+  date: string;
+  classes: {
+    scheduleId: number;
+    className: string;
+    startTime: string;
+    endTime: string;
+    professorName: string | null;
+    capacity: number | null;
+    attendees: Attendance[];
+    noShows: { studentId: number; name: string; photoUrl: string | null; belt: string | null }[];
+  }[];
+  free: Attendance[];
+}
+
+export interface AttendanceHistory {
+  thisMonth: number;
+  last30: number;
+  items: Attendance[];
 }

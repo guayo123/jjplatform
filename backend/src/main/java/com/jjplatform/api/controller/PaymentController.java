@@ -1,6 +1,8 @@
 package com.jjplatform.api.controller;
 
+import com.jjplatform.api.dto.FamilyDueDto;
 import com.jjplatform.api.dto.PaymentDto;
+import com.jjplatform.api.service.FamilyPaymentService;
 import com.jjplatform.api.service.PaymentService;
 import com.jjplatform.api.service.SecurityHelper;
 import com.jjplatform.api.service.TransferService;
@@ -22,6 +24,7 @@ public class PaymentController {
 
     private final PaymentService paymentService;
     private final TransferService transferService;
+    private final FamilyPaymentService familyPaymentService;
     private final SecurityHelper securityHelper;
 
     @GetMapping("/yearly")
@@ -66,6 +69,23 @@ public class PaymentController {
                                                @RequestBody(required = false) Map<String, String> body) {
         transferService.reject(id, securityHelper.getCurrentAcademyId(), body != null ? body.get("reason") : null);
         return ResponseEntity.noContent().build();
+    }
+
+    /** The student's family (guardian + records in their charge) and what each owes for the month. */
+    @GetMapping("/family/{studentId}")
+    public ResponseEntity<FamilyDueDto> family(@PathVariable Long studentId, @RequestParam int month, @RequestParam int year) {
+        return ResponseEntity.ok(familyPaymentService.familyDue(securityHelper.getCurrentAcademyId(), studentId, month, year));
+    }
+
+    /** Settles the month's balance of the family in one go. Body: {month, year, studentIds?, notes?}. */
+    @PostMapping("/family/{studentId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO', 'PROFESOR')")
+    public ResponseEntity<List<PaymentDto>> payFamily(@PathVariable Long studentId, @RequestBody Map<String, Object> body) {
+        List<Long> ids = body.get("studentIds") instanceof List<?> l
+                ? l.stream().map(x -> ((Number) x).longValue()).toList() : List.of();
+        return ResponseEntity.ok(familyPaymentService.payAll(securityHelper.getCurrentAcademyId(), studentId, ids,
+                ((Number) body.get("month")).intValue(), ((Number) body.get("year")).intValue(),
+                body.get("notes") instanceof String n ? n : null));
     }
 
     @PostMapping

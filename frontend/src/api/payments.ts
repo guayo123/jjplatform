@@ -1,5 +1,5 @@
 import client from './client';
-import type { Payment, PaymentForm, TransferReview } from '../types';
+import type { FamilyDue, Payment, PaymentForm, TransferReview } from '../types';
 
 export const paymentsApi = {
   getByMonth: (month: number, year: number) =>
@@ -13,6 +13,14 @@ export const paymentsApi = {
 
   create: (data: PaymentForm) =>
     client.post<Payment>('/payments', data).then((r) => r.data),
+
+  /** The student's family (guardian + records in their charge) and what each owes for the month. */
+  family: (studentId: number, month: number, year: number) =>
+    client.get<FamilyDue>(`/payments/family/${studentId}`, { params: { month, year } }).then((r) => r.data),
+
+  /** Records the month's full balance of the given family members in one go. */
+  payFamily: (studentId: number, studentIds: number[], month: number, year: number, notes?: string) =>
+    client.post<Payment[]>(`/payments/family/${studentId}`, { studentIds, month, year, notes }).then((r) => r.data),
 
   abono: (id: number, abono: number) =>
     client.put<Payment>(`/payments/${id}/abono`, { abono }).then((r) => r.data),

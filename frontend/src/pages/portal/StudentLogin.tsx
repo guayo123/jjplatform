@@ -6,6 +6,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { usePlatform } from '../../native/usePlatform';
 import { getSavedCreds, saveCreds, clearSavedCreds, type SavedCreds } from '../../utils/secureStore';
 import { getBiometry, verifyBiometric, type BiometryInfo } from '../../native/biometric';
+import { takeReturnPath } from '../../components/StudentRoute';
 
 /**
  * Login dedicated to students (the tenant's end users), kept separate from the staff/admin
@@ -61,7 +62,7 @@ export default function StudentLogin() {
       // Route by role: a student stays in the portal; a staff member who happens to use this
       // page is still sent to the right place rather than being stuck here.
       if (state.role === 'STUDENT') {
-        navigate(state.mustChangePassword ? '/portal/cambiar-clave' : '/portal');
+        navigate(state.mustChangePassword ? '/portal/cambiar-clave' : takeReturnPath());
       } else if (state.mustChangePassword) {
         navigate('/admin/change-password');
       } else {

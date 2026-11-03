@@ -86,6 +86,10 @@ class GuardianLinkingIntegrationTest {
 
         assertThat(studentRepository.findById(own).orElseThrow().getUser().getId()).isEqualTo(papa.getId());
         assertThat(visible(papa)).containsExactlyInAnyOrder(hijo, own);
+        // Trains now: the portal is no longer guardian-only (their own record is marked as theirs).
+        assertThat(studentService.getMyStudents(papa.getId()))
+                .extracting(StudentDto::getId, StudentDto::getOwnRecord)
+                .containsExactlyInAnyOrder(org.assertj.core.groups.Tuple.tuple(hijo, false), org.assertj.core.groups.Tuple.tuple(own, true));
     }
 
     // ── Apoderado con un hijo al que le agregan un segundo hijo ──
@@ -99,6 +103,8 @@ class GuardianLinkingIntegrationTest {
         studentService.linkNewRecords(papa.getId());
 
         assertThat(visible(papa)).containsExactlyInAnyOrder(hijo1, hijo2);
+        // Doesn't train: every record is a ward, so the portal shows the guardian view.
+        assertThat(studentService.getMyStudents(papa.getId())).allMatch(d -> Boolean.FALSE.equals(d.getOwnRecord()));
     }
 
     // ── Mismo correo pero RUT de otra persona: no se vincula ──

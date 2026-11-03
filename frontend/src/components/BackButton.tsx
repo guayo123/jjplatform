@@ -10,7 +10,7 @@ function resolveBack(pathname: string): string | null {
   if (pathname === '/admin/payments/report')             return '/admin/payments';
 
   const SECTIONS = [
-    '/admin/students', '/admin/payments', '/admin/tournaments',
+    '/admin/students', '/admin/attendance', '/admin/payments', '/admin/tournaments',
     '/admin/professors', '/admin/disciplines', '/admin/plans',
     '/admin/schedules', '/admin/photos', '/admin/users',
     '/admin/settings',

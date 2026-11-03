@@ -32,8 +32,11 @@ client.interceptors.response.use(
       inMemoryToken = null;
       localStorage.removeItem('token');
       // Students (web portal and the native app) belong to /portal/login; staff to /login.
-      const portal = window.location.pathname.startsWith('/portal');
-      window.location.href = portal ? '/portal/login' : '/login';
+      const path = window.location.pathname;
+      const checkin = path.startsWith('/asistencia/');
+      // A scanned attendance QR resumes after login (same key StudentRoute uses).
+      if (checkin) sessionStorage.setItem('portal.returnTo', path);
+      window.location.href = path.startsWith('/portal') || checkin ? '/portal/login' : '/login';
     }
     // Extract user-friendly message from API response body
     const apiMessage =

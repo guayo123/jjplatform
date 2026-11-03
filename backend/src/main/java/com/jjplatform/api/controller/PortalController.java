@@ -1,6 +1,8 @@
 package com.jjplatform.api.controller;
 
+import com.jjplatform.api.dto.AttendanceDto;
 import com.jjplatform.api.dto.BeltPromotionDto;
+import com.jjplatform.api.dto.CheckinInfoDto;
 import com.jjplatform.api.dto.ClassmateDto;
 import com.jjplatform.api.dto.ConditioningSessionDto;
 import com.jjplatform.api.dto.CompetitionResultDto;
@@ -16,6 +18,7 @@ import com.jjplatform.api.dto.TechniqueCurriculumDto;
 import com.jjplatform.api.dto.TrainingSessionDto;
 import com.jjplatform.api.dto.UpcomingClassDto;
 import com.jjplatform.api.dto.TrainingSummaryDto;
+import com.jjplatform.api.service.AttendanceService;
 import com.jjplatform.api.service.PortalService;
 import com.jjplatform.api.service.SecurityHelper;
 import com.jjplatform.api.service.StudentService;
@@ -44,6 +47,7 @@ public class PortalController {
     private final StudentService studentService;
     private final PortalService portalService;
     private final SecurityHelper securityHelper;
+    private final AttendanceService attendanceService;
 
     /** Returns the logged-in student's profile(s) — one per academy they belong to. */
     @GetMapping("/me")
@@ -179,6 +183,35 @@ public class PortalController {
                                             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         portalService.cancelClass(studentId, scheduleId, date);
         return ResponseEntity.noContent().build();
+    }
+
+    // --- Attendance by QR ------------------------------------------------------
+
+    /** After scanning the academy QR: classes running now + the profiles this login can mark present. */
+    @GetMapping("/checkin/{code}")
+    public ResponseEntity<CheckinInfoDto> checkinInfo(@PathVariable String code) {
+        return ResponseEntity.ok(attendanceService.checkinInfo(code, securityHelper.getCurrentUser().getId()));
+    }
+
+    /** Marks the chosen profiles present. Body: {studentIds: [..], scheduleId: id | null (free session)}. */
+    @PostMapping("/checkin/{code}")
+    public ResponseEntity<List<AttendanceDto>> checkin(@PathVariable String code, @RequestBody Map<String, Object> body) {
+        List<Long> studentIds = toIds(body.get("studentIds"));
+        Object sid = body.get("scheduleId");
+        Long scheduleId = sid instanceof Number n ? n.longValue() : null;
+        return ResponseEntity.ok(attendanceService.checkin(code, securityHelper.getCurrentUser().getId(), studentIds, scheduleId));
+    }
+
+    /** Logs the just-marked attendances in the training journal. Body: {attendanceIds: [..]} → {created: n}. */
+    @PostMapping("/checkin/journal")
+    public ResponseEntity<Map<String, Integer>> checkinJournal(@RequestBody Map<String, Object> body) {
+        int created = attendanceService.logToJournal(securityHelper.getCurrentUser().getId(), toIds(body.get("attendanceIds")));
+        return ResponseEntity.ok(Map.of("created", created));
+    }
+
+    private static List<Long> toIds(Object raw) {
+        if (!(raw instanceof List<?> list)) return List.of();
+        return list.stream().filter(Number.class::isInstance).map(o -> ((Number) o).longValue()).toList();
     }
 
     @PostMapping("/students/{studentId}/photo")

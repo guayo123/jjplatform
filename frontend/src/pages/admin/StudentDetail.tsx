@@ -10,6 +10,7 @@ import { useToast } from '../../components/ToastContext';
 import { useConfirm } from '../../components/ConfirmContext';
 import BeltImage from '../../components/BeltImage';
 import DatePicker from '../../components/DatePicker';
+import StudentAttendanceCard from '../../components/StudentAttendanceCard';
 import type { Student, BeltPromotion, PromotionType, StudentDiscipline, CompetitionResultForm, Discipline, DisciplineBelt } from '../../types';
 
 const BELT_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -463,6 +464,8 @@ export default function StudentDetail() {
           </div>
         </div>
       )}
+
+      <StudentAttendanceCard studentId={student.id} />
 
       {/* Fichas Técnicas por Disciplina */}
       <div className="bg-white rounded-xl shadow-sm">

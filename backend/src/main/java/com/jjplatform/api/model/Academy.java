@@ -76,6 +76,10 @@ public class Academy {
     @Column(nullable = false, columnDefinition = "boolean default false")
     private Boolean paymentRemindersEnabled = false;
 
+    /** Secret in the printed attendance QR (/asistencia/{code}). Generated on demand; regenerating voids old prints. */
+    @Column(length = 32, unique = true)
+    private String checkinCode;
+
     @Builder.Default
     @Column(nullable = false)
     private Boolean active = true;

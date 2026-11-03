@@ -274,6 +274,9 @@ export default function Portal() {
   }, [selectedId]);
 
   const student = profiles.find((p) => p.id === selectedId) ?? null;
+  // An account that only looks after others' records (a parent who doesn't train) is a guardian:
+  // same menu, but no weekly goal, streaks or diary — those belong to whoever trains.
+  const guardianOnly = profiles.length > 0 && profiles.every((p) => p.ownRecord === false);
 
   const runTour = () => {
     if (!student) return;
@@ -300,7 +303,7 @@ export default function Portal() {
   // Auto-run the tour once the profile is available, unless dismissed forever. We wait for the first-time
   // weekly-goal setup to resolve first (goal modal → then tour) so the two don't overlap.
   useEffect(() => {
-    if (loading || !student) return;
+    if (loading || !student || guardianOnly) return;
     if (tourStartedRef.current) return;
     if (localStorage.getItem(TOUR_KEY) === 'dismissed') return;
     if (goalOnboarding !== 'resolved') return; // hold until the goal modal is closed / not needed
@@ -337,7 +340,9 @@ export default function Portal() {
       focusPaymentId={payFocus && payFocus.studentId === student.id ? payFocus.paymentId : null}
       onFocusHandled={clearPayFocus} />
   );
-  const entreno = student && (
+  const entreno = student && (guardianOnly ? (
+    <UpcomingClassesCard studentId={student.id} />
+  ) : (
     <div className="space-y-6">
       <TrainingSection
         studentId={student.id}
@@ -349,7 +354,7 @@ export default function Portal() {
       />
       <UpcomingClassesCard studentId={student.id} />
     </div>
-  );
+  ));
   const retos = student && <DuelsSection studentId={student.id} />;
 
   const content = (
@@ -391,7 +396,7 @@ export default function Portal() {
             >
               <Palette size={20} />
             </button>
-            <button
+            {!guardianOnly && <button
               data-tour="ayuda-btn"
               onClick={runTour}
               title="Ayuda"
@@ -399,7 +404,7 @@ export default function Portal() {
               className="w-9 h-9 flex items-center justify-center text-white/90 hover:text-white bg-black/20 border border-white/30 hover:border-white/60 rounded-lg transition-colors font-bold"
             >
               ?
-            </button>
+            </button>}
             <button
               onClick={handleLogout}
               className="text-sm text-white/90 hover:text-white bg-black/20 border border-white/30 hover:border-white/60 px-3 py-1.5 rounded-lg transition-colors"
@@ -409,13 +414,15 @@ export default function Portal() {
           </div>
           <div className="mt-auto pb-5 pt-10 min-w-0">
             <p className="text-xs text-white/80 [text-shadow:_0_1px_4px_rgb(0_0_0_/_60%)]">
-              Portal del alumno{appVersion && <span className="text-white/50"> · {appVersion}</span>}
+              {guardianOnly ? 'Portal del apoderado' : 'Portal del alumno'}{appVersion && <span className="text-white/50"> · {appVersion}</span>}
             </p>
             {/* Greet by first name — the email reads like a debug screen, not an app. */}
             <p className="jjp-display font-bold text-2xl truncate [text-shadow:_0_1px_4px_rgb(0_0_0_/_60%)]">
-              {student ? `Hola, ${student.name.trim().split(/\s+/)[0]}` : email}
+              {guardianOnly
+                ? `Hola, ${(student?.guardianName?.trim() || email || '').split(/[\s@]+/)[0]}`
+                : student ? `Hola, ${student.name.trim().split(/\s+/)[0]}` : email}
             </p>
-            <HeaderBeltChips student={student} />
+            {!guardianOnly && <HeaderBeltChips student={student} />}
           </div>
         </div>
       </header>

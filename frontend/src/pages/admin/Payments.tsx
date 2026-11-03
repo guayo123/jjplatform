@@ -8,7 +8,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { formatCLP } from '../../utils/format';
 import { exportPaymentsExcel, exportPaymentsPDF, paymentMethodLabel } from '../../utils/export';
 import { useGuidedTour } from '../../utils/useGuidedTour';
-import type { Payment, PaymentForm, Plan, TransferReview } from '../../types';
+import type { FamilyDue, Payment, PaymentForm, Plan, TransferReview } from '../../types';
 import FormInput from '../../components/FormInput';
 import FormSelect from '../../components/FormSelect';
 import TransferReviews from './TransferReviews';
@@ -89,7 +89,25 @@ export default function Payments() {
     notes: '',
   });
 
+  // Family of the student picked in "Registrar pago": what the guardian owes for all their records.
+  const [family, setFamily] = useState<FamilyDue | null>(null);
+  const [familyPick, setFamilyPick] = useState<Set<number>>(new Set());
+  const [savingFamily, setSavingFamily] = useState(false);
+  const [familyError, setFamilyError] = useState('');
+
   useEffect(() => { fetchStudents(); }, [fetchStudents]);
+  useEffect(() => {
+    setFamily(null);
+    setFamilyError('');
+    if (!showForm || !form.studentId) return;
+    let cancelled = false;
+    paymentsApi.family(form.studentId, month, year).then((f) => {
+      if (cancelled) return;
+      setFamily(f);
+      setFamilyPick(new Set(f.members.filter((m) => m.due > 0).map((m) => m.studentId)));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [showForm, form.studentId, month, year]);
   useEffect(() => { loadPayments(); }, [month, year]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     academiesApi.getPlans().then((p) => setPlans(p.filter((x) => x.active)));
@@ -162,6 +180,26 @@ export default function Payments() {
     setAmountInput('0');
     setDiscountInput('');
     loadPayments();
+  };
+
+  const familyTotal = family?.members.filter((m) => familyPick.has(m.studentId)).reduce((sum, m) => sum + Number(m.due), 0) ?? 0;
+
+  const handlePayFamily = async () => {
+    if (!family || familyPick.size === 0) return;
+    setSavingFamily(true);
+    setFamilyError('');
+    try {
+      await paymentsApi.payFamily(form.studentId, [...familyPick], month, year, form.notes || undefined);
+      setShowForm(false);
+      setForm(f => ({ ...f, studentId: 0, amount: 0, discount: 0, notes: '' }));
+      setAmountInput('0');
+      setDiscountInput('');
+      loadPayments();
+    } catch (err) {
+      setFamilyError(err instanceof Error ? err.message : 'No se pudo registrar el pago.');
+    } finally {
+      setSavingFamily(false);
+    }
   };
 
   const handleAbono = async (e: React.FormEvent) => {
@@ -450,6 +488,72 @@ export default function Payments() {
               ))}
             </FormSelect>
           </div>
+
+          {/* Family: the guardian's balance for all their records */}
+          {family && family.members.length >= 2 && (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Grupo familiar{family.guardianName ? ` · Apoderado: ${family.guardianName}` : ''}
+              </p>
+              <ul className="mt-3 space-y-2">
+                {family.members.map((m) => {
+                  const payable = m.due > 0;
+                  return (
+                    <li key={m.studentId} className="flex items-center gap-3 text-sm">
+                      <input type="checkbox" className="flex-shrink-0" disabled={!payable}
+                             checked={payable && familyPick.has(m.studentId)}
+                             aria-label={`Incluir a ${m.name}`}
+                             onChange={() => setFamilyPick((prev) => {
+                               const next = new Set(prev);
+                               if (next.has(m.studentId)) next.delete(m.studentId); else next.add(m.studentId);
+                               return next;
+                             })} />
+                      <span className={`flex-1 min-w-0 truncate ${payable ? 'text-gray-700' : 'text-gray-400'}`}>
+                        {m.name}{m.studentId === form.studentId ? ' (seleccionado)' : ''}
+                      </span>
+                      {m.status === 'PENDING' && (
+                        <span className="text-right">
+                          <span className="font-medium text-gray-800">{formatCLP(Number(m.due))}</span>
+                          {m.planTotal != null && Number(m.planTotal) > Number(m.due) && (
+                            <span className="block text-xs text-orange-500">
+                              antes {formatCLP(Number(m.planTotal))}{m.discountReason ? ` · ${m.discountReason}` : ''}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                      {m.status === 'PARTIAL' && (
+                        <span className="text-right">
+                          <span className="font-medium text-gray-800">{formatCLP(Number(m.due))}</span>
+                          <span className="block text-xs text-orange-500">abonó {formatCLP(Number(m.paid))}</span>
+                        </span>
+                      )}
+                      {m.status === 'PAID' && <span className="text-xs font-medium text-green-600">Pagado</span>}
+                      {m.status === 'IN_REVIEW' && <span className="text-xs font-medium text-blue-600">Comprobante en revisión</span>}
+                      {m.status === 'NO_FEE' && <span className="text-xs text-gray-400">Sin plan con precio</span>}
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="border-t border-gray-200 mt-3 pt-2 flex justify-between text-sm font-bold">
+                <span className="text-gray-700">Total a pagar{familyPick.size > 0 ? ` (${familyPick.size})` : ''}</span>
+                <span className="text-gray-900">{formatCLP(familyTotal)}</span>
+              </div>
+              {family.totalDue > 0 ? (
+                <>
+                  <button type="button" onClick={handlePayFamily} disabled={savingFamily || familyPick.size === 0}
+                          className="mt-3 w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">
+                    {savingFamily ? 'Registrando…' : `Registrar pago de ${familyPick.size === 1 ? '1 alumno' : `${familyPick.size} alumnos`} · ${formatCLP(familyTotal)}`}
+                  </button>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Registra el saldo completo de cada uno. Para un abono parcial, usa el formulario de abajo (solo el alumno seleccionado).
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-green-600 mt-2 font-medium">La familia no tiene saldo pendiente este mes.</p>
+              )}
+              {familyError && <p className="text-sm text-red-600 mt-2">{familyError}</p>}
+            </div>
+          )}
 
           {/* Plan breakdown */}
           {selectedStudent && (selectedStudent.enrolledPlans?.length ?? 0) > 0 && (
